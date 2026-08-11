@@ -3,6 +3,7 @@ import {
   activateLore,
   buildRoleplayPrompt,
   parseExampleDialogues,
+  renderResolvedTemplate,
   renderTemplate,
   validatePromptBudget,
 } from './index';
@@ -37,6 +38,31 @@ describe('renderTemplate', () => {
       value: '{{char}} | Лея | Берег |  | Ключ',
       unknownVariables: [],
     });
+  });
+});
+
+describe('renderResolvedTemplate', () => {
+  it('resolves nested documented variables and preserves escaped literals', () => {
+    expect(
+      renderResolvedTemplate(String.raw`{{description}} | \{{char}}`, {
+        char: 'Vesper',
+        user: 'Robin',
+        scenario: '{{user}} enters the harbour',
+        description: '{{char}} guides {{user}} in {{scenario}}',
+      }),
+    ).toEqual({
+      value: 'Vesper guides Robin in Robin enters the harbour | {{char}}',
+      unknownVariables: [],
+    });
+  });
+
+  it('terminates cyclic references without evaluating arbitrary tokens', () => {
+    expect(
+      renderResolvedTemplate('{{description}} {{unknown}}', {
+        description: '{{scenario}}',
+        scenario: '{{description}}',
+      }),
+    ).toEqual({ value: '{{description}} {{unknown}}', unknownVariables: ['unknown'] });
   });
 });
 

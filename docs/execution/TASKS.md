@@ -278,6 +278,9 @@
 - [x] Lock 24 reviewed Linux visual baselines into mandatory CI, correct explicit theme/WebKit
       controls and mobile chat/navigation geometry, pass CI run `31527975737`, and deploy staging
       Worker `e6f640e7-c6b5-4f9b-84b9-8df5e4ecc8b2` with healthy D1 and zero V3 runs.
+- [x] Add the typed A-F roleplay quality corpus from master sections 158-159, run it through the
+      production prompt/lore builders, fix nested template expansion and make the structural suite
+      an explicit CI gate without spending BotHub CAPS.
 
 ## Next
 

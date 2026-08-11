@@ -33,6 +33,50 @@ export function renderTemplate(
   return { value, unknownVariables: [...unknown] };
 }
 
+/**
+ * Renders documented variables recursively while keeping escaped tokens literal.
+ * Cyclic references are left as tokens instead of looping or expanding without bound.
+ */
+export function renderResolvedTemplate(
+  source: string,
+  variables: Readonly<Record<string, string>>,
+): TemplateResult {
+  const unknown = new Set<string>();
+  const cache = new Map<string, string>();
+  const resolveVariable = (key: string, stack: ReadonlySet<string>): string => {
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+    if (stack.has(key)) return `{{${key}}}`;
+    const nextStack = new Set(stack);
+    nextStack.add(key);
+    const value = (variables[key] ?? '').replace(
+      tokenPattern,
+      (match: string, escaped: string | undefined, nestedKey: string): string => {
+        if (escaped) return match.slice(1);
+        if (!knownTemplateVariables.has(nestedKey)) {
+          unknown.add(nestedKey);
+          return match;
+        }
+        return resolveVariable(nestedKey, nextStack);
+      },
+    );
+    cache.set(key, value);
+    return value;
+  };
+  const value = source.replace(
+    tokenPattern,
+    (match: string, escaped: string | undefined, key: string): string => {
+      if (escaped) return match.slice(1);
+      if (!knownTemplateVariables.has(key)) {
+        unknown.add(key);
+        return match;
+      }
+      return resolveVariable(key, new Set());
+    },
+  );
+  return { value, unknownVariables: [...unknown] };
+}
+
 export interface ParsedExampleDialogues {
   readonly messages: readonly RoleplayHistoryMessage[];
   readonly malformedLineCount: number;
@@ -205,7 +249,7 @@ export function buildRoleplayPrompt(input: RoleplayPromptInput): BuiltRoleplayPr
     memory: input.memory,
   };
   const render = (source: string): string => {
-    const result = renderTemplate(source, baseVariables);
+    const result = renderResolvedTemplate(source, baseVariables);
     for (const variable of result.unknownVariables) unknown.add(variable);
     return result.value;
   };

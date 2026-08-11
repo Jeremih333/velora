@@ -26,7 +26,9 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 108 PASS; API contract: 4 PASS; integration/schema/cost-model: 25 PASS;
+- unit/regression: 116 PASS; API contract: 4 PASS; integration/schema/cost-model: 25 PASS;
+- dedicated roleplay quality A-F structural corpus: PASS; live model prose evaluation remains
+  gated behind the exact one-request V3 confirmation;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
 - production builds: PASS;
 - Playwright Android/iPhone/Desktop: 9 PASS;

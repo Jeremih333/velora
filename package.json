@@ -15,6 +15,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run --exclude apps/api/src/openapi.contract.test.ts --exclude tests/integration/** --exclude tests/e2e/**",
+    "test:roleplay-quality": "vitest run packages/prompts/src/quality-scenarios.test.ts",
     "test:contract": "vitest run apps/api/src/openapi.contract.test.ts",
     "test:integration": "corepack pnpm --filter @velora/web build && node toolkit/test-d1.mjs && node toolkit/test-api.mjs && vitest run tests/integration",
     "test:restore": "node toolkit/test-restore.mjs",
