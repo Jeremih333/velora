@@ -119,6 +119,10 @@ verified; the full product from the master brief is still in progress.
 - offline transitions keep the authenticated shell mounted, preserve an unsent chat draft and
   expose a Russian network error; keyboard focus, named buttons, reduced motion and 200% font
   scaling without horizontal overflow pass the responsive E2E flow;
+- 24 reviewed Linux pixel baselines cover onboarding, search, character, creator, chat, memory,
+  lorebook and settings across Android, iPhone and desktop; the review fixed host-preference theme
+  leakage, WebKit native-control contrast and mobile navigation overlap, with semantic theme and
+  composer-geometry regressions alongside the screenshots;
 - users can block creators bidirectionally at the server boundary; blocked characters, reviews and
   conversation starts are hidden/denied, with unblock management in settings;
 - data controls expose a versioned export manifest, a seven-day cancellable deletion request and a

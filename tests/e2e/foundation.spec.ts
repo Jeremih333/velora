@@ -1,4 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function expectVisualSnapshot(page: Page, name: string): Promise<void> {
+  if (process.platform !== 'linux') return;
+  await page.evaluate(async () => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    await document.fonts.ready;
+  });
+  await expect(page).toHaveScreenshot(`visual-${name}.png`, {
+    animations: 'disabled',
+    caret: 'hide',
+    fullPage: true,
+    maxDiffPixelRatio: 0.003,
+  });
+}
 
 const matureReviewPendingText =
   'Персонаж с отметкой Mature отправлен на проверку возраста и безопасности. До решения модератора он не показывается в каталоге.';
@@ -1239,6 +1253,7 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(
     page.getByRole('heading', { name: 'Алиса, твоя история начинается здесь' }),
   ).toBeVisible();
+  await expectVisualSnapshot(page, 'home');
   await page.getByRole('button', { name: 'Продолжить' }).click();
   await expect(page.getByRole('heading', { name: 'Выбери комфортный режим' })).toBeVisible();
   await page.getByText('Я принимаю правила сообщества').click();
@@ -1258,10 +1273,12 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await page.getByRole('button', { name: /Каталог/u }).click();
   await expect(page.getByRole('heading', { name: 'Найди свою историю' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Лира' })).toBeVisible();
+  await expectVisualSnapshot(page, 'search');
   await page.getByRole('button', { name: 'от Velora' }).click();
   await expect(page.getByRole('heading', { name: 'Velora' })).toBeVisible();
   await expect(page.getByText('Создатель мистических персонажей.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Опубликованные персонажи' })).toBeVisible();
+  await expectVisualSnapshot(page, 'creator');
   await page.getByRole('button', { name: '← В каталог' }).click();
   await page.locator('.brand-button').click();
   await expect(page.getByText('Автор пока ничего о себе не рассказал.')).toBeVisible();
@@ -1292,6 +1309,7 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await page.getByRole('button', { name: '♧ В закладки' }).click();
   await expect(page.getByRole('button', { name: '🔖 Сохранено' })).toBeVisible();
   await page.getByRole('button', { name: 'Подробнее' }).click();
+  await expectVisualSnapshot(page, 'character');
   await page.getByLabel('Ваша оценка').selectOption('5');
   await page.getByPlaceholder('Отзыв необязателен').fill('Очень атмосферный персонаж.');
   await page.getByRole('button', { name: 'Оценить' }).click();
@@ -1306,6 +1324,17 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await page.getByRole('button', { name: 'Начать историю' }).click();
   await expect(page.getByText('Ты всё-таки пришёл.')).toBeVisible();
   await expect(page.locator('.message-bubble.is-character em')).toHaveText('Ты всё-таки пришёл.');
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  });
+  const composerBounds = await page.getByLabel('Реплика').boundingBox();
+  const navigationBounds = await page.locator('.bottom-nav').boundingBox();
+  expect(composerBounds).not.toBeNull();
+  expect(navigationBounds).not.toBeNull();
+  if (composerBounds && navigationBounds) {
+    expect(composerBounds.y + composerBounds.height).toBeLessThanOrEqual(navigationBounds.y - 4);
+  }
+  await expectVisualSnapshot(page, 'chat');
   await page.getByLabel('Реплика').fill('Я открываю дверь.');
   await page.getByRole('button', { name: 'Отправить' }).click();
   await expect(page.getByText('Архив отвечает эхом.')).toBeVisible();
@@ -1432,6 +1461,7 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(page.getByText('6 токенов')).toBeVisible();
   await page.getByRole('button', { name: /Память/u }).click();
   await expect(page.getByText(/AI-кредиты не расходуются/u)).toBeVisible();
+  await expectVisualSnapshot(page, 'memory');
   await page.getByLabel('Текст постоянной памяти').fill('Обещание у маяка сохранено.');
   await page.getByRole('button', { name: 'Сохранить' }).click();
   await expect(page.getByText('Изменено вручную')).toBeVisible();
@@ -1559,6 +1589,11 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Chats/u })).toBeVisible();
   await expect(page.getByText('Settings saved.')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(
+    await page.locator('html').evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).toBe('rgb(16, 11, 29)');
+  await expectVisualSnapshot(page, 'settings');
   await page.getByRole('button', { name: /Chats/u }).click();
   await page.getByRole('button', { name: 'Back to chats' }).click();
   await expect(page.getByRole('heading', { name: 'Chats', exact: true })).toBeVisible();
@@ -1590,6 +1625,7 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(page.getByRole('heading', { name: 'Lorebook settings' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Attached characters' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Entries' })).toBeVisible();
+  await expectVisualSnapshot(page, 'lorebook');
   await page.getByRole('button', { name: '← Back' }).click();
   await page.locator('.brand-button').click();
   await expect(page.getByRole('button', { name: 'Edit profile' })).toBeVisible();

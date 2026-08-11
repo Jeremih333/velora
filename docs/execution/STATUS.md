@@ -29,6 +29,7 @@ Updated: 2026-08-11.
 | Local capacity               | VERIFIED_SLICE    | 40 user/D1/search requests, 4 AI streams; budget is first boundary                       |
 | Fixtures and staging seed    | VERIFIED          | idempotent 4 users/12 chars/4 personas/2 lore/240 chat/3 cases                           |
 | Resilient/accessibility UX   | VERIFIED_SLICE    | offline draft, focus, labels, reduced motion, 200% font E2E                              |
+| Visual regression            | VERIFIED_SLICE    | 24 Linux baselines; 8 states across Android/iPhone/Desktop                               |
 | Web internationalization     | VERIFIED_MVP      | typed RU/EN across user, moderation and owner views; transport fallbacks and E2E covered |
 | Account data controls        | VERIFIED_MVP      | export manifest, blocks, 7-day deletion and scheduled erasure tests                      |
 | Support/legal                | VERIFIED_MVP      | private tickets, admin RBAC, export/erasure and legal UI                                 |

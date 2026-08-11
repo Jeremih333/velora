@@ -180,6 +180,9 @@
       browser network errors and add keyboard/reduced-motion/200%-font E2E regressions.
 - [x] Deploy resilient/offline and accessibility hardening to staging Worker
       `220aa465-132a-4427-9acd-9bec7548c3fd`; verify health, readiness, CSP and D1 integrity.
+- [x] Add 24 reviewed Linux screenshot baselines for eight critical authenticated states across
+      Android, iPhone and desktop; fix explicit theme/native-control rendering and prove the mobile
+      chat composer stays above fixed navigation.
 - [x] Correct the annual BotHub estimate for the fixed per-request fee, add that fee to the
       runtime reservation/ledger, restore the pre-0013 backup, migrate staging and deploy Worker
       `8dc5acb9-577f-4ddf-9927-06a3da4bd28a`.
