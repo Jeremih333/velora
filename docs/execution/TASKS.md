@@ -268,6 +268,10 @@
       configuration, the guarded BotHub checkpoint and staff management; localize generic transport
       errors, pass 108 unit and 25 integration tests plus 9/9 E2E without retries, and deploy staging
       Worker `4ef2c7a5-5a5a-433c-840d-1685fdda2e99` with BotHub READY and zero V3 runs.
+- [x] Publish a generated OpenAPI 3.1 contract for all concrete Hono routes, model the session,
+      CSRF, webhook-secret, parameter, SSE and safe-error boundaries, add a dedicated contract CI
+      gate plus real Wrangler/Assets regression, and deploy staging Worker
+      `316c52b0-36a9-4de2-8294-c7c00089ff6e` with 100 paths, healthy D1 and zero V3 runs.
 
 ## Next
 

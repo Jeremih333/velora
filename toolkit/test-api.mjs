@@ -446,6 +446,16 @@ const deletionHeaders = { cookie: `velora_session=${deletionSessionToken}` };
 
 try {
   await waitUntilReady();
+  const openApi = await request('/openapi.json', undefined, 200);
+  if (
+    openApi.openapi !== '3.1.0' ||
+    !openApi.paths?.['/api/v1/auth/telegram']?.post ||
+    !openApi.paths?.['/api/v1/conversations/{conversationId}/generate']?.post ||
+    !openApi.paths?.['/telegram/webhook']?.post ||
+    !openApi.components?.schemas?.ApiError
+  ) {
+    throw new Error('Published OpenAPI contract is incomplete or malformed.');
+  }
   const publicConfig = await cachedPublicRequest('/api/v1/config', 'MISS');
   if (publicConfig.body.appName !== 'Velora' || 'dailyAiBudgetUsd' in publicConfig.body) {
     throw new Error('Public config cache is incomplete or exposes internal budget controls.');

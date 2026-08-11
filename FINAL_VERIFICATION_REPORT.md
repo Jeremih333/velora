@@ -21,9 +21,13 @@ verified; the full product from the master brief is still in progress.
 - staging D1 migrations 0001-0025 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `4ef2c7a5-5a5a-433c-840d-1685fdda2e99` is live with a five-minute
+- staging Worker version `316c52b0-36a9-4de2-8294-c7c00089ff6e` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
+- the public OpenAPI 3.1 route contract is generated from the concrete Hono route table, exposes
+  all 100 current paths, models cookie/CSRF/webhook-secret boundaries, path parameters, the SSE
+  generation media type and the stable safe error envelope; four contract regressions and a real
+  Wrangler route smoke prevent Cloudflare Assets from silently replacing it with the SPA;
 - persona CRUD/default and character immutable-version CRUD/publish/discovery pass against a real
   local Worker with D1 and CSRF;
 - the character editor is divided into basics, personality, scenario, first message, examples,
@@ -155,9 +159,9 @@ verified; the full product from the master brief is still in progress.
   63 tables/25 migrations before the remote migration;
 - owner deletion fails closed until ownership is transferred; deletion and block controls pass
   responsive desktop, Android and iPhone E2E;
-- secret scan, formatting, lint, strict typecheck, 106 unit/regression tests, 25
-  integration/schema/cost-model tests, D1/API integration, builds, and 9 E2E cases across
-  Android/iPhone/desktop passed;
+- secret scan, formatting, lint, strict typecheck, 108 unit/regression tests, 4 API contract tests,
+  25 integration/schema/cost-model tests, D1/API integration, builds, and 9 E2E cases without
+  retries across Android/iPhone/desktop passed;
 - post-deploy staging `/health`, `/ready`, protected data controls, unsigned webhook rejection and
   D1 integrity smoke passed; no migration remains pending;
 - Telegram auth secrets for `@aivel0ra_bot` are installed and the Worker fails closed for unsigned

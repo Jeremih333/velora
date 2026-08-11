@@ -39,6 +39,7 @@ import { onboardingRoutes } from './onboarding-routes';
 import { supportRoutes } from './support-routes';
 import { profileRoutes } from './profile-routes';
 import { readEffectivePlan, requireModelProfile as requirePlanModelProfile } from './plans';
+import { createOpenApiDocument } from './openapi';
 
 interface AppEnvironment {
   Bindings: Env;
@@ -452,6 +453,12 @@ authenticated.route('/', supportRoutes);
 authenticated.route('/', profileRoutes);
 
 app.route('/api/v1', authenticated);
+
+app.get('/openapi.json', (context) =>
+  context.json(createOpenApiDocument(app.routes), 200, {
+    'cache-control': 'public, max-age=300',
+  }),
+);
 
 interface SettingsRow {
   readonly theme: 'dark' | 'amoled' | 'light';

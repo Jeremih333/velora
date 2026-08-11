@@ -7,7 +7,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | Workspace isolation                  | boundary scripts and independent Git | boundary command       | path/account audit     | VERIFIED          | RoleMate untouched                |
 | GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
-| Worker/API                           | Hono Worker foundation               | unit/build passed      | staging smoke passed   | VERIFIED          | foundation only                   |
+| Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 100-path smoke | VERIFIED          | Assets bypass is explicit         |
 | D1                                   | 63 application tables, 25 migrations | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
 | AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | capability READY       | IMPLEMENTED_GATED | V1 failed; V2 not run; V3 pending |
@@ -26,12 +26,14 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 108 PASS; integration/schema/cost-model: 25 PASS;
+- unit/regression: 108 PASS; API contract: 4 PASS; integration/schema/cost-model: 25 PASS;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
 - production builds: PASS;
 - Playwright Android/iPhone/Desktop: 9 PASS;
-- staging `/health`, `/ready`, static shell and security-header smoke: PASS.
-- staging migrations through 0025, 63-table integrity and Worker `4ef2c7a5` smoke: PASS;
+- staging `/health`, `/ready`, `/openapi.json`, static shell and security-header smoke: PASS;
+- OpenAPI 3.1 publishes 100 concrete route paths with cookie/CSRF/webhook security and a stable
+  error envelope; a real Wrangler integration regression guards its Worker-first Assets route;
+- staging migrations through 0025, 63-table integrity and Worker `316c52b0` smoke: PASS;
 - idempotent quality seed: 4 synthetic users, 4 personas, 12 SAFE characters, 2 lorebooks,
   240-message chat and 3 moderation cases; remote pre-seed export and post-seed integrity: PASS;
 - typed AI SSE fixtures for fragmented success, missing usage and stream error: PASS;

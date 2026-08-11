@@ -10,6 +10,7 @@ Updated: 2026-08-11.
 | Knowledge base               | IMPLEMENTED       | required hierarchy created; evolves with code                                            |
 | Owner documentation          | VERIFIED          | root zero-to-production README with guarded commands and links                           |
 | Monorepo                     | IMPLEMENTED       | strict TS packages, Worker API, Mini App shell, CI                                       |
+| API contract                 | VERIFIED          | generated OpenAPI 3.1, 100 staging paths, contract + real Worker smoke                   |
 | GitHub                       | VERIFIED          | private `Jeremih333/velora`; clean-clone CI covers full quality gate                     |
 | Personas                     | VERIFIED_MVP      | owned CRUD/default, validation, moderation gates, local Worker test                      |
 | Characters/discovery         | VERIFIED_MVP      | versioned section editor, draft autosave, Mature review before feed                      |
@@ -36,7 +37,7 @@ Updated: 2026-08-11.
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                        |
 | Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                        |
 | Paid AI                      | IMPLEMENTED_GATED | global/readiness gates off; V3 awaits fresh owner consent                                |
-| Staging                      | VERIFIED          | Worker `4ef2c7a5`; D1 25/63 healthy, BotHub READY, paid gates off                        |
+| Staging                      | VERIFIED          | Worker `316c52b0`; D1 25/63 healthy, BotHub READY, paid gates off                        |
 | Production                   | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                  |
 
 RoleMate resources have not been changed or bound to Velora.
