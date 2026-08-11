@@ -44,7 +44,7 @@ contrast. The checked states contain no unresolved viewport escape or inaccessib
 
 Baseline generation is performed by `.github/workflows/visual-baselines.yml`; ordinary GitHub CI
 runs the same E2E journey without `--update-snapshots`, so an unexplained pixel change fails the
-mandatory gate. The final baseline source run is GitHub Actions run `31525601020`.
+mandatory gate. The final baseline source run is GitHub Actions run `31527003528`.
 
 This report is not a claim of complete WCAG conformance or coverage of every future screen. It does
 not authorize production deployment or paid AI use. VoiceOver, TalkBack and real Telegram host
