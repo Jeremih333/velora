@@ -31,7 +31,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - production builds: PASS;
 - Playwright Android/iPhone/Desktop: 9 PASS;
 - staging `/health`, `/ready`, static shell and security-header smoke: PASS.
-- staging migrations through 0025, 63-table integrity and Worker `0cf2cc06` smoke: PASS;
+- staging migrations through 0025, 63-table integrity and Worker `f89cd7e7` smoke: PASS;
 - idempotent quality seed: 4 synthetic users, 4 personas, 12 SAFE characters, 2 lorebooks,
   240-message chat and 3 moderation cases; remote pre-seed export and post-seed integrity: PASS;
 - typed AI SSE fixtures for fragmented success, missing usage and stream error: PASS;

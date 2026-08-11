@@ -252,10 +252,14 @@
       states, autosave feedback, greeting preview and shared editor/error controls; verify both
       editors after an in-session language switch and deploy staging Worker
       `0cf2cc06-1040-45fc-8659-b9708b2cc132` with BotHub READY and zero V3 runs.
+- [x] Localize complete lorebook management: import/export, book settings, character attachments,
+      entry editing and deterministic key options; verify a real existing book after the runtime
+      language switch and deploy staging Worker `f89cd7e7-5439-4d13-9b1f-d45e8708f645` with BotHub
+      READY and zero V3 runs.
 
 ## Next
 
-- Continue removing hardcoded Russian UI strings from lore editors,
+- Continue removing hardcoded Russian UI strings from profiles,
   profiles, support and administration.
 - Optional reviewed advanced classifiers.
 - Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting
