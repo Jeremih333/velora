@@ -273,6 +273,19 @@ describe('initial schema contract', () => {
     expect(sql).not.toMatch(/subscription|recurring|auto[_ -]?renew|DROP\s+TABLE|DELETE\s+FROM/iu);
   });
 
+  it('records owner grants separately from real payments and without destructive changes', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0026_owner_user_grants.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('CREATE TABLE admin_user_grants');
+    expect(sql).toContain('CREATE TABLE admin_plan_access_grants');
+    expect(sql).toContain('idempotency_key TEXT NOT NULL UNIQUE');
+    expect(sql).toContain('credit_amount_micros BETWEEN 0 AND 1000000000');
+    expect(sql).toContain('source_grant_id TEXT NOT NULL UNIQUE');
+    expect(sql).not.toMatch(/INSERT\s+INTO\s+payments|DROP\s+TABLE|DELETE\s+FROM/iu);
+  });
+
   it('keeps append-only staff appointment history with one active role', async () => {
     const sql = await readFile(
       new URL('../../migrations/0010_staff_assignments.sql', import.meta.url),

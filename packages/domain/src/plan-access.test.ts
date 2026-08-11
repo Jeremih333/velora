@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   accessPackInputSchema,
+  ownerUserGrantInputSchema,
   planEntitlementsInputSchema,
   planPatchSchema,
   starsAccessInvoiceInputSchema,
@@ -53,6 +54,36 @@ describe('plan access contracts', () => {
         starsAmount: 1,
         planCode: 'PRO',
         durationDays: 367,
+      }),
+    ).toThrow();
+  });
+
+  it('requires an explicit bounded plan or credit amount for an owner grant', () => {
+    expect(
+      ownerUserGrantInputSchema.parse({
+        targetId: '1040929628',
+        planCode: 'PRO',
+        durationDays: 30,
+        creditAmountMicros: 1_000_000,
+        reason: 'Staging owner verification',
+        idempotencyKey: 'f7853f72-2d42-443d-9444-3187fe018893',
+      }),
+    ).toMatchObject({ planCode: 'PRO', durationDays: 30, creditAmountMicros: 1_000_000 });
+    expect(() =>
+      ownerUserGrantInputSchema.parse({
+        targetId: '1040929628',
+        planCode: 'PRO',
+        creditAmountMicros: 0,
+        reason: 'Missing duration',
+        idempotencyKey: 'f7853f72-2d42-443d-9444-3187fe018893',
+      }),
+    ).toThrow();
+    expect(() =>
+      ownerUserGrantInputSchema.parse({
+        targetId: '1040929628',
+        creditAmountMicros: 0,
+        reason: 'Empty grant',
+        idempotencyKey: 'f7853f72-2d42-443d-9444-3187fe018893',
       }),
     ).toThrow();
   });

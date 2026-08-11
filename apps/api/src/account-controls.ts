@@ -299,6 +299,11 @@ async function eraseAccount(
         'UPDATE plan_access_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE user_id = ?',
       )
       .bind(now, request.userId),
+    database
+      .prepare(
+        'UPDATE admin_plan_access_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE user_id = ?',
+      )
+      .bind(now, request.userId),
     database.prepare('DELETE FROM usage_daily WHERE user_id = ?').bind(request.userId),
     database.prepare('DELETE FROM plan_operation_usage WHERE user_id = ?').bind(request.userId),
     database.prepare('DELETE FROM ai_requests WHERE user_id = ?').bind(request.userId),
@@ -387,7 +392,7 @@ async function readProfileExport(database: D1Database, userId: string) {
 }
 
 async function readPlanAccessExport(database: D1Database, userId: string) {
-  const [effective, grants] = await Promise.all([
+  const [effective, grants, administrativeGrants] = await Promise.all([
     readEffectivePlan(database, userId),
     database
       .prepare(
@@ -397,8 +402,20 @@ async function readPlanAccessExport(database: D1Database, userId: string) {
       )
       .bind(userId)
       .all(),
+    database
+      .prepare(
+        `SELECT plan_code AS planCode, starts_at AS startsAt, expires_at AS expiresAt,
+         revoked_at AS revokedAt, created_at AS createdAt
+         FROM admin_plan_access_grants WHERE user_id = ? ORDER BY created_at DESC LIMIT 500`,
+      )
+      .bind(userId)
+      .all(),
   ]);
-  return { effective, grants: grants.results };
+  return {
+    effective,
+    grants: grants.results,
+    administrativeGrants: administrativeGrants.results,
+  };
 }
 
 function toDeletionResponse(row: DeletionRow) {

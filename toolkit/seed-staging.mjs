@@ -59,8 +59,8 @@ const preflight = runWrangler([
   '--command',
   'SELECT COUNT(*) AS migrations FROM d1_migrations; PRAGMA quick_check;',
 ]);
-if (!preflight.includes('"migrations": 25') || !preflight.includes('"quick_check": "ok"')) {
-  throw new Error('Staging D1 is not at the expected 25-migration healthy baseline.');
+if (!preflight.includes('"migrations": 26') || !preflight.includes('"quick_check": "ok"')) {
+  throw new Error('Staging D1 is not at the expected 26-migration healthy baseline.');
 }
 
 const backupDirectory = path.join(toolkitDirectory, 'backups');

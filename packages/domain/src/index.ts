@@ -270,6 +270,31 @@ export const accessPackPatchSchema = accessPackInputSchema
   .omit({ code: true })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'At least one change is required.');
+export const ownerUserGrantInputSchema = z
+  .object({
+    targetId: z.string().trim().min(1).max(128),
+    planCode: z
+      .string()
+      .trim()
+      .regex(/^[A-Z][A-Z0-9_]{1,31}$/u)
+      .optional(),
+    durationDays: z.number().int().min(1).max(366).optional(),
+    creditAmountMicros: z.number().int().min(0).max(1_000_000_000).default(0),
+    reason: z.string().trim().min(3).max(500),
+    idempotencyKey: idempotencyKeySchema,
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if ((value.planCode === undefined) !== (value.durationDays === undefined)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Plan and duration must be provided together.',
+      });
+    }
+    if (value.planCode === undefined && value.creditAmountMicros === 0) {
+      context.addIssue({ code: 'custom', message: 'A plan or credits must be granted.' });
+    }
+  });
 export const generationCreateSchema = z.object({
   parentMessageId: z.uuid().optional(),
   mode: z.enum(['REPLY', 'CONTINUE']).default('REPLY'),

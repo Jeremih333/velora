@@ -125,7 +125,7 @@ Pop-Location
 ```
 
 Production-команда существует, но сейчас запускать её нельзя: база намеренно имеет все миграции
-0001–0025 в pending. После ручного production gate:
+0001–0026 в pending. После ручного production gate:
 
 ```powershell
 corepack pnpm --filter @velora/api db:migrate:production
@@ -134,7 +134,7 @@ corepack pnpm --filter @velora/api db:migrate:production
 ## 7. Синтетические данные staging
 
 Описание и состав: [docs/testing/FIXTURES.md](docs/testing/FIXTURES.md). Runner разрешает только
-точный staging D1 ID, требует 25 миграций и `quick_check=ok`, создаёт backup, затем проверяет
+точный staging D1 ID, требует 26 миграций и `quick_check=ok`, создаёт backup, затем проверяет
 количества и внешние ключи:
 
 ```powershell
@@ -253,7 +253,7 @@ backup обязателен до миграции; destructive migration без 
 node toolkit/test-restore.mjs toolkit/backups/<staging-backup>.sql
 ```
 
-Drill импортирует данные backup в заново построенную схему, проверяет 63 таблицы/25 миграций,
+Drill импортирует данные backup в заново построенную схему, проверяет 65 таблиц/26 миграций,
 `quick_check`, foreign keys и реальный `/ready`, затем удаляет временную базу. Он не пишет в staging
 или production.
 

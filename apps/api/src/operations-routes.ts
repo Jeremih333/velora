@@ -105,10 +105,14 @@ operationsRoutes.get('/admin/operations/dashboard', async (context) => {
   const distributionRows = await context.env.DB.prepare(
     `WITH effective_plans AS (
        SELECT u.id,
-         COALESCE((SELECT p.code FROM plan_access_grants g
-           JOIN plans p ON p.code = g.plan_code
-           WHERE g.user_id = u.id AND g.starts_at <= ? AND g.expires_at > ?
-             AND g.revoked_at IS NULL AND g.refunded_at IS NULL AND p.active = 1
+         COALESCE((SELECT p.code FROM (
+             SELECT id, user_id, plan_code, starts_at, expires_at
+             FROM plan_access_grants WHERE revoked_at IS NULL AND refunded_at IS NULL
+             UNION ALL
+             SELECT id, user_id, plan_code, starts_at, expires_at
+             FROM admin_plan_access_grants WHERE revoked_at IS NULL
+           ) g JOIN plans p ON p.code = g.plan_code
+           WHERE g.user_id = u.id AND g.starts_at <= ? AND g.expires_at > ? AND p.active = 1
            ORDER BY p.rank DESC, g.expires_at DESC, g.id DESC LIMIT 1), 'FREE') AS planCode
        FROM users u WHERE u.deleted_at IS NULL
      ) SELECT planCode, COUNT(*) AS users FROM effective_plans GROUP BY planCode`,

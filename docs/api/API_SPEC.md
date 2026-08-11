@@ -46,6 +46,9 @@ Base path: `/api/v1`. JSON errors use `ERROR_MODEL.md`; mutating requests accept
   `POST /billing/invoices`; every invoice creates exactly one credit or plan-access purchase
 - owner-only `GET/POST/PATCH /admin/billing/packs`, `/admin/billing/access-packs` and
   `GET/PATCH /admin/billing/plans`; prices are never seeded implicitly and every change is audited
+- owner-only `GET/POST /admin/billing/user-grants` resolves an internal Velora ID or Telegram ID,
+  issues an audited non-renewing plan period and/or AI credits idempotently without creating a fake
+  payment; `DELETE /admin/billing/user-grants/:grantId/access` revokes only its plan access
 - Telegram webhook handles exact Stars pre-checkout, successful one-time grants and refunds
 - `GET/POST /reports`, `GET/POST /appeals`
 - role-restricted queue/detail/assign/action endpoints under `/admin/moderation/cases`

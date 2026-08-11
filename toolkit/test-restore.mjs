@@ -85,8 +85,8 @@ try {
   ]);
   for (const expected of [
     '"quick_check": "ok"',
-    '"table_count": 63',
-    '"migration_count": 25',
+    '"table_count": 65',
+    '"migration_count": 26',
     '"account_control_tables": 2',
   ]) {
     if (!audit.includes(expected)) throw new Error(`Restore audit is missing ${expected}.`);
@@ -131,7 +131,7 @@ try {
   }
   if (!ready) throw new Error(`Restored Worker did not become ready.\n${workerOutput}`);
   process.stdout.write(
-    `Restore drill passed for ${path.basename(backupPath)}: 25 migrations, 63 tables, D1 ready.\n`,
+    `Restore drill passed for ${path.basename(backupPath)}: 26 migrations, 65 tables, D1 ready.\n`,
   );
 } finally {
   if (worker) {

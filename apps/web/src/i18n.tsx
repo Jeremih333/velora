@@ -416,6 +416,8 @@ const russianMessages = {
   billingAdmin: {
     planSaved: 'Настройки тарифа сохранены в audit log.',
     packSaved: 'Разовый пакет доступа сохранён. Автопродление не создаётся.',
+    grantSaved: 'Тариф и AI-кредиты начислены пользователю.',
+    grantRevoked: 'Административный тариф отозван. Кредиты не изменены.',
     title: 'Тарифы и разовый доступ',
     description:
       'Только разовая оплата Telegram Stars. Банковские карты, подписка, автопродление и автопополнение не создаются.',
@@ -439,6 +441,19 @@ const russianMessages = {
     order: 'Порядок',
     savePack: 'Сохранить пакет',
     createPack: 'Создать пакет',
+    userGrants: 'Выдача пользователю по ID',
+    userGrantsDescription:
+      'Укажите внутренний ID Velora или Telegram ID. Начисление не создаёт платёж, подписку или автопродление и всегда записывается в audit log.',
+    targetId: 'ID Velora или Telegram ID',
+    noPlan: 'Без изменения тарифа',
+    creditsUsd: 'AI-кредиты, $',
+    reason: 'Причина выдачи',
+    grant: 'Начислить',
+    recentGrants: 'Последние выдачи',
+    noGrants: 'Выдач пока нет.',
+    revokeAccess: 'Отозвать тариф',
+    revoked: 'отозван',
+    activeUntil: 'активен до',
   },
   aiAdmin: {
     title: 'Контрольный запрос BotHub V3',
@@ -1227,6 +1242,8 @@ const englishMessages: WebMessages = {
   billingAdmin: {
     planSaved: 'Plan settings saved to the audit log.',
     packSaved: 'One-time access pack saved. No automatic renewal was created.',
+    grantSaved: 'The plan and AI credits were granted to the user.',
+    grantRevoked: 'The administrative plan was revoked. Credits were unchanged.',
     title: 'Plans and one-time access',
     description:
       'Telegram Stars payments are one-time only. Bank cards, subscriptions, automatic renewals, and automatic top-ups are not created.',
@@ -1250,6 +1267,19 @@ const englishMessages: WebMessages = {
     order: 'Order',
     savePack: 'Save pack',
     createPack: 'Create pack',
+    userGrants: 'Grant access by user ID',
+    userGrantsDescription:
+      'Enter a Velora internal ID or Telegram ID. A grant creates no payment, subscription, or automatic renewal and is always written to the audit log.',
+    targetId: 'Velora ID or Telegram ID',
+    noPlan: 'Do not change plan',
+    creditsUsd: 'AI credits, $',
+    reason: 'Grant reason',
+    grant: 'Grant',
+    recentGrants: 'Recent grants',
+    noGrants: 'No grants yet.',
+    revokeAccess: 'Revoke plan',
+    revoked: 'revoked',
+    activeUntil: 'active until',
   },
   aiAdmin: {
     title: 'BotHub checkpoint',

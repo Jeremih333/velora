@@ -32,6 +32,7 @@ import type {
   Persona,
   PublicFeatureFlags,
   OperationsDashboard,
+  OwnerUserGrant,
   Settings,
   StaffAssignment,
   SupportCategory,
@@ -2007,7 +2008,7 @@ function OwnerBillingConfiguration({
 }: {
   readonly notify: (message: string | null) => void;
 }) {
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
   const client = useQueryClient();
   const formString = getFormString;
   const plans = useQuery({
@@ -2017,6 +2018,10 @@ function OwnerBillingConfiguration({
   const packs = useQuery({
     queryKey: ['admin-billing-access-packs'],
     queryFn: () => apiRequest<ListResponse<AccessPack>>('/api/v1/admin/billing/access-packs'),
+  });
+  const grants = useQuery({
+    queryKey: ['admin-billing-user-grants'],
+    queryFn: () => apiRequest<ListResponse<OwnerUserGrant>>('/api/v1/admin/billing/user-grants'),
   });
   const savePlan = useMutation({
     mutationFn: (input: { readonly code: string; readonly body: Record<string, unknown> }) =>
@@ -2058,6 +2063,43 @@ function OwnerBillingConfiguration({
       notify(messages.billingAdmin.packSaved);
     },
   });
+  const grantUser = useMutation({
+    mutationFn: (body: {
+      readonly targetId: string;
+      readonly planCode?: string;
+      readonly durationDays?: number;
+      readonly creditAmountMicros: number;
+      readonly reason: string;
+      readonly idempotencyKey: string;
+    }) =>
+      apiRequest<OwnerUserGrant>('/api/v1/admin/billing/user-grants', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-billing-user-grants'] }),
+        client.invalidateQueries({ queryKey: ['operations-dashboard'] }),
+        client.invalidateQueries({ queryKey: ['me'] }),
+      ]);
+      notify(messages.billingAdmin.grantSaved);
+    },
+  });
+  const revokeGrant = useMutation({
+    mutationFn: (grantId: string) =>
+      apiRequest(`/api/v1/admin/billing/user-grants/${encodeURIComponent(grantId)}/access`, {
+        method: 'DELETE',
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-billing-user-grants'] }),
+        client.invalidateQueries({ queryKey: ['operations-dashboard'] }),
+        client.invalidateQueries({ queryKey: ['me'] }),
+      ]);
+      notify(messages.billingAdmin.grantRevoked);
+    },
+  });
   const packBody = (data: FormData) => ({
     displayName: formString(data, 'displayName'),
     description: formString(data, 'description'),
@@ -2078,6 +2120,110 @@ function OwnerBillingConfiguration({
       <p className="section-description">{messages.billingAdmin.description}</p>
       {plans.isPending || packs.isPending ? <p>{messages.billingAdmin.loading}</p> : null}
       {plans.error || packs.error ? <InlineError error={plans.error ?? packs.error} /> : null}
+      <section className="editor-card" aria-labelledby="owner-user-grant-title">
+        <h3 id="owner-user-grant-title">{messages.billingAdmin.userGrants}</h3>
+        <p className="section-description">{messages.billingAdmin.userGrantsDescription}</p>
+        <form
+          className="view-stack"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            const planCode = formString(data, 'grantPlanCode');
+            const creditUsd = Number(formString(data, 'creditUsd'));
+            grantUser.mutate({
+              targetId: formString(data, 'targetId'),
+              ...(planCode
+                ? {
+                    planCode,
+                    durationDays: Number(formString(data, 'grantDurationDays')),
+                  }
+                : {}),
+              creditAmountMicros: Math.round(creditUsd * 1_000_000),
+              reason: formString(data, 'grantReason'),
+              idempotencyKey: crypto.randomUUID(),
+            });
+          }}
+        >
+          <Field label={messages.billingAdmin.targetId} name="targetId" required />
+          <label className="field">
+            <span>{messages.billingAdmin.plan}</span>
+            <select name="grantPlanCode" defaultValue="">
+              <option value="">{messages.billingAdmin.noPlan}</option>
+              {(plans.data?.items ?? [])
+                .filter((plan) => plan.code !== 'FREE' && plan.active)
+                .map((plan) => (
+                  <option value={plan.code} key={plan.code}>
+                    {plan.displayName}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <div className="field-row">
+            <Field
+              label={messages.billingAdmin.days}
+              name="grantDurationDays"
+              type="number"
+              defaultValue="30"
+              min={1}
+              max={366}
+            />
+            <Field
+              label={messages.billingAdmin.creditsUsd}
+              name="creditUsd"
+              type="number"
+              defaultValue="0"
+              min={0}
+              max={1000}
+              step="0.01"
+            />
+          </div>
+          <Field label={messages.billingAdmin.reason} name="grantReason" required />
+          <button className="compact-primary" type="submit" disabled={grantUser.isPending}>
+            {messages.billingAdmin.grant}
+          </button>
+          <InlineError error={grantUser.error} />
+        </form>
+        <h4>{messages.billingAdmin.recentGrants}</h4>
+        {grants.isPending ? <p>{messages.billingAdmin.loading}</p> : null}
+        {grants.data?.items.length === 0 ? <p>{messages.billingAdmin.noGrants}</p> : null}
+        <div className="list-stack">
+          {grants.data?.items.map((grant) => (
+            <article className="moderation-card" key={grant.id}>
+              <strong>{grant.target.displayName}</strong>
+              <span>
+                {grant.target.id} · Telegram {grant.target.telegramId}
+              </span>
+              <span>
+                {grant.planCode ?? messages.billingAdmin.noPlan} · $
+                {formatCredits(grant.creditAmountMicros)}
+              </span>
+              {grant.accessExpiresAt ? (
+                <span>
+                  {grant.accessRevokedAt
+                    ? messages.billingAdmin.revoked
+                    : `${messages.billingAdmin.activeUntil} ${new Date(grant.accessExpiresAt).toLocaleDateString(locale)}`}
+                </span>
+              ) : null}
+              <small>{grant.reason}</small>
+              {grant.accessExpiresAt && !grant.accessRevokedAt ? (
+                <button
+                  className="compact-button danger"
+                  type="button"
+                  disabled={revokeGrant.isPending}
+                  onClick={() => {
+                    if (window.confirm(`${messages.billingAdmin.revokeAccess}?`)) {
+                      revokeGrant.mutate(grant.id);
+                    }
+                  }}
+                >
+                  {messages.billingAdmin.revokeAccess}
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+        <InlineError error={grants.error ?? revokeGrant.error} />
+      </section>
       <div className="view-stack">
         {plans.data?.items.map((plan) => (
           <form
@@ -3867,6 +4013,9 @@ function Field({
   readonly required?: boolean;
   readonly maxLength?: number;
   readonly type?: 'text' | 'number';
+  readonly min?: number;
+  readonly max?: number;
+  readonly step?: number | string;
   readonly onChange?: (value: string) => void;
 }) {
   return (

@@ -110,6 +110,24 @@ export interface PlanDefinition {
   readonly entitlements: MeResponse['planEntitlements'];
 }
 
+export interface OwnerUserGrant {
+  readonly id: string;
+  readonly target: {
+    readonly id: string;
+    readonly telegramId: string;
+    readonly displayName: string;
+  };
+  readonly planCode: string | null;
+  readonly durationDays: number | null;
+  readonly creditAmountMicros: number;
+  readonly reason: string;
+  readonly createdAt: number;
+  readonly accessStartsAt: number | null;
+  readonly accessExpiresAt: number | null;
+  readonly accessRevokedAt: number | null;
+  readonly alreadyApplied?: boolean;
+}
+
 export interface PaymentInvoice {
   readonly id: string;
   readonly kind: 'CREDITS' | 'PLAN_ACCESS';

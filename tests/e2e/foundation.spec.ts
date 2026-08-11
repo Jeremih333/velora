@@ -1703,8 +1703,10 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
 test('owner manages moderator appointments without exposing the control to staff', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   let staff: readonly Record<string, unknown>[] = [];
   let smokeRun: Readonly<Record<string, unknown>> | null = null;
+  let userGrants: readonly Record<string, unknown>[] = [];
   await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -1918,6 +1920,55 @@ test('owner manages moderator appointments without exposing the control to staff
       });
       return;
     }
+    if (url.pathname === '/api/v1/admin/billing/user-grants') {
+      if (request.method() === 'POST') {
+        const input = request.postDataJSON() as {
+          readonly targetId: string;
+          readonly planCode: string;
+          readonly durationDays: number;
+          readonly creditAmountMicros: number;
+          readonly reason: string;
+          readonly idempotencyKey: string;
+        };
+        expect(input.targetId).toBe('1040929628');
+        expect(input.planCode).toBe('PLUS');
+        expect(input.durationDays).toBe(30);
+        expect(input.creditAmountMicros).toBe(1_000_000);
+        expect(input.reason).toBe('Staging owner test');
+        expect(input.idempotencyKey).toBeTruthy();
+        userGrants = [
+          {
+            id: 'grant-1',
+            target: {
+              id: 'owner-1',
+              telegramId: input.targetId,
+              displayName: 'Владелец',
+            },
+            planCode: input.planCode,
+            durationDays: input.durationDays,
+            creditAmountMicros: input.creditAmountMicros,
+            reason: input.reason,
+            createdAt: 1,
+            accessStartsAt: 1,
+            accessExpiresAt: 2_592_000_001,
+            accessRevokedAt: null,
+            alreadyApplied: false,
+          },
+        ];
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(userGrants[0]),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ items: userGrants }),
+        });
+      }
+      return;
+    }
     if (url.pathname === '/api/v1/admin/feature-flags') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' });
       return;
@@ -1997,12 +2048,21 @@ test('owner manages moderator appointments without exposing the control to staff
   await expect(page.getByText('Дверь тихо открылась навстречу лунному саду.')).toBeVisible();
   await expect(page.getByText(/24 input \/ 12 output tokens/u)).toBeVisible();
   await expect(smokeButton).toHaveCount(0);
+  const grantSection = page.getByRole('heading', { name: 'Grant access by user ID' }).locator('..');
+  await grantSection.getByLabel('Velora ID or Telegram ID').fill('1040929628');
+  await grantSection.getByRole('combobox', { name: 'Plan' }).selectOption('PLUS');
+  await grantSection.getByLabel('Days').fill('30');
+  await grantSection.getByLabel('AI credits, $').fill('1');
+  await grantSection.getByLabel('Grant reason').fill('Staging owner test');
+  await grantSection.getByRole('button', { name: 'Grant', exact: true }).click();
+  await expect(page.getByText('The plan and AI credits were granted to the user.')).toBeVisible();
+  await expect(grantSection.getByText('Telegram 1040929628')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Moderation team' })).toBeVisible();
-  await page.getByLabel('Telegram ID').fill('7001001');
+  await page.getByLabel('Telegram ID', { exact: true }).fill('7001001');
   await page.getByRole('button', { name: 'Assign' }).click();
   await expect(page.getByText('Тестовый модератор')).toBeVisible();
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: 'Revoke' }).click();
+  await page.getByRole('button', { name: 'Revoke', exact: true }).click();
   await expect(page.getByText('Тестовый модератор')).toHaveCount(0);
   await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll');
 });

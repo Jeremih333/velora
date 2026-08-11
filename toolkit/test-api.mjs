@@ -1273,6 +1273,83 @@ try {
   if (updatedPlusPlan.displayName !== 'Plus') {
     throw new Error('Owner plan configuration update did not persist.');
   }
+  await request('/api/v1/admin/billing/user-grants', { headers }, 403);
+  const ownerGrantKey = `owner-user-grant:${randomUUID()}`;
+  const ownerGrant = await request(
+    '/api/v1/admin/billing/user-grants',
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        targetId: String(Number(telegramId) + 3),
+        planCode: 'PRO',
+        durationDays: 30,
+        creditAmountMicros: 1_000_000,
+        reason: 'Owner grant integration regression',
+        idempotencyKey: ownerGrantKey,
+      }),
+    },
+    201,
+  );
+  if (
+    ownerGrant.target.id !== ownerId ||
+    ownerGrant.planCode !== 'PRO' ||
+    ownerGrant.creditAmountMicros !== 1_000_000 ||
+    ownerGrant.alreadyApplied !== false
+  ) {
+    throw new Error('Owner grant by Telegram ID returned an inconsistent result.');
+  }
+  const repeatedOwnerGrant = await request(
+    '/api/v1/admin/billing/user-grants',
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        targetId: String(Number(telegramId) + 3),
+        planCode: 'PRO',
+        durationDays: 30,
+        creditAmountMicros: 1_000_000,
+        reason: 'Owner grant integration regression',
+        idempotencyKey: ownerGrantKey,
+      }),
+    },
+    200,
+  );
+  if (repeatedOwnerGrant.alreadyApplied !== true) {
+    throw new Error('Owner grant idempotency replay was not recognized.');
+  }
+  const ownerAfterGrant = await request('/api/v1/me', { headers: ownerHeaders }, 200);
+  if (ownerAfterGrant.plan !== 'PRO' || ownerAfterGrant.creditBalanceMicros !== 1_000_000) {
+    throw new Error('Granted owner plan or credits did not become effective.');
+  }
+  const recentOwnerGrants = await request(
+    '/api/v1/admin/billing/user-grants',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (!recentOwnerGrants.items.some((item) => item.id === ownerGrant.id)) {
+    throw new Error('Owner grant is missing from the audit-oriented grant list.');
+  }
+  await request(
+    `/api/v1/admin/billing/user-grants/${ownerGrant.id}/access`,
+    {
+      method: 'DELETE',
+      headers: { ...ownerHeaders, 'x-csrf-token': ownerCsrfToken },
+    },
+    200,
+  );
+  const ownerAfterRevoke = await request('/api/v1/me', { headers: ownerHeaders }, 200);
+  if (ownerAfterRevoke.plan !== 'FREE' || ownerAfterRevoke.creditBalanceMicros !== 1_000_000) {
+    throw new Error('Plan revocation incorrectly removed owner credits or left access active.');
+  }
   const invoiceKey = `invoice:${randomUUID()}`;
   const invoice = await request(
     '/api/v1/billing/invoices',

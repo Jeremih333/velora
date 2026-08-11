@@ -46,6 +46,9 @@ export const en: Pick<Localized<typeof ru>, 'telegram' | 'billing'> = {
     idempotencyConflict: 'This key has already been used for another access pack.',
     paymentAlreadyProcessed: 'This invoice is already being processed.',
     accessGranted: 'One-time access has been granted.',
+    grantFailed: 'The grant could not be saved. Please try again.',
+    grantNotActive: 'No active administrative plan grant was found.',
+    grantUserNotFound: 'User not found. They must open Velora through Telegram at least once.',
     accessGrantedBot:
       '✅ *Velora access granted*\n\nThis was a one-time purchase: no subscription or automatic renewal was created.',
     refundProcessedBot:
