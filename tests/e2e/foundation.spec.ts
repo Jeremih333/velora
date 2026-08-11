@@ -1324,6 +1324,13 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await page.getByRole('button', { name: 'Начать историю' }).click();
   await expect(page.getByText('Ты всё-таки пришёл.')).toBeVisible();
   await expect(page.locator('.message-bubble.is-character em')).toHaveText('Ты всё-таки пришёл.');
+  const composerBounds = await page.getByLabel('Реплика').boundingBox();
+  const navigationBounds = await page.locator('.bottom-nav').boundingBox();
+  expect(composerBounds).not.toBeNull();
+  expect(navigationBounds).not.toBeNull();
+  if (composerBounds && navigationBounds) {
+    expect(composerBounds.y + composerBounds.height).toBeLessThanOrEqual(navigationBounds.y - 4);
+  }
   await expectVisualSnapshot(page, 'chat');
   await page.getByLabel('Реплика').fill('Я открываю дверь.');
   await page.getByRole('button', { name: 'Отправить' }).click();

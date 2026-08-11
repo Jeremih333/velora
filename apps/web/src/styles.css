@@ -2269,6 +2269,12 @@ h1 {
     min-height: calc(100dvh - 168px);
     border-radius: 22px;
   }
+  .chat-composer {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom));
+  }
+  .jump-to-bottom {
+    bottom: calc(154px + env(safe-area-inset-bottom));
+  }
   .message-list {
     max-height: calc(100dvh - 304px);
   }
