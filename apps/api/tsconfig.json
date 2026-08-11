@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "lib": ["ES2023", "WebWorker"],
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/config" },
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/memory" },
+    { "path": "../../packages/prompts" },
+    { "path": "../../packages/ai" },
+    { "path": "../../packages/billing" },
+    { "path": "../../packages/moderation" }
+  ]
+}

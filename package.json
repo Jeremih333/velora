@@ -1,0 +1,40 @@
+{
+  "name": "velora",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "corepack pnpm --parallel --filter @velora/web --filter @velora/api dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run --exclude tests/integration/** --exclude tests/e2e/**",
+    "test:integration": "node toolkit/test-d1.mjs && node toolkit/test-api.mjs && vitest run tests/integration",
+    "test:restore": "node toolkit/test-restore.mjs",
+    "test:e2e": "playwright test",
+    "build": "corepack pnpm --filter @velora/web build && corepack pnpm --filter @velora/api build",
+    "cf:types": "corepack pnpm --filter @velora/api cf:types",
+    "db:migrate:local": "corepack pnpm --filter @velora/api db:migrate:local",
+    "db:migrate:preview": "corepack pnpm --filter @velora/api db:migrate:preview",
+    "db:migrate:production": "corepack pnpm --filter @velora/api db:migrate:production",
+    "telegram:configure": "node toolkit/configure-telegram.mjs",
+    "verify": "powershell -ExecutionPolicy Bypass -File toolkit/verify.ps1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
+    "@types/node": "26.2.0",
+    "eslint": "10.8.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.9.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.66.0",
+    "vitest": "4.1.10"
+  }
+}

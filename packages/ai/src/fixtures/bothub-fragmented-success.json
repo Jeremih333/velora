@@ -1,0 +1,8 @@
+{
+  "chunks": [
+    ": processing\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"Пр\"}}]}\n",
+    "\ndata: {\"choices\":[{\"delta\":{\"content\":\"ивет\"},\"finish_reason\":\"stop\"}],",
+    "\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":2,\"cost\":0.00002,",
+    "\"prompt_tokens_details\":{\"cached_tokens\":4}}}\n\ndata: [DONE]\n\n"
+  ]
+}

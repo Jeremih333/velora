@@ -1,0 +1,84 @@
+import { describe, expect, it, vi } from 'vitest';
+import {
+  commandMessage,
+  parseBotCommand,
+  parseTelegramUpdate,
+  secretsEqual,
+  sendTelegramCommandReply,
+} from './telegram-webhook';
+
+describe('Telegram webhook protocol', () => {
+  it('parses addressed commands without accepting commands for another bot', () => {
+    expect(parseBotCommand('/start payload', '@Velora_Bot')).toBe('start');
+    expect(parseBotCommand('/HELP@velora_bot', 'velora_bot')).toBe('help');
+    expect(parseBotCommand('/start@another_bot', 'velora_bot')).toBeNull();
+    expect(parseBotCommand('hello', 'velora_bot')).toBeNull();
+    for (const command of [
+      'start',
+      'help',
+      'app',
+      'support',
+      'settings',
+      'terms',
+      'privacy',
+      'premium',
+      'report',
+      'paysupport',
+    ]) {
+      expect(commandMessage(command), command).not.toBeNull();
+    }
+    expect(commandMessage('unknown')).toBeNull();
+  });
+
+  it('validates the minimal private-message update and rejects malformed ids', () => {
+    expect(
+      parseTelegramUpdate({
+        update_id: 1,
+        message: {
+          message_id: 2,
+          from: { id: 42, first_name: 'Лея' },
+          chat: { id: 42, type: 'private' },
+          text: '/start',
+        },
+      }),
+    ).toMatchObject({ update_id: 1 });
+    expect(() => parseTelegramUpdate({ update_id: -1 })).toThrow();
+  });
+
+  it('compares webhook secrets without direct string comparison', async () => {
+    await expect(secretsEqual('secret', 'secret')).resolves.toBe(true);
+    await expect(secretsEqual('forged', 'secret')).resolves.toBe(false);
+    await expect(secretsEqual(undefined, 'secret')).resolves.toBe(false);
+  });
+
+  it('sends one Mini App command response and rejects Telegram failures', async () => {
+    const okFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    await expect(
+      sendTelegramCommandReply(
+        okFetch,
+        'token',
+        42,
+        commandMessage('start') ?? '',
+        'https://app.test',
+      ),
+    ).resolves.toBeUndefined();
+    const body = okFetch.mock.calls[0]?.[1]?.body;
+    if (typeof body !== 'string') throw new Error('Expected a JSON request body.');
+    const request = JSON.parse(body) as {
+      reply_markup: { inline_keyboard: readonly (readonly { web_app: { url: string } }[])[] };
+    };
+    expect(request.reply_markup.inline_keyboard[0]?.[0]?.web_app.url).toBe('https://app.test');
+
+    const failedFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: false }), { status: 400 }));
+    await expect(
+      sendTelegramCommandReply(failedFetch, 'token', 42, 'hello', 'https://app.test'),
+    ).rejects.toMatchObject({ code: 'TELEGRAM_DELIVERY_FAILED' });
+  });
+});

@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+.wrangler
+.tooling-dist
+dist-worker
+pnpm-lock.yaml
+*.sql
