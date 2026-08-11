@@ -10,6 +10,7 @@ Updated: 2026-08-11.
 | Knowledge base               | IMPLEMENTED       | required hierarchy created; evolves with code                           |
 | Owner documentation          | VERIFIED          | root zero-to-production README with guarded commands and links          |
 | Monorepo                     | IMPLEMENTED       | strict TS packages, Worker API, Mini App shell, CI                      |
+| GitHub                       | VERIFIED          | private `Jeremih333/velora`; clean-clone CI covers full quality gate    |
 | Personas                     | VERIFIED_MVP      | owned CRUD/default, validation, moderation gates, local Worker test     |
 | Characters/discovery         | VERIFIED_MVP      | versioned section editor, draft autosave, Mature review before feed     |
 | Character interactions       | VERIFIED_MVP      | D1-unique likes/bookmarks/reviews, creator aggregates and 3-device E2E  |

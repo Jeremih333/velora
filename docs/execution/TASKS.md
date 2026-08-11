@@ -10,6 +10,8 @@
 - [x] Implement Worker health/error foundation and Mini App shell.
 - [x] Create initial D1 schema/migration and repository smoke.
 - [x] Add unit/integration/security/E2E foundations and CI.
+- [x] Create the isolated private `Jeremih333/velora` repository and prove the full security,
+      clean-clone integration, build and multi-engine E2E gate on GitHub Actions.
 - [x] Run complete local quality gate.
 - [x] Create isolated `velora-staging` and `velora-production` D1 resources.
 - [x] Deploy staging and prove smoke; production remains gated by real bot/AI secrets.

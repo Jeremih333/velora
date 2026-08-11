@@ -5,6 +5,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | Feature                              | Implementation                       | Automated test         | Manual test            | Status            | Notes                             |
 | ------------------------------------ | ------------------------------------ | ---------------------- | ---------------------- | ----------------- | --------------------------------- |
 | Workspace isolation                  | boundary scripts and independent Git | boundary command       | path/account audit     | VERIFIED          | RoleMate untouched                |
+| GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
 | Worker/API                           | Hono Worker foundation               | unit/build passed      | staging smoke passed   | VERIFIED          | foundation only                   |
 | D1                                   | 63 application tables, 25 migrations | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |

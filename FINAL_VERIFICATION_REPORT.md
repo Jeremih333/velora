@@ -10,6 +10,8 @@ verified; the full product from the master brief is still in progress.
 ## Verified evidence
 
 - isolated workspace and Git repository; RoleMate was not modified;
+- private GitHub repository `Jeremih333/velora` with a clean-clone CI gate covering portable secret
+  scanning, formatting, lint, strict typecheck, unit/integration tests, build and responsive E2E;
 - the root owner README now documents requirements, installation, local development, environment
   separation, D1/R2/Workers, BotFather/Telegram, BotHub, migrations, deployment, tests,
   backup/restore and the explicit production gates from zero without embedding secrets;
