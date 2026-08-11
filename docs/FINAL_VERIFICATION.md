@@ -97,6 +97,9 @@ Velora is **not production-ready yet**. This report is updated only with factual
   identifier characters remain rejected: PASS.
 - the paid-deployment boundary regression proves staging AI is enabled while production/local AI
   and payments in every environment remain disabled: PASS;
+- GitHub CI `31538305930` and staging Worker `244d09fd-172e-4b3c-9fb0-12e671bc8c4e`: PASS;
+- post-deploy health/readiness, unauthenticated-generation 401, matching completed V3/provider
+  readiness and D1 `quick_check=ok`: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

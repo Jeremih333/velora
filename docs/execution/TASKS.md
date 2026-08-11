@@ -288,7 +288,8 @@
       exact new-user start-story failure with domain validation plus a real Worker+D1 regression.
 - [x] Complete the immutable owner-authorized BotHub V3 checkpoint with `deepseek-chat-v3.1`, HTTP
       200, 42 input / 20 output tokens and $0.000030 provider cost; enable paid roleplay only in
-      staging while production/local and one-time Stars payments remain disabled.
+      staging Worker `244d09fd-172e-4b3c-9fb0-12e671bc8c4e` after CI `31538305930`, while
+      production/local and one-time Stars payments remain disabled.
 
 ## Next
 

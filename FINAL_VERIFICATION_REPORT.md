@@ -216,6 +216,10 @@ verified; the full product from the master brief is still in progress.
 - the staging-paid-enable gate on 2026-08-12 passed 117 unit/regression, 6 structural roleplay,
   4 contract and 26 integration tests. The full 9-case E2E run recorded one transient iPhone
   navigation retry; that exact scenario then passed independently with retries disabled.
+- clean-clone CI `31538305930` passed before staging Worker
+  `244d09fd-172e-4b3c-9fb0-12e671bc8c4e` was deployed with paid AI enabled and payments disabled;
+  health/readiness, unauthenticated-generation 401, matching V3/provider readiness and D1
+  `quick_check=ok` passed after deploy.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.
