@@ -26,12 +26,12 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 104 PASS; integration/schema/cost-model: 25 PASS;
+- unit/regression: 106 PASS; integration/schema/cost-model: 25 PASS;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
 - production builds: PASS;
 - Playwright Android/iPhone/Desktop: 9 PASS;
 - staging `/health`, `/ready`, static shell and security-header smoke: PASS.
-- staging migrations through 0025, 63-table integrity and Worker `e3b2da11` smoke: PASS;
+- staging migrations through 0025, 63-table integrity and Worker `c0156f2d` smoke: PASS;
 - idempotent quality seed: 4 synthetic users, 4 personas, 12 SAFE characters, 2 lorebooks,
   240-message chat and 3 moderation cases; remote pre-seed export and post-seed integrity: PASS;
 - typed AI SSE fixtures for fragmented success, missing usage and stream error: PASS;
@@ -64,6 +64,10 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Russian and English Telegram command/payment/media replies, locale variants (`en-US`, `en_US`)
   and localized Mini App buttons pass unit and local Worker integration checks; a user's later
   in-app locale choice is not overwritten by subsequent webhook updates.
+- typed web RU/EN dictionaries cover auth, offline recovery, onboarding, navigation, discovery,
+  one-time billing and settings; a browser E2E switches the persisted account locale without a
+  reload and verifies English discovery/billing before switching back. Remaining views are not
+  represented as localized.
 - the first post-0020 E2E run exposed a mobile toast/sticky-header click obstruction; the UI was
   fixed and the mandatory Android/iPhone/Desktop rerun completed 9/9 without retries.
 - a single synthetic staging alert was delivered to the owner's real Telegram chat, confirmed by

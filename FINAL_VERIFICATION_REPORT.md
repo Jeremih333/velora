@@ -21,7 +21,7 @@ verified; the full product from the master brief is still in progress.
 - staging D1 migrations 0001-0025 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `e3b2da11-75b2-46b0-bf97-f994259741ae` is live with a five-minute
+- staging Worker version `c0156f2d-d446-4888-898f-c6519c90983f` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - persona CRUD/default and character immutable-version CRUD/publish/discovery pass against a real
@@ -155,7 +155,7 @@ verified; the full product from the master brief is still in progress.
   63 tables/25 migrations before the remote migration;
 - owner deletion fails closed until ownership is transferred; deletion and block controls pass
   responsive desktop, Android and iPhone E2E;
-- secret scan, formatting, lint, strict typecheck, 104 unit/regression tests, 25
+- secret scan, formatting, lint, strict typecheck, 106 unit/regression tests, 25
   integration/schema/cost-model tests, D1/API integration, builds, and 9 E2E cases across
   Android/iPhone/desktop passed;
 - post-deploy staging `/health`, `/ready`, protected data controls, unsigned webhook rejection and
@@ -168,6 +168,9 @@ verified; the full product from the master brief is still in progress.
 - Telegram command, one-time payment and media replies are selected from typed Russian/English
   dictionaries; `en`, `en-US` and `en_US` normalization and the localized Mini App button pass
   unit and local Worker integration tests, while later in-app locale choices are preserved.
+- the web runtime has typed Russian/English dictionaries and switches authenticated language
+  without reload. Auth/standalone, offline recovery, onboarding, navigation, discovery, billing
+  and settings are covered; chats/editors/administration remain explicitly incomplete.
 - live Telegram initData produced active sessions and automatically persisted the confirmed
   Telegram ID `1040929628` as `OWNER`, without a manual database role change;
 - the installed BotHub key passed a non-generative authenticated model-list check. The former

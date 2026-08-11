@@ -9,12 +9,10 @@ test('renders the isolated Velora shell without pretending standalone auth', asy
   );
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: 'Войди в мир, который помнит тебя' }),
+    page.getByRole('heading', { name: 'Enter a world that remembers you' }),
   ).toBeVisible();
-  await expect(
-    page.getByText('Standalone-режим предназначен только для разработки.'),
-  ).toBeVisible();
-  await expect(page.getByText('Постоянная память')).toBeVisible();
+  await expect(page.getByText('Standalone mode is for development only.')).toBeVisible();
+  await expect(page.getByText('Persistent memory')).toBeVisible();
   await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.locator('html')).toHaveCSS('scroll-behavior', 'auto');
@@ -79,6 +77,7 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   ];
   let supportRequests: readonly Record<string, unknown>[] = [];
   let profileDisplayName = 'Алиса';
+  let settingsLocale: 'ru' | 'en' = 'ru';
   let conversationSettings = {
     modelProfile: 'BALANCED',
     responseLength: 'MEDIUM',
@@ -1037,12 +1036,16 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
       return;
     }
     if (url.pathname === '/api/v1/settings') {
+      if (request.method() === 'PATCH') {
+        const body = request.postDataJSON() as { readonly locale?: 'ru' | 'en' };
+        settingsLocale = body.locale ?? settingsLocale;
+      }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           theme: 'dark',
-          locale: 'ru',
+          locale: settingsLocale,
           defaultPersonaId: null,
           generationProfile: 'BALANCED',
           nsfwVisible: false,
@@ -1551,6 +1554,20 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
     .getByRole('button', { name: /Настройки/u })
     .last()
     .click();
+  await page.getByLabel('Язык').selectOption('en');
+  await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Chats/u })).toBeVisible();
+  await expect(page.getByText('Settings saved.')).toBeVisible();
+  await page.getByRole('button', { name: /Discover/u }).click();
+  await expect(page.getByRole('heading', { name: 'Find your story' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open AI credits' }).click();
+  await expect(page.getByRole('heading', { name: 'One-time top-up' })).toBeVisible();
+  await expect(page.getByText('No card, subscription, or automatic top-up')).toBeVisible();
+  await page.getByRole('button', { name: /Settings/u }).click();
+  await page.getByLabel('Language').selectOption('ru');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Настройки', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Управление аккаунтом' })).toBeVisible();
   await expect(page.getByText('Диалоги: 1')).toBeVisible();
   const supportSection = page.getByRole('region', { name: 'Поддержка' });

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiRequest, setCsrfToken } from './api';
 import { AuthenticatedApp } from './AuthenticatedApp';
-import { ru } from './i18n';
+import { detectWebLocale, I18nProvider, useI18n, type Locale } from './i18n';
 import { OfflineBanner, useOnlineStatus } from './online-status';
 import { initializeTelegram } from './telegram';
 import type { AuthResponse, MeResponse } from './types';
@@ -20,6 +20,16 @@ type AuthState =
 const csrfStorageKey = 'velora.csrf';
 
 export function App() {
+  const [locale, setLocale] = useState<Locale>(detectWebLocale);
+  return (
+    <I18nProvider locale={locale}>
+      <AppContent onLocaleResolved={setLocale} />
+    </I18nProvider>
+  );
+}
+
+function AppContent({ onLocaleResolved }: { readonly onLocaleResolved: (locale: Locale) => void }) {
+  const { messages } = useI18n();
   const telegram = useMemo(() => initializeTelegram(), []);
   const online = useOnlineStatus();
   const [authState, setAuthState] = useState<AuthState>({ status: 'checking' });
@@ -41,8 +51,7 @@ export function App() {
               ? current
               : {
                   status: 'error',
-                  message:
-                    'Нет подключения к сети. Вход продолжится автоматически после восстановления.',
+                  message: messages.shell.offlineAuth,
                 },
           );
         }
@@ -62,6 +71,7 @@ export function App() {
             const user = await apiRequest<MeResponse>('/api/v1/me');
             if (active) {
               authenticatedRef.current = true;
+              onLocaleResolved(user.locale);
               setAuthState({ status: 'ready', user });
             }
             return;
@@ -79,10 +89,11 @@ export function App() {
         const user = await apiRequest<MeResponse>('/api/v1/me');
         if (active) {
           authenticatedRef.current = true;
+          onLocaleResolved(user.locale);
           setAuthState({ status: 'ready', user });
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Не удалось подтвердить вход.';
+        const message = error instanceof Error ? error.message : messages.shell.authFailed;
         if (active) setAuthState({ status: 'error', message });
       }
     };
@@ -90,13 +101,20 @@ export function App() {
     return () => {
       active = false;
     };
-  }, [authAttempt, online, telegram]);
+  }, [
+    authAttempt,
+    messages.shell.authFailed,
+    messages.shell.offlineAuth,
+    onLocaleResolved,
+    online,
+    telegram,
+  ]);
 
   if (authState.status === 'ready') {
     return (
       <>
         <OfflineBanner online={online} />
-        <AuthenticatedApp initialUser={authState.user} />
+        <AuthenticatedApp initialUser={authState.user} onLocaleChange={onLocaleResolved} />
       </>
     );
   }
@@ -107,7 +125,7 @@ export function App() {
       <div className="ambient ambient-one" aria-hidden="true" />
       <div className="ambient ambient-two" aria-hidden="true" />
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="Velora — на главную">
+        <a className="brand" href="#top" aria-label={messages.shell.homeLabel}>
           <span className="brand-mark">V</span>
           <span>
             <strong>Velora</strong>
@@ -116,16 +134,16 @@ export function App() {
         </a>
         <span
           className={`service-dot ${health.data?.status === 'ok' ? 'is-ready' : ''}`}
-          aria-label="Состояние сервиса"
+          aria-label={messages.shell.serviceStatus}
         />
       </header>
       <section id="top" className="hero">
-        <p className="eyebrow">{ru.eyebrow}</p>
-        <h1>{ru.title}</h1>
-        <p className="lead">{ru.intro}</p>
+        <p className="eyebrow">{messages.shell.eyebrow}</p>
+        <h1>{messages.shell.title}</h1>
+        <p className="lead">{messages.shell.intro}</p>
         {authState.status === 'checking' ? (
           <button className="primary" type="button" disabled>
-            {ru.preparing}
+            {messages.shell.preparing}
           </button>
         ) : null}
         {authState.status === 'error' ? (
@@ -137,7 +155,7 @@ export function App() {
                 setAuthAttempt((value) => value + 1);
               }}
             >
-              {ru.retry}
+              {messages.shell.retry}
             </button>
             <p className="error" role="alert">
               {authState.message}
@@ -147,30 +165,30 @@ export function App() {
         {authState.status === 'standalone' ? (
           <div className="standalone" role="status">
             <span>◈</span>
-            <p>{ru.standalone}</p>
+            <p>{messages.shell.standalone}</p>
           </div>
         ) : null}
       </section>
-      <section className="principles" aria-label="Возможности Velora">
+      <section className="principles" aria-label={messages.shell.capabilities}>
         <article>
           <span>∞</span>
-          <h2>{ru.memory}</h2>
-          <p>{ru.memoryText}</p>
+          <h2>{messages.shell.memory}</h2>
+          <p>{messages.shell.memoryText}</p>
         </article>
         <article>
           <span>✦</span>
-          <h2>{ru.characters}</h2>
-          <p>{ru.charactersText}</p>
+          <h2>{messages.shell.characters}</h2>
+          <p>{messages.shell.charactersText}</p>
         </article>
         <article>
           <span>◒</span>
-          <h2>{ru.control}</h2>
-          <p>{ru.controlText}</p>
+          <h2>{messages.shell.control}</h2>
+          <p>{messages.shell.controlText}</p>
         </article>
       </section>
       <aside className="security-note">
         <span>⌁</span>
-        <p>{ru.secure}</p>
+        <p>{messages.shell.secure}</p>
       </aside>
     </main>
   );

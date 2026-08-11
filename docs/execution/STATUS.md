@@ -28,6 +28,7 @@ Updated: 2026-08-11.
 | Local capacity               | VERIFIED_SLICE    | 40 user/D1/search requests, 4 AI streams; budget is first boundary      |
 | Fixtures and staging seed    | VERIFIED          | idempotent 4 users/12 chars/4 personas/2 lore/240 chat/3 cases          |
 | Resilient/accessibility UX   | VERIFIED_SLICE    | offline draft, focus, labels, reduced motion, 200% font E2E             |
+| Web internationalization     | IMPLEMENTED_SLICE | typed RU/EN shell, onboarding, discovery, billing, settings; E2E switch |
 | Account data controls        | VERIFIED_MVP      | export manifest, blocks, 7-day deletion and scheduled erasure tests     |
 | Support/legal                | VERIFIED_MVP      | private tickets, admin RBAC, export/erasure and legal UI                |
 | User profiles                | VERIFIED_MVP      | separate identity, avatar IDOR/privacy, blocks, moderation and E2E      |
@@ -35,7 +36,7 @@ Updated: 2026-08-11.
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen       |
 | Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY       |
 | Paid AI                      | IMPLEMENTED_GATED | global/readiness gates off; V3 awaits fresh owner consent               |
-| Staging                      | VERIFIED          | Worker `e3b2da11`; D1 25/63 healthy, paid gates off                     |
+| Staging                      | VERIFIED          | Worker `c0156f2d`; D1 25/63 healthy, paid gates off                     |
 | Production                   | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                 |
 
 RoleMate resources have not been changed or bound to Velora.
@@ -44,3 +45,5 @@ Reviewed advanced classifiers, live Stars payment and a successful paid
 inference remain incomplete and are not
 represented as production-ready. The Stars implementation is intentionally inert: no configured
 staging packs, `PAYMENTS_ENABLED=false` and `PAID_AI_ENABLED=false`.
+Chats, editors and administration still contain Russian hardcoded UI strings, so complete
+application internationalization is not claimed.

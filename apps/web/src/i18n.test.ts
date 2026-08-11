@@ -1,0 +1,26 @@
+import { describe, expect, it } from 'vitest';
+import { getWebMessages, normalizeWebLocale } from './i18n';
+
+describe('web internationalization', () => {
+  it('normalizes supported browser and Telegram locale variants', () => {
+    expect(normalizeWebLocale('en')).toBe('en');
+    expect(normalizeWebLocale('en-US')).toBe('en');
+    expect(normalizeWebLocale('EN_gb')).toBe('en');
+    expect(normalizeWebLocale('ru-RU')).toBe('ru');
+    expect(normalizeWebLocale(undefined)).toBe('ru');
+  });
+
+  it('provides complete typed shell, navigation, and settings dictionaries', () => {
+    const russian = getWebMessages('ru');
+    const english = getWebMessages('en');
+    expect(english.shell.title).toBe('Enter a world that remembers you');
+    expect(english.navigation.settings).toBe('Settings');
+    expect(english.settings.prepaidText).toContain('no automatic charges');
+    expect(Object.keys(english.shell)).toEqual(Object.keys(russian.shell));
+    expect(Object.keys(english.navigation)).toEqual(Object.keys(russian.navigation));
+    expect(Object.keys(english.onboarding)).toEqual(Object.keys(russian.onboarding));
+    expect(Object.keys(english.settings)).toEqual(Object.keys(russian.settings));
+    expect(Object.keys(english.billing)).toEqual(Object.keys(russian.billing));
+    expect(Object.keys(english.discovery)).toEqual(Object.keys(russian.discovery));
+  });
+});

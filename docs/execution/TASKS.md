@@ -239,9 +239,16 @@
       English; normalize `en`, `en-US` and `en_US` for new users without overwriting a locale later
       selected in Velora, with unit/local Worker coverage and staging Worker
       `e3b2da11-75b2-46b0-bf97-f994259741ae` health/readiness smoke.
+- [x] Establish typed web RU/EN dictionaries and runtime provider; localize standalone/auth,
+      offline recovery, first-run onboarding, main navigation, discovery, one-time billing and
+      settings, including an E2E account-language switch without reload. Remaining views stay
+      explicitly tracked rather than being called complete; deploy staging Worker
+      `c0156f2d-d446-4888-898f-c6519c90983f` with paid gates off and zero V3 runs.
 
 ## Next
 
+- Continue removing hardcoded Russian UI strings from chats, character/persona/lore editors,
+  profiles, support and administration.
 - Optional reviewed advanced classifiers.
 - Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting
   checkpoint through the staged owner control. V1 is immutable failed evidence; V2 was never

@@ -6,6 +6,7 @@ import { apiRequest } from './api';
 import { allowsCharacterAutosave, pendingAutosaveState } from './character-autosave';
 import { ChatsView } from './ChatsView';
 import { LorebooksView } from './LorebooksView';
+import { getWebMessages, useI18n, type Locale } from './i18n';
 import { openTelegramInvoice, type InvoiceStatus } from './telegram';
 import type {
   AccessPackCatalog,
@@ -61,7 +62,14 @@ interface CharacterActionResult {
   readonly message?: string;
 }
 
-export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResponse }) {
+export function AuthenticatedApp({
+  initialUser,
+  onLocaleChange,
+}: {
+  readonly initialUser: MeResponse;
+  readonly onLocaleChange: (locale: Locale) => void;
+}) {
+  const { locale, messages } = useI18n();
   const client = useQueryClient();
   const [tab, setTab] = useState<Tab>('discover');
   const [notice, setNotice] = useState<string | null>(null);
@@ -113,12 +121,12 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
           <button
             className="balance-pill"
             type="button"
-            aria-label="Открыть AI-кредиты"
+            aria-label={messages.navigation.credits}
             onClick={() => {
               setTab('billing');
             }}
           >
-            <span>✦</span> {formatCredits(me.data.creditBalanceMicros)}
+            <span>✦</span> {formatCredits(me.data.creditBalanceMicros, locale)}
           </button>
           {['MODERATOR', 'SENIOR_MODERATOR', 'ADMIN', 'OWNER'].includes(me.data.role) ? (
             <button
@@ -128,7 +136,7 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
                 setTab('moderation');
               }}
             >
-              🛡 Модерация
+              🛡 {messages.navigation.moderation}
             </button>
           ) : null}
           <span className="free-pill">Cloudflare Free</span>
@@ -182,7 +190,9 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
         ) : null}
         {tab === 'personas' ? <PersonasView notify={setNotice} /> : null}
         {tab === 'billing' ? <BillingView account={me.data} notify={setNotice} /> : null}
-        {tab === 'settings' ? <SettingsView account={me.data} notify={setNotice} /> : null}
+        {tab === 'settings' ? (
+          <SettingsView account={me.data} notify={setNotice} onLocaleChange={onLocaleChange} />
+        ) : null}
         {tab === 'profile' ? (
           <ProfileView
             userId={profileUserId}
@@ -195,10 +205,10 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
         ) : null}
         {tab === 'moderation' ? <ModerationView notify={setNotice} role={me.data.role} /> : null}
       </section>
-      <nav className="bottom-nav" aria-label="Основные разделы">
+      <nav className="bottom-nav" aria-label={messages.navigation.main}>
         <NavButton
           active={tab === 'chats'}
-          label="Диалоги"
+          label={messages.navigation.chats}
           icon="◌"
           onClick={() => {
             setTab('chats');
@@ -206,7 +216,7 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
         />
         <NavButton
           active={tab === 'discover'}
-          label="Каталог"
+          label={messages.navigation.catalog}
           icon="⌕"
           onClick={() => {
             setTab('discover');
@@ -214,7 +224,7 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
         />
         <NavButton
           active={tab === 'characters'}
-          label="Персонажи"
+          label={messages.navigation.characters}
           icon="✦"
           onClick={() => {
             setTab('characters');
@@ -222,7 +232,7 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
         />
         <NavButton
           active={tab === 'personas'}
-          label="Образы"
+          label={messages.navigation.personas}
           icon="◉"
           onClick={() => {
             setTab('personas');
@@ -230,7 +240,7 @@ export function AuthenticatedApp({ initialUser }: { readonly initialUser: MeResp
         />
         <NavButton
           active={tab === 'settings'}
-          label="Настройки"
+          label={messages.navigation.settings}
           icon="⚙"
           onClick={() => {
             setTab('settings');
@@ -248,6 +258,7 @@ function OnboardingView({
   readonly displayName: string;
   readonly onCompleted: (startedConversationId: string | null) => void;
 }) {
+  const { messages } = useI18n();
   const [step, setStep] = useState(0);
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const [matureEnabled, setMatureEnabled] = useState(false);
@@ -299,25 +310,22 @@ function OnboardingView({
         <span className="brand-mark">V</span>
         <span>
           <strong>Velora</strong>
-          <small>шаг {step + 1} из 4</small>
+          <small>{messages.onboarding.step(step + 1)}</small>
         </span>
       </header>
-      <div className="onboarding-progress" aria-label={`Шаг ${String(step + 1)} из 4`}>
+      <div className="onboarding-progress" aria-label={messages.onboarding.stepLabel(step + 1)}>
         <span style={{ width: `${String(((step + 1) / 4) * 100)}%` }} />
       </div>
 
       {step === 0 ? (
         <section className="onboarding-card">
-          <p className="eyebrow">ДОБРО ПОЖАЛОВАТЬ</p>
-          <h1>{displayName}, твоя история начинается здесь</h1>
-          <p className="lead">
-            Создавай персонажей, выбирай свой образ и веди ролевые истории с памятью и полным
-            контролем над сюжетом.
-          </p>
+          <p className="eyebrow">{messages.onboarding.welcomeEyebrow}</p>
+          <h1>{messages.onboarding.welcomeTitle(displayName)}</h1>
+          <p className="lead">{messages.onboarding.welcomeText}</p>
           <ul className="onboarding-points">
-            <li>✦ Персонажи сохраняют заданную роль</li>
-            <li>∞ Память удерживает важные события</li>
-            <li>◒ Ты управляешь ветками и контекстом</li>
+            <li>{messages.onboarding.characterPoint}</li>
+            <li>{messages.onboarding.memoryPoint}</li>
+            <li>{messages.onboarding.controlPoint}</li>
           </ul>
           <button
             className="primary"
@@ -326,19 +334,16 @@ function OnboardingView({
               setStep(1);
             }}
           >
-            Продолжить
+            {messages.onboarding.continue}
           </button>
         </section>
       ) : null}
 
       {step === 1 ? (
         <section className="onboarding-card">
-          <p className="eyebrow">БЕЗОПАСНОСТЬ</p>
-          <h1>Выбери комфортный режим</h1>
-          <p>
-            Без подтверждения совершеннолетия каталог показывает только безопасные истории. Это
-            можно изменить позже в настройках.
-          </p>
+          <p className="eyebrow">{messages.onboarding.safetyEyebrow}</p>
+          <h1>{messages.onboarding.safetyTitle}</h1>
+          <p>{messages.onboarding.safetyText}</p>
           <label className="choice-card">
             <input
               type="checkbox"
@@ -348,8 +353,8 @@ function OnboardingView({
               }}
             />
             <span>
-              <strong>Мне исполнилось 18 лет</strong>
-              <small>Разрешить показ Mature-контента с отдельной маркировкой</small>
+              <strong>{messages.onboarding.adultTitle}</strong>
+              <small>{messages.onboarding.adultText}</small>
             </span>
           </label>
           <label className="choice-card">
@@ -361,8 +366,8 @@ function OnboardingView({
               }}
             />
             <span>
-              <strong>Я принимаю правила сообщества</strong>
-              <small>Запрещённый контент и попытки обхода ограничений не допускаются</small>
+              <strong>{messages.onboarding.policyTitle}</strong>
+              <small>{messages.onboarding.policyText}</small>
             </span>
           </label>
           <div className="onboarding-actions">
@@ -372,7 +377,7 @@ function OnboardingView({
                 setStep(0);
               }}
             >
-              Назад
+              {messages.onboarding.back}
             </button>
             <button
               className="primary"
@@ -382,7 +387,7 @@ function OnboardingView({
                 setStep(2);
               }}
             >
-              Продолжить
+              {messages.onboarding.continue}
             </button>
           </div>
         </section>
@@ -390,26 +395,26 @@ function OnboardingView({
 
       {step === 2 ? (
         <section className="onboarding-card">
-          <p className="eyebrow">ТВОЙ ОБРАЗ · НЕОБЯЗАТЕЛЬНО</p>
-          <h1>Кем ты будешь в историях?</h1>
-          <p>Образ подставляется в диалоги вместо твоего Telegram-профиля. Его можно пропустить.</p>
+          <p className="eyebrow">{messages.onboarding.personaEyebrow}</p>
+          <h1>{messages.onboarding.personaTitle}</h1>
+          <p>{messages.onboarding.personaText}</p>
           <label>
-            Имя образа
+            {messages.onboarding.personaName}
             <input
               value={personaName}
               maxLength={80}
-              placeholder="Например, Странница"
+              placeholder={messages.onboarding.personaNamePlaceholder}
               onChange={(event) => {
                 setPersonaName(event.target.value);
               }}
             />
           </label>
           <label>
-            Короткое описание
+            {messages.onboarding.personaDescription}
             <textarea
               value={personaDescription}
               maxLength={280}
-              placeholder="Что персонажи должны знать о твоём образе?"
+              placeholder={messages.onboarding.personaDescriptionPlaceholder}
               onChange={(event) => {
                 setPersonaDescription(event.target.value);
               }}
@@ -422,7 +427,7 @@ function OnboardingView({
                 setStep(1);
               }}
             >
-              Назад
+              {messages.onboarding.back}
             </button>
             <button
               className="primary"
@@ -431,7 +436,7 @@ function OnboardingView({
                 setStep(3);
               }}
             >
-              {personaName.trim() ? 'Сохранить образ' : 'Пропустить'}
+              {personaName.trim() ? messages.onboarding.savePersona : messages.onboarding.skip}
             </button>
           </div>
         </section>
@@ -439,12 +444,12 @@ function OnboardingView({
 
       {step === 3 ? (
         <section className="onboarding-card onboarding-recommendations">
-          <p className="eyebrow">ПЕРВЫЕ ИСТОРИИ</p>
-          <h1>Выбери, с чего начать</h1>
-          <p>
-            Это актуальные безопасные персонажи из каталога. Полный поиск откроется сразу после.
-          </p>
-          {recommendations.isPending ? <p role="status">Подбираем истории…</p> : null}
+          <p className="eyebrow">{messages.onboarding.storiesEyebrow}</p>
+          <h1>{messages.onboarding.storiesTitle}</h1>
+          <p>{messages.onboarding.storiesText}</p>
+          {recommendations.isPending ? (
+            <p role="status">{messages.onboarding.loadingStories}</p>
+          ) : null}
           {recommendations.isError ? <InlineError error={recommendations.error} /> : null}
           <div className="onboarding-character-list">
             {recommendations.data?.items.map((character) => (
@@ -461,13 +466,13 @@ function OnboardingView({
                     complete.mutate(character.id);
                   }}
                 >
-                  Начать
+                  {messages.onboarding.start}
                 </button>
               </article>
             ))}
           </div>
           {recommendations.data?.items.length === 0 ? (
-            <p>Публичные истории скоро появятся — пока можно открыть каталог.</p>
+            <p>{messages.onboarding.emptyStories}</p>
           ) : null}
           <button
             className="primary"
@@ -477,7 +482,7 @@ function OnboardingView({
               complete.mutate(null);
             }}
           >
-            {complete.isPending ? 'Сохраняем…' : 'Открыть каталог'}
+            {complete.isPending ? messages.onboarding.saving : messages.onboarding.openCatalog}
           </button>
           <button
             type="button"
@@ -486,7 +491,7 @@ function OnboardingView({
               setStep(2);
             }}
           >
-            Назад
+            {messages.onboarding.back}
           </button>
           <InlineError error={complete.error} />
         </section>
@@ -502,6 +507,7 @@ function BillingView({
   readonly account: MeResponse;
   readonly notify: (message: string | null) => void;
 }) {
+  const { locale, messages } = useI18n();
   const client = useQueryClient();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const catalog = useQuery({
@@ -530,13 +536,13 @@ function BillingView({
       }),
     onSuccess: (result) => {
       const handleClosed = (status: InvoiceStatus) => {
-        if (status === 'paid') notify('Оплата подтверждена. Баланс обновляется.');
-        if (status === 'failed') notify('Telegram не смог завершить оплату. Кредиты не списаны.');
+        if (status === 'paid') notify(messages.billing.paymentPaid);
+        if (status === 'failed') notify(messages.billing.paymentFailed);
         void client.invalidateQueries({ queryKey: ['me'] });
         void client.invalidateQueries({ queryKey: ['billing', 'payments'] });
       };
       if (!openTelegramInvoice(result.invoiceUrl, handleClosed)) {
-        notify('Счёт можно открыть только внутри Telegram MiniApp.');
+        notify(messages.billing.telegramOnly);
       }
     },
   });
@@ -553,39 +559,38 @@ function BillingView({
       }),
     onSuccess: (result) => {
       const handleClosed = (status: InvoiceStatus) => {
-        if (status === 'paid') notify('Доступ начислен. Тариф и срок обновляются.');
-        if (status === 'failed') notify('Telegram не завершил оплату. Доступ не изменён.');
+        if (status === 'paid') notify(messages.billing.accessPaid);
+        if (status === 'failed') notify(messages.billing.accessFailed);
         void client.invalidateQueries({ queryKey: ['me'] });
         void client.invalidateQueries({ queryKey: ['billing', 'payments'] });
       };
       if (!openTelegramInvoice(result.invoiceUrl, handleClosed)) {
-        notify('Счёт можно открыть только внутри Telegram MiniApp.');
+        notify(messages.billing.telegramOnly);
       }
     },
   });
-  if (catalog.isPending) return <EmptyState title="Загружаем AI-кредиты…" />;
+  if (catalog.isPending) return <EmptyState title={messages.billing.loading} />;
   if (catalog.isError)
     return <ErrorState error={catalog.error} retry={() => void catalog.refetch()} />;
   return (
     <div className="view-stack">
       <ViewHeader
-        eyebrow="AI-КРЕДИТЫ"
-        title="Разовое пополнение"
-        description="Velora работает на Cloudflare Free. Кредиты расходуются только на полноценные ролевые ответы ИИ."
+        eyebrow={messages.billing.eyebrow}
+        title={messages.billing.title}
+        description={messages.billing.description}
       />
-      <section className="billing-assurance" aria-label="Условия оплаты">
-        <strong>Без карты, подписки и автопополнения</strong>
-        <p>
-          Покупка выполняется один раз через Telegram Stars. Повторных списаний нет; новый пакет
-          приобретается только вручную.
-        </p>
+      <section className="billing-assurance" aria-label={messages.billing.termsLabel}>
+        <strong>{messages.billing.assuranceTitle}</strong>
+        <p>{messages.billing.assuranceText}</p>
       </section>
-      <section className="billing-assurance" aria-label="Текущий тариф">
-        <strong>Текущий тариф: {account.planDisplayName}</strong>
+      <section className="billing-assurance" aria-label={messages.billing.currentPlanLabel}>
+        <strong>{messages.billing.currentPlan(account.planDisplayName)}</strong>
         <p>
           {account.planAccessUntil
-            ? `Доступ действует до ${new Date(account.planAccessUntil).toLocaleDateString('ru-RU')}. Продления и повторного списания нет.`
-            : 'Бесплатный тариф не имеет срока окончания.'}
+            ? messages.billing.accessUntil(
+                new Date(account.planAccessUntil).toLocaleDateString(locale),
+              )
+            : messages.billing.freeNeverExpires}
         </p>
       </section>
       {catalog.data.paymentsEnabled &&
@@ -598,25 +603,20 @@ function BillingView({
               setTermsAccepted(event.currentTarget.checked);
             }}
           />
-          <span>
-            Я принимаю условия разовой покупки и понимаю, что подписка и автоматическое продление не
-            создаются.
-          </span>
+          <span>{messages.billing.acceptance}</span>
         </label>
       ) : null}
       {accessCatalog.isError ? <InlineError error={accessCatalog.error} /> : null}
       {accessCatalog.data?.items.length ? (
         <section className="view-stack" aria-labelledby="access-packs-title">
-          <h2 id="access-packs-title">Разовый доступ Plus и Pro</h2>
+          <h2 id="access-packs-title">{messages.billing.accessPacks}</h2>
           <div className="billing-grid">
             {accessCatalog.data.items.map((pack) => (
               <article className="billing-pack" key={pack.code}>
                 <span className="pack-stars">{pack.starsAmount} ⭐</span>
                 <h2>{pack.displayName}</h2>
                 <p>{pack.description}</p>
-                <strong>
-                  {pack.durationDays} дней · {pack.planCode}
-                </strong>
+                <strong>{messages.billing.duration(pack.durationDays, pack.planCode)}</strong>
                 <button
                   className="primary"
                   type="button"
@@ -627,7 +627,7 @@ function BillingView({
                     accessInvoice.mutate(pack.code);
                   }}
                 >
-                  Купить один раз
+                  {messages.billing.buyOnce}
                 </button>
               </article>
             ))}
@@ -636,15 +636,13 @@ function BillingView({
       ) : null}
       {!catalog.data.paymentsEnabled ? (
         <section className="billing-disabled" role="status">
-          <strong>Покупки пока выключены</strong>
-          <p>
-            Владелец ещё не включил реальные счета. Бесплатные функции Velora доступны как обычно.
-          </p>
+          <strong>{messages.billing.disabledTitle}</strong>
+          <p>{messages.billing.disabledText}</p>
         </section>
       ) : catalog.data.items.length === 0 ? (
         <section className="billing-disabled" role="status">
-          <strong>Пакеты ещё не настроены</strong>
-          <p>До ручной настройки цен владельцем приложение не создаёт платёжные счета.</p>
+          <strong>{messages.billing.noPacksTitle}</strong>
+          <p>{messages.billing.noPacksText}</p>
         </section>
       ) : (
         <>
@@ -654,7 +652,9 @@ function BillingView({
                 <span className="pack-stars">{pack.starsAmount} ⭐</span>
                 <h2>{pack.displayName}</h2>
                 <p>{pack.description}</p>
-                <strong>{formatCredits(pack.creditAmountMicros)} AI-кредитов</strong>
+                <strong>
+                  {messages.billing.credits(formatCredits(pack.creditAmountMicros, locale))}
+                </strong>
                 <button
                   className="primary"
                   type="button"
@@ -663,7 +663,7 @@ function BillingView({
                     invoice.mutate(pack.code);
                   }}
                 >
-                  Купить за {pack.starsAmount} ⭐
+                  {messages.billing.buyFor(pack.starsAmount)}
                 </button>
               </article>
             ))}
@@ -673,18 +673,18 @@ function BillingView({
       <InlineError error={invoice.error} />
       <InlineError error={accessInvoice.error} />
       <section className="payment-history">
-        <h2>История операций</h2>
-        {history.isPending ? <p>Загружаем…</p> : null}
+        <h2>{messages.billing.history}</h2>
+        {history.isPending ? <p>{messages.billing.historyLoading}</p> : null}
         {history.isError ? <InlineError error={history.error} /> : null}
-        {history.data?.items.length === 0 ? <p>Операций пока нет.</p> : null}
+        {history.data?.items.length === 0 ? <p>{messages.billing.noOperations}</p> : null}
         {history.data?.items.map((item) => (
           <div className="payment-row" key={item.id}>
             <span>
               <strong>{item.amount} ⭐</strong>
-              <small>{formatPaymentState(item.state)}</small>
+              <small>{formatPaymentState(item.state, messages)}</small>
             </span>
             <time dateTime={new Date(item.createdAt).toISOString()}>
-              {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+              {new Date(item.createdAt).toLocaleDateString(locale)}
             </time>
           </div>
         ))}
@@ -693,19 +693,19 @@ function BillingView({
   );
 }
 
-function formatCredits(valueMicros: number): string {
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(
+function formatCredits(valueMicros: number, locale: Locale = 'ru'): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(
     valueMicros / 1_000_000,
   );
 }
 
-function formatPaymentState(state: string): string {
+function formatPaymentState(state: string, messages: ReturnType<typeof getWebMessages>): string {
   const labels: Readonly<Record<string, string>> = {
-    CREATED: 'Создаётся',
-    INVOICE_SENT: 'Ожидает оплаты',
-    PAID: 'Оплачено',
-    FAILED: 'Ошибка',
-    REFUNDED: 'Возвращено',
+    CREATED: messages.billing.stateCreated,
+    INVOICE_SENT: messages.billing.stateInvoiceSent,
+    PAID: messages.billing.statePaid,
+    FAILED: messages.billing.stateFailed,
+    REFUNDED: messages.billing.stateRefunded,
   };
   return labels[state] ?? state;
 }
@@ -738,6 +738,7 @@ function DiscoveryView({
   readonly onStarted: (id: string) => void;
   readonly onOpenCreator: (userId: string) => void;
 }) {
+  const { messages } = useI18n();
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const discovery = useQuery({
@@ -754,9 +755,9 @@ function DiscoveryView({
   return (
     <div className="view-stack">
       <ViewHeader
-        eyebrow="ИССЛЕДУЙ"
-        title="Найди свою историю"
-        description="Опубликованные персонажи, доступные для безопасного ролевого диалога."
+        eyebrow={messages.discovery.eyebrow}
+        title={messages.discovery.title}
+        description={messages.discovery.description}
       />
       <form
         className="search-bar"
@@ -770,17 +771,17 @@ function DiscoveryView({
           onChange={(event) => {
             setQuery(event.target.value);
           }}
-          placeholder="Имя, описание или сюжет"
-          aria-label="Поиск персонажей"
+          placeholder={messages.discovery.searchPlaceholder}
+          aria-label={messages.discovery.searchLabel}
         />
-        <button type="submit">Найти</button>
+        <button type="submit">{messages.discovery.search}</button>
       </form>
-      {discovery.isPending ? <EmptyState title="Открываем каталог…" /> : null}
+      {discovery.isPending ? <EmptyState title={messages.discovery.loading} /> : null}
       {discovery.isError ? (
         <ErrorState error={discovery.error} retry={() => void discovery.refetch()} />
       ) : null}
       {discovery.data?.items.length === 0 ? (
-        <EmptyState title="Пока ничего не найдено" text="Измени запрос или вернись чуть позже." />
+        <EmptyState title={messages.discovery.emptyTitle} text={messages.discovery.emptyText} />
       ) : null}
       <div className="card-grid">
         {discovery.data?.items.map((character) => (
@@ -811,6 +812,7 @@ function DiscoveryCard({
   readonly onOpenCreator: (userId: string) => void;
   readonly publicReviews: boolean;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -907,25 +909,25 @@ function DiscoveryCard({
             onOpenCreator(character.creatorId);
           }}
         >
-          от {character.creatorName}
+          {messages.discovery.byCreator(character.creatorName)}
         </button>
         <h2>{character.name}</h2>
         <p className="tagline">{character.tagline}</p>
         {expanded ? <p className="description">{character.description}</p> : null}
         {expanded && character.alternateGreetings.length > 0 ? (
           <label className="field greeting-picker">
-            <span>Начальное приветствие</span>
+            <span>{messages.discovery.greeting}</span>
             <select
-              aria-label="Начальное приветствие"
+              aria-label={messages.discovery.greeting}
               value={greetingIndex}
               onChange={(event) => {
                 setGreetingIndex(Number(event.currentTarget.value));
               }}
             >
-              <option value={0}>Основное</option>
+              <option value={0}>{messages.discovery.primaryGreeting}</option>
               {character.alternateGreetings.map((_, index) => (
                 <option key={index} value={index + 1}>
-                  Вариант {index + 1}
+                  {messages.discovery.greetingVariant(index + 1)}
                 </option>
               ))}
             </select>
@@ -936,7 +938,7 @@ function DiscoveryCard({
             <span key={tag}>{tag}</span>
           ))}
         </div>
-        <div className="character-metrics" aria-label="Статистика персонажа">
+        <div className="character-metrics" aria-label={messages.discovery.metrics}>
           <span>♡ {character.likeCount}</span>
           <span>🔖 {character.bookmarkCount}</span>
           {publicReviews ? (
@@ -955,7 +957,7 @@ function DiscoveryCard({
               interaction.mutate({ kind: 'like', enabled: !character.liked });
             }}
           >
-            {character.liked ? '♥ Нравится' : '♡ Нравится'}
+            {character.liked ? messages.discovery.liked : messages.discovery.like}
           </button>
           <button
             className={character.bookmarked ? 'is-selected' : ''}
@@ -966,7 +968,7 @@ function DiscoveryCard({
               interaction.mutate({ kind: 'bookmark', enabled: !character.bookmarked });
             }}
           >
-            {character.bookmarked ? '🔖 Сохранено' : '♧ В закладки'}
+            {character.bookmarked ? messages.discovery.saved : messages.discovery.bookmark}
           </button>
         </div>
         {interaction.error ? <InlineError error={interaction.error} /> : null}
@@ -977,7 +979,7 @@ function DiscoveryCard({
             setExpanded((value) => !value);
           }}
         >
-          {expanded ? 'Свернуть' : 'Подробнее'}
+          {expanded ? messages.discovery.collapse : messages.discovery.details}
         </button>
         {expanded && publicReviews ? (
           <button
@@ -988,7 +990,7 @@ function DiscoveryCard({
               setReporting((value) => !value);
             }}
           >
-            ⚑ Пожаловаться
+            {messages.discovery.report}
           </button>
         ) : null}
         {reporting ? (
@@ -1002,7 +1004,7 @@ function DiscoveryCard({
         ) : null}
         {reportSent ? (
           <span className="success" role="status">
-            Жалоба отправлена в очередь модерации.
+            {messages.discovery.reportSent}
           </span>
         ) : null}
         {expanded && character.creatorId !== currentUserId ? (
@@ -1013,15 +1015,16 @@ function DiscoveryCard({
               setConfirmingBlock(true);
             }}
           >
-            Заблокировать автора
+            {messages.discovery.blockCreator}
           </button>
         ) : null}
         {confirmingBlock ? (
-          <div className="inline-confirm" role="alertdialog" aria-label="Подтверждение блокировки">
-            <p>
-              Автор, его персонажи и диалоги станут недоступны вам. Вы сможете снять блокировку в
-              настройках.
-            </p>
+          <div
+            className="inline-confirm"
+            role="alertdialog"
+            aria-label={messages.discovery.blockConfirmation}
+          >
+            <p>{messages.discovery.blockText}</p>
             <div className="dialog-actions">
               <button
                 type="button"
@@ -1029,7 +1032,7 @@ function DiscoveryCard({
                   setConfirmingBlock(false);
                 }}
               >
-                Отмена
+                {messages.discovery.cancel}
               </button>
               <button
                 className="danger"
@@ -1039,15 +1042,15 @@ function DiscoveryCard({
                   blockCreator.mutate();
                 }}
               >
-                Заблокировать
+                {messages.discovery.block}
               </button>
             </div>
             {blockCreator.error ? <InlineError error={blockCreator.error} /> : null}
           </div>
         ) : null}
         {expanded ? (
-          <section className="review-panel" aria-label="Отзывы">
-            <h3>Отзывы</h3>
+          <section className="review-panel" aria-label={messages.discovery.reviews}>
+            <h3>{messages.discovery.reviews}</h3>
             <form
               onSubmit={(event) => {
                 event.preventDefault();
@@ -1059,11 +1062,11 @@ function DiscoveryCard({
               }}
             >
               <label>
-                <span>Ваша оценка</span>
+                <span>{messages.discovery.yourRating}</span>
                 <select name="rating" defaultValue={character.myRating ?? 5}>
                   {[5, 4, 3, 2, 1].map((rating) => (
                     <option value={rating} key={rating}>
-                      {rating} из 5
+                      {messages.discovery.ratingOutOfFive(rating)}
                     </option>
                   ))}
                 </select>
@@ -1072,10 +1075,12 @@ function DiscoveryCard({
                 name="reviewText"
                 maxLength={1000}
                 defaultValue={character.myReviewText ?? ''}
-                placeholder="Отзыв необязателен"
+                placeholder={messages.discovery.reviewPlaceholder}
               />
               <button className="compact-button" type="submit" disabled={review.isPending}>
-                {character.myRating === null ? 'Оценить' : 'Обновить отзыв'}
+                {character.myRating === null
+                  ? messages.discovery.rate
+                  : messages.discovery.updateReview}
               </button>
               {character.myRating !== null ? (
                 <button
@@ -1086,7 +1091,7 @@ function DiscoveryCard({
                     removeReview.mutate();
                   }}
                 >
-                  Удалить мой отзыв
+                  {messages.discovery.deleteReview}
                 </button>
               ) : null}
             </form>
@@ -1100,7 +1105,9 @@ function DiscoveryCard({
                 {item.reviewText ? <p>{item.reviewText}</p> : null}
               </article>
             ))}
-            {reviews.data?.items.length === 0 ? <p className="meta">Отзывов пока нет.</p> : null}
+            {reviews.data?.items.length === 0 ? (
+              <p className="meta">{messages.discovery.noReviews}</p>
+            ) : null}
           </section>
         ) : null}
         <button
@@ -1111,7 +1118,7 @@ function DiscoveryCard({
             start.mutate();
           }}
         >
-          {start.isPending ? 'Открываем…' : 'Начать историю'}
+          {start.isPending ? messages.discovery.opening : messages.discovery.startStory}
         </button>
         {start.error ? <InlineError error={start.error} /> : null}
       </div>
@@ -3166,10 +3173,13 @@ function CharacterEditor({
 function SettingsView({
   account,
   notify,
+  onLocaleChange,
 }: {
   readonly account: MeResponse;
   readonly notify: (message: string | null) => void;
+  readonly onLocaleChange: (locale: Locale) => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [showDeletionDialog, setShowDeletionDialog] = useState(false);
   const [deletionConfirmation, setDeletionConfirmation] = useState('');
@@ -3190,7 +3200,8 @@ function SettingsView({
     onSuccess: async (result) => {
       await client.invalidateQueries({ queryKey: ['settings'] });
       document.documentElement.dataset['theme'] = result.theme;
-      notify('Настройки сохранены.');
+      onLocaleChange(result.locale);
+      notify(getWebMessages(result.locale).settings.saved);
     },
   });
   const dataControls = useQuery({
@@ -3274,15 +3285,15 @@ function SettingsView({
   useEffect(() => {
     if (settings.data) document.documentElement.dataset['theme'] = settings.data.theme;
   }, [settings.data]);
-  if (settings.isPending) return <EmptyState title="Загружаем настройки…" />;
+  if (settings.isPending) return <EmptyState title={messages.settings.loading} />;
   if (settings.isError)
     return <ErrorState error={settings.error} retry={() => void settings.refetch()} />;
   return (
     <div className="view-stack">
       <ViewHeader
-        eyebrow="КОНТРОЛЬ"
-        title="Настройки"
-        description="Тема, язык и профиль генерации хранятся в твоём аккаунте."
+        eyebrow={messages.settings.eyebrow}
+        title={messages.settings.title}
+        description={messages.settings.description}
       />
       <form
         className="editor-card"
@@ -3297,46 +3308,43 @@ function SettingsView({
         }}
       >
         <Select
-          label="Тема"
+          label={messages.settings.theme}
           name="theme"
           defaultValue={settings.data.theme}
           options={[
-            ['dark', 'Тёмная'],
-            ['amoled', 'AMOLED'],
-            ['light', 'Светлая'],
+            ['dark', messages.settings.dark],
+            ['amoled', messages.settings.amoled],
+            ['light', messages.settings.light],
           ]}
         />
         <Select
-          label="Язык"
+          label={messages.settings.language}
           name="locale"
           defaultValue={settings.data.locale}
           options={[
-            ['ru', 'Русский'],
-            ['en', 'English'],
+            ['ru', messages.settings.russian],
+            ['en', messages.settings.english],
           ]}
         />
         <Select
-          label="Режим генерации"
+          label={messages.settings.generationMode}
           name="generationProfile"
           defaultValue={settings.data.generationProfile}
           options={(
             [
-              ['BALANCED', 'Сбалансированный'],
-              ['CREATIVE', 'Творческий'],
-              ['PREMIUM', 'Максимальное качество'],
+              ['BALANCED', messages.settings.balanced],
+              ['CREATIVE', messages.settings.creative],
+              ['PREMIUM', messages.settings.premium],
             ] as const
           ).filter(([code]) => account.planEntitlements.modelProfiles.includes(code))}
         />
         <div className="budget-note">
-          <strong>Только предоплаченные AI-кредиты</strong>
-          <p>
-            Автосписаний и автоматического пополнения нет. Кредиты расходуются исключительно на
-            полноценные ролевые ответы.
-          </p>
+          <strong>{messages.settings.prepaidTitle}</strong>
+          <p>{messages.settings.prepaidText}</p>
         </div>
         {save.error ? <InlineError error={save.error} /> : null}
         <button className="primary" type="submit" disabled={save.isPending}>
-          Сохранить
+          {messages.settings.save}
         </button>
       </form>
       <section className="editor-card account-controls" aria-labelledby="support-title">
