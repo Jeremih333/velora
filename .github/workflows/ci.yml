@@ -22,6 +22,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Secret scan
+        shell: pwsh
+        run: ./toolkit/secret-scan.ps1
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
