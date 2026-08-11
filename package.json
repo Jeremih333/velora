@@ -14,7 +14,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run --exclude tests/integration/** --exclude tests/e2e/**",
-    "test:integration": "node toolkit/test-d1.mjs && node toolkit/test-api.mjs && vitest run tests/integration",
+    "test:integration": "corepack pnpm --filter @velora/web build && node toolkit/test-d1.mjs && node toolkit/test-api.mjs && vitest run tests/integration",
     "test:restore": "node toolkit/test-restore.mjs",
     "test:e2e": "playwright test",
     "build": "corepack pnpm --filter @velora/web build && corepack pnpm --filter @velora/api build",
