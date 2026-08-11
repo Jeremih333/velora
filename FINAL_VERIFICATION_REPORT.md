@@ -58,6 +58,9 @@ verified; the full product from the master brief is still in progress.
 - user credits are charged only after successful roleplay generation, while conservative provider
   spend for every started retry/fallback attempt is retained separately for global budgets;
 - the authenticated Mini App can start a story from discovery and stream the reply in a chat view;
+- conversation creation accepts the safe opaque character identifiers returned by the catalogue;
+  a regression starts a real Worker+D1 conversation for a deterministic staging character instead
+  of rejecting it as a malformed UUID;
 - creators can open an explicitly labelled private test chat for their own draft; ordinary draft
   chats and foreign preview attempts are denied, immutable character/persona snapshots are kept,
   and previews do not increase creator chat statistics;
@@ -170,7 +173,7 @@ verified; the full product from the master brief is still in progress.
   63 tables/25 migrations before the remote migration;
 - owner deletion fails closed until ownership is transferred; deletion and block controls pass
   responsive desktop, Android and iPhone E2E;
-- secret scan, formatting, lint, strict typecheck, 116 unit/regression tests, 4 API contract tests,
+- secret scan, formatting, lint, strict typecheck, 117 unit/regression tests, 4 API contract tests,
   25 integration/schema/cost-model tests, D1/API integration, builds, and 9 E2E cases without
   retries across Android/iPhone/desktop passed;
 - post-deploy staging `/health`, `/ready`, protected data controls, unsigned webhook rejection and

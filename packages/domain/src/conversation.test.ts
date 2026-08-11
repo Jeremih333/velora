@@ -27,6 +27,21 @@ describe('conversation schemas', () => {
     ).toBe(true);
   });
 
+  it('accepts safe opaque character IDs returned by the staging catalogue', () => {
+    expect(
+      conversationCreateSchema.safeParse({
+        characterId: 'seed-character-01',
+        idempotencyKey: 'conversation:seed-character:01',
+      }).success,
+    ).toBe(true);
+    expect(
+      conversationCreateSchema.safeParse({
+        characterId: 'seed character/01',
+        idempotencyKey: 'conversation:seed-character:02',
+      }).success,
+    ).toBe(false);
+  });
+
   it('rejects empty patches and oversized memory', () => {
     expect(conversationPatchSchema.safeParse({}).success).toBe(false);
     expect(

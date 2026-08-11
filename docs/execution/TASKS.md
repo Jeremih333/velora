@@ -284,6 +284,8 @@
 - [x] Pass GitHub CI `31530811020`, deploy the prompt fix to staging Worker
       `19904cde-712c-4075-bede-294920fbefb1`, and verify health/readiness, 25 migrations,
       D1 quick-check plus Telegram/BotHub READY with paid gates off and zero V3 runs.
+- [x] Fix conversation creation for safe opaque IDs emitted by the staging catalogue and cover the
+      exact new-user start-story failure with domain validation plus a real Worker+D1 regression.
 
 ## Next
 

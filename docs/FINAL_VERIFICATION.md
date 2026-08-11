@@ -26,7 +26,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 116 PASS; API contract: 4 PASS; integration/schema/cost-model: 25 PASS;
+- unit/regression: 117 PASS; API contract: 4 PASS; integration/schema/cost-model: 25 PASS;
 - dedicated roleplay quality A-F structural corpus: PASS; live model prose evaluation remains
   gated behind the exact one-request V3 confirmation;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
@@ -92,5 +92,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
   and can start the selected story immediately: PASS.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
+- deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe
+  identifier characters remain rejected: PASS.
 
 These results prove only the implemented foundation, not the unimplemented product surface.

@@ -65,6 +65,8 @@ const deletionCsrfToken = `deletion-csrf-${randomUUID()}`;
 const ownerPackCode = `owner-${randomUUID().slice(0, 12)}`;
 const accessPackCode = `plus-${randomUUID().slice(0, 12)}`;
 const mediaId = randomUUID();
+const opaqueCharacterId = 'seed-character-integration';
+const opaqueCharacterVersionId = 'seed-character-version-integration';
 const characterName = `Элиас ${randomUUID()}`;
 const matureCharacterName = `Ночная история ${randomUUID()}`;
 const telegramId = String(8_000_000_000 + Math.floor(Math.random() * 999_999_999));
@@ -211,6 +213,19 @@ const setupSql = `
   INSERT INTO integration_reconciliations
     (integration_key, desired_hash, state, attempts, next_attempt_at, verified_at, updated_at)
   VALUES ('bothub_provider', '${'0'.repeat(64)}', 'READY', 0, 0, ${now}, ${now});
+  INSERT INTO characters
+    (id, owner_id, visibility, publish_state, content_rating, language,
+     created_at, updated_at, published_at)
+  VALUES ('${opaqueCharacterId}', '${ownerId}', 'PUBLIC', 'PUBLISHED', 'SAFE', 'ru',
+    ${now}, ${now}, ${now});
+  INSERT INTO character_versions
+    (id, character_id, version, name, tagline, description, personality, scenario,
+     first_message, created_at)
+  VALUES ('${opaqueCharacterVersionId}', '${opaqueCharacterId}', 1,
+    'Opaque fixture', 'Server-issued ID', 'Synthetic integration character.', 'Calm', '',
+    'История с непрозрачным ID открыта.', ${now});
+  UPDATE characters SET active_version_id = '${opaqueCharacterVersionId}'
+  WHERE id = '${opaqueCharacterId}';
 `;
 runWrangler(['d1', 'execute', 'velora-local', '--local', '--env', 'local', '--command', setupSql]);
 
@@ -612,6 +627,21 @@ try {
     !dataControls.export?.resources?.includes('characters')
   ) {
     throw new Error('Initial data controls contract is inconsistent.');
+  }
+  const opaqueConversation = await request(
+    '/api/v1/conversations',
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        characterId: opaqueCharacterId,
+        idempotencyKey: `opaque-character:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  if (opaqueConversation.characterId !== opaqueCharacterId) {
+    throw new Error('A server-issued opaque character ID could not start a conversation.');
   }
   const initialProfile = await request('/api/v1/profiles/me', { headers }, 200);
   if (!initialProfile.isOwn || initialProfile.displayName !== 'Integration User') {

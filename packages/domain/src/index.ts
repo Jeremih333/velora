@@ -142,8 +142,19 @@ const idempotencyKeySchema = z
   .max(100)
   .regex(/^[a-zA-Z0-9._:-]+$/u);
 
+/**
+ * Existing resource identifiers are opaque values issued by the server. Production resources use
+ * UUIDs, while deterministic staging fixtures intentionally use readable identifiers.
+ */
+export const resourceIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u);
+
 export const conversationCreateSchema = z.object({
-  characterId: z.uuid(),
+  characterId: resourceIdSchema,
   personaId: z.uuid().nullable().optional(),
   greetingIndex: z.number().int().min(0).max(10).default(0),
   title: z.string().trim().min(1).max(120).optional(),
