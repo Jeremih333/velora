@@ -2249,8 +2249,12 @@ h1 {
   }
   .bottom-nav {
     right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom));
+    bottom: max(4px, env(safe-area-inset-bottom));
     left: 8px;
+    padding: 3px;
+  }
+  .nav-item {
+    min-height: 44px;
   }
   .nav-item small {
     font-size: 8px;
