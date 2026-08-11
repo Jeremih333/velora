@@ -22,5 +22,6 @@ describe('web internationalization', () => {
     expect(Object.keys(english.settings)).toEqual(Object.keys(russian.settings));
     expect(Object.keys(english.billing)).toEqual(Object.keys(russian.billing));
     expect(Object.keys(english.discovery)).toEqual(Object.keys(russian.discovery));
+    expect(Object.keys(english.chat)).toEqual(Object.keys(russian.chat));
   });
 });

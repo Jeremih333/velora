@@ -21,7 +21,7 @@ verified; the full product from the master brief is still in progress.
 - staging D1 migrations 0001-0025 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `c0156f2d-d446-4888-898f-c6519c90983f` is live with a five-minute
+- staging Worker version `2fef274a-9baf-40d5-a15d-fecff72bfb3f` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - persona CRUD/default and character immutable-version CRUD/publish/discovery pass against a real

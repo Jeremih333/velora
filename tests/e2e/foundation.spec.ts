@@ -1559,6 +1559,14 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Chats/u })).toBeVisible();
   await expect(page.getByText('Settings saved.')).toBeVisible();
+  await page.getByRole('button', { name: /Chats/u }).click();
+  await page.getByRole('button', { name: 'Back to chats' }).click();
+  await expect(page.getByRole('heading', { name: 'Chats', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Лира/u }).click();
+  await expect(page.getByRole('button', { name: 'Back to chats' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Story tools' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to chats' }).click();
   await page.getByRole('button', { name: /Discover/u }).click();
   await expect(page.getByRole('heading', { name: 'Find your story' })).toBeVisible();
   await page.getByRole('button', { name: 'Open AI credits' }).click();

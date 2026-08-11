@@ -244,10 +244,14 @@
       settings, including an E2E account-language switch without reload. Remaining views stay
       explicitly tracked rather than being called complete; deploy staging Worker
       `c0156f2d-d446-4888-898f-c6519c90983f` with paid gates off and zero V3 runs.
+- [x] Extend typed RU/EN localization through the complete chat flow: list, thread, message actions,
+      story settings, memory, prompt inspector and lore panel; verify the language switch in the
+      authenticated browser flow and deploy staging Worker
+      `2fef274a-9baf-40d5-a15d-fecff72bfb3f` with BotHub READY and zero V3 runs.
 
 ## Next
 
-- Continue removing hardcoded Russian UI strings from chats, character/persona/lore editors,
+- Continue removing hardcoded Russian UI strings from character/persona/lore editors,
   profiles, support and administration.
 - Optional reviewed advanced classifiers.
 - Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting

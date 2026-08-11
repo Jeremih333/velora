@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { apiRequest, apiSse } from './api';
+import { useI18n, type Locale, type WebMessages } from './i18n';
 import { selectMessageWindow } from './message-window';
 import { SafeMarkdown } from './SafeMarkdown';
 import type {
@@ -55,6 +56,7 @@ export function ChatsView({
 }
 
 function ChatList({ onOpen }: { readonly onOpen: (id: string) => void }) {
+  const { locale, messages } = useI18n();
   const conversations = useQuery({
     queryKey: ['conversations'],
     queryFn: () => apiRequest<ListResponse<ConversationSummary>>('/api/v1/conversations'),
@@ -63,14 +65,14 @@ function ChatList({ onOpen }: { readonly onOpen: (id: string) => void }) {
     <div className="view-stack">
       <header className="view-header">
         <div>
-          <p className="eyebrow">ТВОИ ИСТОРИИ</p>
-          <h1>Диалоги</h1>
-          <p>Каждая история хранит свою ветку, выбранный образ и память.</p>
+          <p className="eyebrow">{messages.chat.eyebrow}</p>
+          <h1>{messages.chat.title}</h1>
+          <p>{messages.chat.description}</p>
         </div>
       </header>
       {conversations.isPending ? (
         <div className="empty-state">
-          <h2>Загружаем истории…</h2>
+          <h2>{messages.chat.loading}</h2>
         </div>
       ) : null}
       {conversations.isError ? (
@@ -81,8 +83,8 @@ function ChatList({ onOpen }: { readonly onOpen: (id: string) => void }) {
       {conversations.data?.items.length === 0 ? (
         <div className="empty-state">
           <span>✦</span>
-          <h2>Диалогов пока нет</h2>
-          <p>Открой каталог и начни новую историю.</p>
+          <h2>{messages.chat.emptyTitle}</h2>
+          <p>{messages.chat.emptyText}</p>
         </div>
       ) : null}
       <div className="list-stack">
@@ -102,11 +104,13 @@ function ChatList({ onOpen }: { readonly onOpen: (id: string) => void }) {
             <span>
               <strong>
                 {conversation.title}
-                {conversation.isPreview ? <small className="preview-pill">ТЕСТ</small> : null}
+                {conversation.isPreview ? (
+                  <small className="preview-pill">{messages.chat.preview}</small>
+                ) : null}
               </strong>
-              <small>{conversation.lastMessage ?? 'История только начинается'}</small>
+              <small>{conversation.lastMessage ?? messages.chat.beginning}</small>
             </span>
-            <time>{formatTime(conversation.updatedAt)}</time>
+            <time>{formatTime(conversation.updatedAt, locale)}</time>
           </button>
         ))}
       </div>
@@ -123,6 +127,7 @@ function ChatThread({
   readonly allowedModelProfiles: readonly ('BALANCED' | 'CREATIVE' | 'PREMIUM')[];
   readonly onBack: () => void;
 }) {
+  const { locale, messages: translations } = useI18n();
   const client = useQueryClient();
   const [draft, setDraft] = useState('');
   const [streaming, setStreaming] = useState('');
@@ -219,7 +224,7 @@ function ChatThread({
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
       await streamReply(userMessage.id, 'REPLY');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось отправить реплику.');
+      setError(caught instanceof Error ? caught.message : translations.chat.sendFailed);
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
     } finally {
       setGenerationId(null);
@@ -235,7 +240,7 @@ function ChatThread({
     try {
       await streamReply(parentMessageId, mode);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось создать вариант ответа.');
+      setError(caught instanceof Error ? caught.message : translations.chat.variantFailed);
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
     } finally {
       setGenerationId(null);
@@ -256,7 +261,7 @@ function ChatThread({
         client.invalidateQueries({ queryKey: ['conversation', conversationId] }),
       ]);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось переключить ветку.');
+      setError(caught instanceof Error ? caught.message : translations.chat.branchFailed);
     }
   };
 
@@ -279,7 +284,7 @@ function ChatThread({
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
       if (message.role === 'USER') await streamReply(edited.id, 'REPLY');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось изменить сообщение.');
+      setError(caught instanceof Error ? caught.message : translations.chat.editFailed);
     } finally {
       setSending(false);
     }
@@ -296,7 +301,7 @@ function ChatThread({
       setActionMessageId(null);
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось удалить сообщение.');
+      setError(caught instanceof Error ? caught.message : translations.chat.deleteFailed);
     }
   };
 
@@ -317,7 +322,7 @@ function ChatThread({
       setReportDetails('');
       setActionMessageId(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось отправить жалобу.');
+      setError(caught instanceof Error ? caught.message : translations.chat.reportFailed);
     }
   };
 
@@ -327,14 +332,14 @@ function ChatThread({
       await client.invalidateQueries({ queryKey: ['conversations'] });
       onBack();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось удалить диалог.');
+      setError(caught instanceof Error ? caught.message : translations.chat.deleteChatFailed);
     }
   };
 
   return (
     <div className="chat-view">
       <header className="chat-header">
-        <button type="button" aria-label="Назад к диалогам" onClick={onBack}>
+        <button type="button" aria-label={translations.chat.back} onClick={onBack}>
           ←
         </button>
         <ChatAvatar
@@ -342,19 +347,19 @@ function ChatThread({
           fileId={conversation.data?.characterAvatarFileId ?? null}
         />
         <span className="chat-title">
-          <strong>{conversation.data?.title ?? 'История'}</strong>
+          <strong>{conversation.data?.title ?? translations.chat.storyFallback}</strong>
           <small>
             {sending
-              ? 'создаёт ответ…'
+              ? translations.chat.generating
               : conversation.data?.isPreview
-                ? 'Приватный тест черновика'
-                : 'ролевая история'}
+                ? translations.chat.privatePreview
+                : translations.chat.roleplayStory}
           </small>
         </span>
         <button
           className="chat-context-button"
           type="button"
-          aria-label="Инструменты истории"
+          aria-label={translations.chat.storyTools}
           onClick={() => {
             setShowTools((value) => !value);
           }}
@@ -363,7 +368,7 @@ function ChatThread({
         </button>
       </header>
       {showTools ? (
-        <nav className="chat-tools" aria-label="Инструменты истории">
+        <nav className="chat-tools" aria-label={translations.chat.storyTools}>
           <button
             type="button"
             onClick={() => {
@@ -373,7 +378,7 @@ function ChatThread({
               setShowLore((value) => !value);
             }}
           >
-            ⌘ Контекст
+            {translations.chat.loreTool}
           </button>
           <button
             type="button"
@@ -384,7 +389,7 @@ function ChatThread({
               setShowMemory((value) => !value);
             }}
           >
-            М Память
+            {translations.chat.memoryTool}
           </button>
           {conversation.data?.promptInspectorAvailable ? (
             <button
@@ -396,7 +401,7 @@ function ChatThread({
                 setShowPromptInspector((value) => !value);
               }}
             >
-              ◫ Промпт
+              {translations.chat.promptTool}
             </button>
           ) : null}
           <button
@@ -408,7 +413,7 @@ function ChatThread({
               setShowSettings((value) => !value);
             }}
           >
-            ⚙ Настройки
+            {translations.chat.settingsTool}
           </button>
           <button
             className="danger-text"
@@ -417,7 +422,7 @@ function ChatThread({
               setShowDeleteChat(true);
             }}
           >
-            🗑 Диалог
+            {translations.chat.deleteChatTool}
           </button>
         </nav>
       ) : null}
@@ -450,12 +455,12 @@ function ChatThread({
               setVisibleMessageCount((count) => count + 80);
             }}
           >
-            Показать предыдущие сообщения · {messageWindow.hiddenCount}
+            {translations.chat.showEarlier(messageWindow.hiddenCount)}
           </button>
         ) : null}
         {messageWindow.visible.map((message) => {
           const content =
-            message.content || (message.status === 'FAILED' ? 'Ответ не был завершён.' : '');
+            message.content || (message.status === 'FAILED' ? translations.chat.unfinished : '');
           const variants = message.variantIds;
           const variantCount = message.variantCount;
           const variantIndex = message.variantIndex;
@@ -473,7 +478,7 @@ function ChatThread({
                   }}
                 >
                   <textarea
-                    aria-label="Изменённый текст сообщения"
+                    aria-label={translations.chat.editedText}
                     value={editDraft}
                     maxLength={16_000}
                     onChange={(event) => {
@@ -482,7 +487,7 @@ function ChatThread({
                   />
                   <span>
                     <button type="submit" disabled={!editDraft.trim() || sending}>
-                      Сохранить
+                      {translations.chat.save}
                     </button>
                     <button
                       type="button"
@@ -490,7 +495,7 @@ function ChatThread({
                         setEditingMessageId(null);
                       }}
                     >
-                      Отмена
+                      {translations.chat.cancel}
                     </button>
                   </span>
                 </form>
@@ -498,11 +503,11 @@ function ChatThread({
                 <SafeMarkdown content={content} />
               )}
               <footer className="message-meta">
-                {message.editedAt ? <span>изменено</span> : null}
-                <time>{formatTime(message.createdAt)}</time>
+                {message.editedAt ? <span>{translations.chat.edited}</span> : null}
+                <time>{formatTime(message.createdAt, locale)}</time>
                 <button
                   type="button"
-                  aria-label="Действия с сообщением"
+                  aria-label={translations.chat.messageActions}
                   aria-expanded={actionMessageId === message.id}
                   onClick={() => {
                     setActionMessageId((current) => (current === message.id ? null : message.id));
@@ -512,10 +517,10 @@ function ChatThread({
                 </button>
               </footer>
               {variantCount > 1 ? (
-                <nav className="message-variants" aria-label="Варианты сообщения">
+                <nav className="message-variants" aria-label={translations.chat.variants}>
                   <button
                     type="button"
-                    aria-label="Предыдущий вариант"
+                    aria-label={translations.chat.previousVariant}
                     disabled={variantIndex <= 0}
                     onClick={() => {
                       const previous = variants[variantIndex - 1];
@@ -529,7 +534,7 @@ function ChatThread({
                   </span>
                   <button
                     type="button"
-                    aria-label="Следующий вариант"
+                    aria-label={translations.chat.nextVariant}
                     disabled={variantIndex >= variantCount - 1}
                     onClick={() => {
                       const next = variants[variantIndex + 1];
@@ -541,7 +546,7 @@ function ChatThread({
                 </nav>
               ) : null}
               {actionMessageId === message.id ? (
-                <nav className="message-actions" aria-label="Меню сообщения">
+                <nav className="message-actions" aria-label={translations.chat.messageMenu}>
                   <button
                     type="button"
                     onClick={() => {
@@ -550,11 +555,11 @@ function ChatThread({
                           setActionMessageId(null);
                         })
                         .catch(() => {
-                          setError('Браузер не разрешил скопировать сообщение.');
+                          setError(translations.chat.copyFailed);
                         });
                     }}
                   >
-                    Копировать
+                    {translations.chat.copy}
                   </button>
                   <button
                     type="button"
@@ -564,7 +569,7 @@ function ChatThread({
                       setActionMessageId(null);
                     }}
                   >
-                    Изменить
+                    {translations.chat.edit}
                   </button>
                   <button
                     type="button"
@@ -572,7 +577,7 @@ function ChatThread({
                       void activateVariant(message.id);
                     }}
                   >
-                    Ветка отсюда
+                    {translations.chat.branchHere}
                   </button>
                   {message.role === 'ASSISTANT' && message.parentMessageId ? (
                     <button
@@ -582,7 +587,7 @@ function ChatThread({
                         void runMessageGeneration(message.parentMessageId ?? '', 'REPLY');
                       }}
                     >
-                      Другой ответ
+                      {translations.chat.regenerate}
                     </button>
                   ) : null}
                   {message.role === 'ASSISTANT' ? (
@@ -593,7 +598,7 @@ function ChatThread({
                         void runMessageGeneration(message.id, 'CONTINUE');
                       }}
                     >
-                      Продолжить ответ
+                      {translations.chat.continueAnswer}
                     </button>
                   ) : null}
                   {message.model || message.provider ? (
@@ -605,7 +610,7 @@ function ChatThread({
                         );
                       }}
                     >
-                      О модели
+                      {translations.chat.modelInfo}
                     </button>
                   ) : null}
                   {message.role === 'ASSISTANT' ? (
@@ -616,7 +621,7 @@ function ChatThread({
                         setActionMessageId(null);
                       }}
                     >
-                      Пожаловаться
+                      {translations.chat.report}
                     </button>
                   ) : null}
                   <button
@@ -627,14 +632,14 @@ function ChatThread({
                       setActionMessageId(null);
                     }}
                   >
-                    Удалить
+                    {translations.chat.delete}
                   </button>
                 </nav>
               ) : null}
               {modelInfoMessageId === message.id ? (
                 <p className="message-model-info">
-                  {message.model ?? 'Модель не указана'} ·{' '}
-                  {message.provider ?? 'провайдер не указан'}
+                  {message.model ?? translations.chat.modelUnknown} ·{' '}
+                  {message.provider ?? translations.chat.providerUnknown}
                 </p>
               ) : null}
             </article>
@@ -658,7 +663,7 @@ function ChatThread({
             bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
           }}
         >
-          ↓ К новым сообщениям
+          {translations.chat.jumpToBottom}
         </button>
       ) : null}
       {deleteMessageId ? (
@@ -669,8 +674,8 @@ function ChatThread({
             aria-modal="true"
             aria-labelledby="delete-message-title"
           >
-            <h2 id="delete-message-title">Удалить сообщение и продолжение ветки?</h2>
-            <p>Сообщение и ответы после него исчезнут. Память истории потребуется обновить.</p>
+            <h2 id="delete-message-title">{translations.chat.deleteMessageTitle}</h2>
+            <p>{translations.chat.deleteMessageText}</p>
             <div className="dialog-actions">
               <button
                 type="button"
@@ -678,10 +683,10 @@ function ChatThread({
                   setDeleteMessageId(null);
                 }}
               >
-                Отмена
+                {translations.chat.cancel}
               </button>
               <button className="danger" type="button" onClick={() => void deleteMessage()}>
-                Удалить
+                {translations.chat.delete}
               </button>
             </div>
           </section>
@@ -695,11 +700,11 @@ function ChatThread({
             aria-modal="true"
             aria-labelledby="report-message-title"
           >
-            <h2 id="report-message-title">Жалоба на сообщение</h2>
+            <h2 id="report-message-title">{translations.chat.reportTitle}</h2>
             <label className="field">
-              <span>Что произошло?</span>
+              <span>{translations.chat.reportReason}</span>
               <textarea
-                aria-label="Описание жалобы на сообщение"
+                aria-label={translations.chat.reportDescription}
                 value={reportDetails}
                 minLength={10}
                 maxLength={2_000}
@@ -716,7 +721,7 @@ function ChatThread({
                   setReportDetails('');
                 }}
               >
-                Отмена
+                {translations.chat.cancel}
               </button>
               <button
                 className="primary"
@@ -724,7 +729,7 @@ function ChatThread({
                 disabled={reportDetails.trim().length < 10}
                 onClick={() => void reportMessage()}
               >
-                Отправить
+                {translations.chat.submit}
               </button>
             </div>
           </section>
@@ -738,8 +743,8 @@ function ChatThread({
             aria-modal="true"
             aria-labelledby="delete-chat-title"
           >
-            <h2 id="delete-chat-title">Удалить диалог?</h2>
-            <p>История будет скрыта, а активная генерация остановлена. Отменить действие нельзя.</p>
+            <h2 id="delete-chat-title">{translations.chat.deleteChatTitle}</h2>
+            <p>{translations.chat.deleteChatText}</p>
             <div className="dialog-actions">
               <button
                 type="button"
@@ -747,10 +752,10 @@ function ChatThread({
                   setShowDeleteChat(false);
                 }}
               >
-                Оставить
+                {translations.chat.keepChat}
               </button>
               <button className="danger" type="button" onClick={() => void deleteChat()}>
-                Удалить диалог
+                {translations.chat.deleteChat}
               </button>
             </div>
           </section>
@@ -768,8 +773,8 @@ function ChatThread({
         }}
       >
         <textarea
-          aria-label="Реплика"
-          placeholder="Напиши продолжение истории…"
+          aria-label={translations.chat.messageLabel}
+          placeholder={translations.chat.messagePlaceholder}
           value={draft}
           maxLength={8000}
           rows={1}
@@ -782,20 +787,24 @@ function ChatThread({
           <button
             className="stop-generation"
             type="button"
-            aria-label="Остановить генерацию"
+            aria-label={translations.chat.stopGeneration}
             onClick={() => {
               void apiRequest(
                 `/api/v1/conversations/${conversationId}/generate/${generationId}/stop`,
                 { method: 'POST' },
               ).catch((caught: unknown) => {
-                setError(caught instanceof Error ? caught.message : 'Не удалось остановить ответ.');
+                setError(caught instanceof Error ? caught.message : translations.chat.stopFailed);
               });
             }}
           >
             ■
           </button>
         ) : (
-          <button type="submit" disabled={sending || !draft.trim()} aria-label="Отправить">
+          <button
+            type="submit"
+            disabled={sending || !draft.trim()}
+            aria-label={translations.chat.send}
+          >
             ➤
           </button>
         )}
@@ -811,6 +820,7 @@ function ChatSettingsPanel({
   readonly conversation: ConversationDetail;
   readonly allowedModelProfiles: readonly ('BALANCED' | 'CREATIVE' | 'PREMIUM')[];
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [saved, setSaved] = useState(false);
   const save = useMutation({
@@ -828,8 +838,8 @@ function ChatSettingsPanel({
   return (
     <aside className="chat-lore-panel chat-settings-panel">
       <div>
-        <strong>Настройки истории</strong>
-        <small>Применяются только к этому диалогу и не меняют другие истории.</small>
+        <strong>{messages.chat.settingsTitle}</strong>
+        <small>{messages.chat.settingsText}</small>
       </div>
       <form
         onSubmit={(event) => {
@@ -848,29 +858,29 @@ function ChatSettingsPanel({
       >
         <div className="chat-settings-grid">
           <label className="field">
-            <span>Профиль генерации</span>
+            <span>{messages.chat.generationProfile}</span>
             <select name="modelProfile" defaultValue={conversation.settings.modelProfile}>
               {allowedModelProfiles.includes('BALANCED') ? (
-                <option value="BALANCED">Сбалансированный</option>
+                <option value="BALANCED">{messages.chat.balanced}</option>
               ) : null}
               {allowedModelProfiles.includes('CREATIVE') ? (
-                <option value="CREATIVE">Творческий</option>
+                <option value="CREATIVE">{messages.chat.creative}</option>
               ) : null}
               {allowedModelProfiles.includes('PREMIUM') ? (
-                <option value="PREMIUM">Максимальное качество</option>
+                <option value="PREMIUM">{messages.chat.premium}</option>
               ) : null}
             </select>
           </label>
           <label className="field">
-            <span>Длина ответа</span>
+            <span>{messages.chat.responseLength}</span>
             <select name="responseLength" defaultValue={conversation.settings.responseLength}>
-              <option value="SHORT">Короткий</option>
-              <option value="MEDIUM">Средний</option>
-              <option value="LONG">Длинный</option>
+              <option value="SHORT">{messages.chat.short}</option>
+              <option value="MEDIUM">{messages.chat.medium}</option>
+              <option value="LONG">{messages.chat.long}</option>
             </select>
           </label>
           <label className="field">
-            <span>Творческая вариативность: 0–2</span>
+            <span>{messages.chat.temperature}</span>
             <input
               name="temperature"
               type="number"
@@ -881,7 +891,7 @@ function ChatSettingsPanel({
             />
           </label>
           <label className="field">
-            <span>Максимум токенов ответа</span>
+            <span>{messages.chat.maxTokens}</span>
             <input
               name="maxOutputTokens"
               type="number"
@@ -892,26 +902,24 @@ function ChatSettingsPanel({
             />
           </label>
           <label className="field">
-            <span>Режим образа</span>
+            <span>{messages.chat.personaMode}</span>
             <select name="personaMode" defaultValue={conversation.settings.personaMode}>
-              <option value="SNAPSHOT">Снимок на момент старта</option>
-              <option value="LIVE">Всегда актуальный образ</option>
+              <option value="SNAPSHOT">{messages.chat.snapshot}</option>
+              <option value="LIVE">{messages.chat.live}</option>
             </select>
           </label>
         </div>
         <label className="field">
-          <span>Инструкции для этого чата</span>
+          <span>{messages.chat.customInstructions}</span>
           <textarea
             name="customInstructions"
             rows={5}
             maxLength={8000}
             defaultValue={conversation.settings.customInstructions}
-            placeholder="Стиль повествования, POV, темп и ограничения истории"
+            placeholder={messages.chat.customInstructionsPlaceholder}
           />
         </label>
-        <p className="settings-cost-note">
-          Все профили используют только заранее купленные AI-кредиты. Подписки и автопополнения нет.
-        </p>
+        <p className="settings-cost-note">{messages.chat.prepaidNote}</p>
         {save.error ? (
           <span className="error" role="alert">
             {save.error.message}
@@ -919,11 +927,11 @@ function ChatSettingsPanel({
         ) : null}
         {saved ? (
           <span className="success" role="status">
-            Настройки истории сохранены.
+            {messages.chat.settingsSaved}
           </span>
         ) : null}
         <button className="primary" type="submit" disabled={save.isPending}>
-          {save.isPending ? 'Сохраняем…' : 'Сохранить настройки'}
+          {save.isPending ? messages.chat.saving : messages.chat.saveSettings}
         </button>
       </form>
     </aside>
@@ -931,6 +939,7 @@ function ChatSettingsPanel({
 }
 
 function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const memory = useQuery({
     queryKey: ['conversation-memory', conversationId],
@@ -974,24 +983,24 @@ function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }
   return (
     <aside className="chat-lore-panel memory-panel">
       <div>
-        <strong>Постоянная память</strong>
-        <small>
-          Бесплатная детерминированная сводка активной ветки. AI-кредиты не расходуются.
-        </small>
+        <strong>{messages.chat.memoryTitle}</strong>
+        <small>{messages.chat.memoryText}</small>
       </div>
       <div className="active-lore-summary">
-        <span>{memory.data?.estimatedTokens ?? 0} токенов</span>
+        <span>{messages.chat.tokens(memory.data?.estimatedTokens ?? 0)}</span>
         <span>
-          {memory.data?.active ? sourceLabel(memory.data.active.sourceType) : 'Память ещё пуста'}
+          {memory.data?.active
+            ? sourceLabel(memory.data.active.sourceType, messages)
+            : messages.chat.memoryEmpty}
         </span>
       </div>
       {memory.data?.stale ? (
         <p className="memory-warning" role="status">
-          История была изменена. Пересобери память или явно оставь текущую версию.
+          {messages.chat.memoryStale}
         </p>
       ) : null}
       <textarea
-        aria-label="Текст постоянной памяти"
+        aria-label={messages.chat.memoryInput}
         rows={7}
         maxLength={64_000}
         value={draftValue}
@@ -1008,7 +1017,7 @@ function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }
             save.mutate();
           }}
         >
-          Сохранить
+          {messages.chat.save}
         </button>
         <button
           type="button"
@@ -1018,7 +1027,7 @@ function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }
             run.mutate('summarize');
           }}
         >
-          Резюмировать новое
+          {messages.chat.summarize}
         </button>
         <button
           type="button"
@@ -1028,7 +1037,7 @@ function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }
             run.mutate('regenerate');
           }}
         >
-          Пересобрать полностью
+          {messages.chat.regenerateMemory}
         </button>
         {memory.data?.stale ? (
           <button
@@ -1039,13 +1048,11 @@ function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }
               run.mutate('keep');
             }}
           >
-            Оставить текущую
+            {messages.chat.keepMemory}
           </button>
         ) : null}
       </div>
-      {memory.data?.pendingJob ? (
-        <small role="status">Задача памяти обрабатывается в фоне…</small>
-      ) : null}
+      {memory.data?.pendingJob ? <small role="status">{messages.chat.memoryPending}</small> : null}
       {error ? (
         <span className="error" role="alert">
           {error.message}
@@ -1056,6 +1063,7 @@ function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }
 }
 
 function ChatPromptInspector({ conversationId }: { readonly conversationId: string }) {
+  const { messages } = useI18n();
   const inspector = useQuery({
     queryKey: ['prompt-inspector', conversationId],
     queryFn: () =>
@@ -1066,48 +1074,46 @@ function ChatPromptInspector({ conversationId }: { readonly conversationId: stri
   if (inspector.isLoading) {
     return (
       <aside className="chat-lore-panel prompt-inspector" aria-live="polite">
-        <strong>Собираю фактический контекст…</strong>
+        <strong>{messages.chat.inspectorLoading}</strong>
       </aside>
     );
   }
   if (inspector.error || !inspector.data) {
     return (
       <aside className="chat-lore-panel prompt-inspector">
-        <strong>Инспектор промпта</strong>
+        <strong>{messages.chat.inspectorTitle}</strong>
         <span className="error" role="alert">
-          {inspector.error?.message ?? 'Контекст недоступен.'}
+          {inspector.error?.message ?? messages.chat.contextUnavailable}
         </span>
       </aside>
     );
   }
   const data = inspector.data;
   const characterSections = [
-    ['Описание', data.character.description],
-    ['Характер', data.character.personality],
-    ['Сценарий', data.character.scenario],
-    ['Стиль речи', data.character.speechStyle],
-    ['Внешность', data.character.appearance],
-    ['Предыстория', data.character.background],
-    ['Цели', data.character.goals],
-    ['Правила поведения', data.character.behaviourRules],
-    ['Инструкции создателя', data.character.systemInstructions],
-    ['Инструкции после истории', data.character.postHistoryInstructions],
+    [messages.chat.sectionDescription, data.character.description],
+    [messages.chat.sectionPersonality, data.character.personality],
+    [messages.chat.sectionScenario, data.character.scenario],
+    [messages.chat.sectionSpeechStyle, data.character.speechStyle],
+    [messages.chat.sectionAppearance, data.character.appearance],
+    [messages.chat.sectionBackground, data.character.background],
+    [messages.chat.sectionGoals, data.character.goals],
+    [messages.chat.sectionBehaviour, data.character.behaviourRules],
+    [messages.chat.sectionCreator, data.character.systemInstructions],
+    [messages.chat.sectionPostHistory, data.character.postHistoryInstructions],
   ].filter((entry) => entry[1]);
   return (
     <aside className="chat-lore-panel prompt-inspector">
       <div>
-        <strong>Инспектор промпта</strong>
-        <small>
-          Фактические секции активной ветки. Доступны только создателю персонажа и администрации.
-        </small>
+        <strong>{messages.chat.inspectorTitle}</strong>
+        <small>{messages.chat.inspectorText}</small>
       </div>
       <div className="active-lore-summary">
-        <span>{data.tokenEstimates['totalInput'] ?? 0} входных токенов</span>
-        <span>{data.tokenEstimates['outputReserved'] ?? 0} зарезервировано на ответ</span>
-        <span>{data.tokenEstimates['contextLimit'] ?? 0} контекст</span>
+        <span>{messages.chat.inputTokens(data.tokenEstimates['totalInput'] ?? 0)}</span>
+        <span>{messages.chat.reservedTokens(data.tokenEstimates['outputReserved'] ?? 0)}</span>
+        <span>{messages.chat.contextTokens(data.tokenEstimates['contextLimit'] ?? 0)}</span>
       </div>
       <details open>
-        <summary>Персонаж · {data.character.name}</summary>
+        <summary>{messages.chat.characterSummary(data.character.name)}</summary>
         {characterSections.map(([label, value]) => (
           <section key={label}>
             <strong>{label}</strong>
@@ -1116,11 +1122,11 @@ function ChatPromptInspector({ conversationId }: { readonly conversationId: stri
         ))}
       </details>
       <details>
-        <summary>Память · {data.tokenEstimates['memory'] ?? 0} токенов</summary>
-        <pre>{data.memory || 'Память пока пуста.'}</pre>
+        <summary>{messages.chat.memorySummary(data.tokenEstimates['memory'] ?? 0)}</summary>
+        <pre>{data.memory || messages.chat.memoryContentEmpty}</pre>
       </details>
       <details>
-        <summary>Активный лор · {data.lore.length}</summary>
+        <summary>{messages.chat.loreSummary(data.lore.length)}</summary>
         {data.lore.length > 0 ? (
           data.lore.map((entry) => (
             <section key={entry.id}>
@@ -1129,67 +1135,69 @@ function ChatPromptInspector({ conversationId }: { readonly conversationId: stri
             </section>
           ))
         ) : (
-          <p>Для текущей ветки записи лора не активированы.</p>
+          <p>{messages.chat.loreInactive}</p>
         )}
       </details>
       <details>
-        <summary>Последние сообщения · {data.recentMessages.length}</summary>
+        <summary>{messages.chat.recentSummary(data.recentMessages.length)}</summary>
         {data.recentMessages.map((message, index) => (
           <section key={`${message.role}-${String(index)}`}>
-            <strong>{message.role === 'USER' ? 'Пользователь' : 'Персонаж'}</strong>
+            <strong>
+              {message.role === 'USER' ? messages.chat.userRole : messages.chat.characterRole}
+            </strong>
             <pre>{message.content}</pre>
           </section>
         ))}
       </details>
       <details>
-        <summary>Оценка токенов</summary>
+        <summary>{messages.chat.tokenEstimate}</summary>
         <dl className="prompt-token-grid">
           {Object.entries(data.tokenEstimates).map(([name, value]) => (
             <div key={name}>
-              <dt>{promptTokenLabel(name)}</dt>
+              <dt>{promptTokenLabel(name, messages)}</dt>
               <dd>{value}</dd>
             </div>
           ))}
         </dl>
         <small>
-          Отброшено сообщений: {data.droppedHistoryMessages}; примеров:{' '}
-          {data.droppedExampleMessages}.
+          {messages.chat.droppedContext(data.droppedHistoryMessages, data.droppedExampleMessages)}
         </small>
       </details>
     </aside>
   );
 }
 
-function promptTokenLabel(name: string): string {
+function promptTokenLabel(name: string, messages: WebMessages): string {
   const labels: Readonly<Record<string, string>> = {
-    platformPolicy: 'Политика платформы',
-    character: 'Персонаж',
-    creatorInstructions: 'Инструкции создателя',
-    persona: 'Персона пользователя',
-    memory: 'Память',
-    lore: 'Лор',
-    chatInstructions: 'Инструкции диалога',
-    examples: 'Примеры',
-    recentMessages: 'Последние сообщения',
-    postHistoryInstructions: 'Инструкции после истории',
-    totalInput: 'Всего на входе',
-    outputReserved: 'Резерв ответа',
-    contextLimit: 'Лимит контекста',
+    platformPolicy: messages.chat.tokenPlatform,
+    character: messages.chat.tokenCharacter,
+    creatorInstructions: messages.chat.tokenCreator,
+    persona: messages.chat.tokenPersona,
+    memory: messages.chat.tokenMemory,
+    lore: messages.chat.tokenLore,
+    chatInstructions: messages.chat.tokenChat,
+    examples: messages.chat.tokenExamples,
+    recentMessages: messages.chat.tokenRecent,
+    postHistoryInstructions: messages.chat.tokenPostHistory,
+    totalInput: messages.chat.tokenTotal,
+    outputReserved: messages.chat.tokenReserved,
+    contextLimit: messages.chat.tokenLimit,
   };
   return labels[name] ?? name;
 }
 
-function sourceLabel(source: string): string {
+function sourceLabel(source: string, messages: WebMessages): string {
   const labels: Readonly<Record<string, string>> = {
-    AUTO_SUMMARY: 'Автоматическая сводка',
-    FULL_REGENERATION: 'Полная пересборка',
-    MANUAL_EDIT: 'Изменено вручную',
-    RESTORE: 'Восстановленная версия',
+    AUTO_SUMMARY: messages.chat.sourceAuto,
+    FULL_REGENERATION: messages.chat.sourceRegenerated,
+    MANUAL_EDIT: messages.chat.sourceManual,
+    RESTORE: messages.chat.sourceRestored,
   };
   return labels[source] ?? source;
 }
 
 function ChatLorePanel({ conversationId }: { readonly conversationId: string }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [pendingSelection, setPendingSelection] = useState<{
     readonly id: string;
@@ -1241,8 +1249,8 @@ function ChatLorePanel({ conversationId }: { readonly conversationId: string }) 
   return (
     <aside className="chat-lore-panel">
       <div>
-        <strong>Контекст истории</strong>
-        <small>Книги подключаются только к этому диалогу.</small>
+        <strong>{messages.chat.loreTitle}</strong>
+        <small>{messages.chat.loreText}</small>
       </div>
       <div className="check-list">
         {books.data?.items.map((book) => (
@@ -1265,7 +1273,7 @@ function ChatLorePanel({ conversationId }: { readonly conversationId: string }) 
           </label>
         ))}
         {books.data?.items.length === 0 ? (
-          <span className="meta">Создай книгу мира в разделе персонажей.</span>
+          <span className="meta">{messages.chat.loreEmpty}</span>
         ) : null}
       </div>
       {change.isError ? (
@@ -1274,8 +1282,8 @@ function ChatLorePanel({ conversationId }: { readonly conversationId: string }) 
         </span>
       ) : null}
       <div className="active-lore-summary">
-        <span>Активные сейчас: {active.data?.entries.length ?? 0}</span>
-        <span>{active.data?.totalTokens ?? 0} токенов</span>
+        <span>{messages.chat.loreActive(active.data?.entries.length ?? 0)}</span>
+        <span>{messages.chat.tokens(active.data?.totalTokens ?? 0)}</span>
       </div>
       {active.data?.entries.map((entry) => (
         <span className="active-lore-entry" key={entry.id}>
@@ -1298,8 +1306,8 @@ function ChatAvatar({ name, fileId }: { readonly name: string; readonly fileId: 
   );
 }
 
-function formatTime(timestamp: number): string {
-  return new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' }).format(timestamp);
+function formatTime(timestamp: number, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(timestamp);
 }
 
 async function copyText(value: string): Promise<void> {
