@@ -2296,6 +2296,7 @@ h1 {
   }
 }
 [data-theme='dark'] {
+  color-scheme: dark;
   color: #f8f4ff;
   background: #100b1d;
   --bg: #100b1d;
@@ -2309,6 +2310,7 @@ h1 {
   background: radial-gradient(circle at 50% -15%, #31204e 0, var(--bg) 45%);
 }
 [data-theme='light'] {
+  color-scheme: light;
   color: #20172e;
   background: #f7f1ff;
   --bg: #f7f1ff;
@@ -2322,6 +2324,7 @@ h1 {
   background: radial-gradient(circle at 50% -10%, #eadcff 0, var(--bg) 48%);
 }
 [data-theme='amoled'] {
+  color-scheme: dark;
   color: #f8f4ff;
   background: #000;
   --bg: #000;
