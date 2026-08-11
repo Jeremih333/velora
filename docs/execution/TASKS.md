@@ -264,10 +264,13 @@
       account-deletion flow; verify the English settings flow across desktop/iPhone/Android and
       deploy staging Worker `426f198c-1e26-4c91-88ae-b45a8c569283` with BotHub READY, paid gates
       off and zero V3 runs.
+- [x] Complete typed RU/EN coverage for moderation, system metrics, feature flags, one-time access
+      configuration, the guarded BotHub checkpoint and staff management; localize generic transport
+      errors, pass 108 unit and 25 integration tests plus 9/9 E2E without retries, and deploy staging
+      Worker `4ef2c7a5-5a5a-433c-840d-1685fdda2e99` with BotHub READY and zero V3 runs.
 
 ## Next
 
-- Continue removing hardcoded Russian UI strings from moderation and owner operations.
 - Optional reviewed advanced classifiers.
 - Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting
   checkpoint through the staged owner control. V1 is immutable failed evidence; V2 was never

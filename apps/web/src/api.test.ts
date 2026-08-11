@@ -12,7 +12,7 @@ describe('browser network errors', () => {
     await expect(apiRequest('/api/v1/me')).rejects.toMatchObject({
       code: 'NETWORK_OFFLINE',
       status: 0,
-      message: 'Нет подключения к сети. Проверь соединение и повтори действие.',
+      message: 'No network connection. Check your connection and try again.',
     });
   });
 

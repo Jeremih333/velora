@@ -5,6 +5,7 @@ import { ru } from '@velora/shared';
 import { apiRequest } from './api';
 import { allowsCharacterAutosave, pendingAutosaveState } from './character-autosave';
 import { ChatsView } from './ChatsView';
+import { localizedErrorMessage } from './error-localization';
 import { LorebooksView } from './LorebooksView';
 import { getWebMessages, useI18n, type Locale, type WebMessages } from './i18n';
 import { openTelegramInvoice, type InvoiceStatus } from './telegram';
@@ -1474,6 +1475,7 @@ function ModerationView({
   readonly notify: (message: string | null) => void;
   readonly role: MeResponse['role'];
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [section, setSection] = useState<'queue' | 'operations' | 'support'>('queue');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1503,7 +1505,7 @@ function ModerationView({
         client.invalidateQueries({ queryKey: ['moderation-cases'] }),
         client.invalidateQueries({ queryKey: ['moderation-case', selectedId] }),
       ]);
-      notify('Дело назначено вам.');
+      notify(messages.moderation.assignedNotice);
     },
   });
   const decide = useMutation({
@@ -1517,7 +1519,7 @@ function ModerationView({
       setSelectedId(null);
       setReason('');
       await client.invalidateQueries({ queryKey: ['moderation-cases'] });
-      notify('Решение записано в журнал действий.');
+      notify(messages.moderation.decisionNotice);
     },
   });
   if (section === 'operations') {
@@ -1551,11 +1553,11 @@ function ModerationView({
               setSelectedId(null);
             }}
           >
-            ← К очереди
+            {messages.moderation.backToQueue}
           </button>
-          <h1>Дело модерации</h1>
+          <h1>{messages.moderation.caseTitle}</h1>
         </div>
-        {detail.isPending ? <EmptyState title="Загружаем материалы…" /> : null}
+        {detail.isPending ? <EmptyState title={messages.moderation.loadingEvidence} /> : null}
         {detail.isError ? (
           <ErrorState error={detail.error} retry={() => void detail.refetch()} />
         ) : null}
@@ -1564,12 +1566,14 @@ function ModerationView({
             <div className="section-heading">
               <div>
                 <span className="status-pill">{detail.data.state}</span>
-                <h2>{isMatureReview ? ru.character.matureReviewTitle : detail.data.targetType}</h2>
+                <h2>
+                  {isMatureReview ? messages.moderation.matureReviewTitle : detail.data.targetType}
+                </h2>
               </div>
-              <strong>Приоритет {detail.data.priority}</strong>
+              <strong>{messages.moderation.priority(detail.data.priority)}</strong>
             </div>
             <div className="evidence-panel">
-              <strong>Материалы</strong>
+              <strong>{messages.moderation.evidence}</strong>
               <pre>{JSON.stringify(detail.data.evidence, null, 2)}</pre>
             </div>
             <button
@@ -1580,7 +1584,7 @@ function ModerationView({
                 assign.mutate(detail.data.id);
               }}
             >
-              {detail.data.assignedTo ? 'Дело назначено' : 'Взять в работу'}
+              {detail.data.assignedTo ? messages.moderation.assigned : messages.moderation.assign}
             </button>
             <form
               className="decision-form"
@@ -1590,7 +1594,7 @@ function ModerationView({
               }}
             >
               <label className="field">
-                <span>Действие</span>
+                <span>{messages.moderation.action}</span>
                 <select
                   value={action}
                   onChange={(event) => {
@@ -1598,23 +1602,29 @@ function ModerationView({
                   }}
                 >
                   <option value="NO_ACTION">
-                    {isMatureReview ? ru.character.matureReviewApproveAction : 'Нарушения нет'}
+                    {isMatureReview
+                      ? messages.moderation.approveMature
+                      : messages.moderation.noViolation}
                   </option>
-                  {!isMatureReview ? <option value="WARNING">Предупреждение</option> : null}
-                  <option value="CONTENT_HIDE">Скрыть контент</option>
-                  <option value="CONTENT_REMOVE">Удалить контент</option>
+                  {!isMatureReview ? (
+                    <option value="WARNING">{messages.moderation.warning}</option>
+                  ) : null}
+                  <option value="CONTENT_HIDE">{messages.moderation.hideContent}</option>
+                  <option value="CONTENT_REMOVE">{messages.moderation.removeContent}</option>
                   {!isMatureReview ? (
                     <>
-                      <option value="TEMP_RESTRICTION">Ограничить аккаунт</option>
-                      <option value="ACCOUNT_SUSPEND">Приостановить аккаунт</option>
-                      <option value="ACCOUNT_BAN">Заблокировать аккаунт</option>
+                      <option value="TEMP_RESTRICTION">
+                        {messages.moderation.restrictAccount}
+                      </option>
+                      <option value="ACCOUNT_SUSPEND">{messages.moderation.suspendAccount}</option>
+                      <option value="ACCOUNT_BAN">{messages.moderation.banAccount}</option>
                     </>
                   ) : null}
-                  <option value="ESCALATE">Эскалировать</option>
+                  <option value="ESCALATE">{messages.moderation.escalate}</option>
                 </select>
               </label>
               <label className="field">
-                <span>Обоснование</span>
+                <span>{messages.moderation.rationale}</span>
                 <textarea
                   minLength={5}
                   maxLength={2000}
@@ -1627,7 +1637,7 @@ function ModerationView({
                 />
               </label>
               <button className="compact-primary" type="submit" disabled={decide.isPending}>
-                Применить решение
+                {messages.moderation.applyDecision}
               </button>
               <InlineError error={assign.error ?? decide.error} />
             </form>
@@ -1639,9 +1649,9 @@ function ModerationView({
   return (
     <div className="view-stack">
       <ViewHeader
-        eyebrow="БЕЗОПАСНОСТЬ"
-        title="Очередь модерации"
-        description="Только необходимые материалы, решения по ролям и неизменяемый журнал действий."
+        eyebrow={messages.moderation.eyebrow}
+        title={messages.moderation.queueTitle}
+        description={messages.moderation.queueDescription}
         action={
           <div className="header-actions">
             {role === 'ADMIN' || role === 'OWNER' ? (
@@ -1653,7 +1663,7 @@ function ModerationView({
                     setSection('support');
                   }}
                 >
-                  Поддержка
+                  {messages.moderation.support}
                 </button>
                 <button
                   className="compact-button"
@@ -1662,34 +1672,37 @@ function ModerationView({
                     setSection('operations');
                   }}
                 >
-                  Система
+                  {messages.moderation.system}
                 </button>
               </>
             ) : null}
             <label className="compact-filter">
-              <span>Очередь</span>
+              <span>{messages.moderation.queue}</span>
               <select
-                aria-label="Состояние очереди"
+                aria-label={messages.moderation.queueStateLabel}
                 value={stateFilter}
                 onChange={(event) => {
                   setStateFilter(event.target.value);
                 }}
               >
-                <option value="OPEN">Новые</option>
-                <option value="TRIAGED">Приоритетные</option>
-                <option value="IN_REVIEW">В работе</option>
-                <option value="APPEALED">Обжалованы</option>
-                <option value="RESOLVED">Решены</option>
-                <option value="CLOSED">Закрыты</option>
+                <option value="OPEN">{messages.moderation.stateOpen}</option>
+                <option value="TRIAGED">{messages.moderation.stateTriaged}</option>
+                <option value="IN_REVIEW">{messages.moderation.stateInReview}</option>
+                <option value="APPEALED">{messages.moderation.stateAppealed}</option>
+                <option value="RESOLVED">{messages.moderation.stateResolved}</option>
+                <option value="CLOSED">{messages.moderation.stateClosed}</option>
               </select>
             </label>
           </div>
         }
       />
-      {cases.isPending ? <EmptyState title="Проверяем очередь…" /> : null}
+      {cases.isPending ? <EmptyState title={messages.moderation.loadingQueue} /> : null}
       {cases.isError ? <ErrorState error={cases.error} retry={() => void cases.refetch()} /> : null}
       {cases.data?.items.length === 0 ? (
-        <EmptyState title="Очередь пуста" text="Новых жалоб в этой категории нет." />
+        <EmptyState
+          title={messages.moderation.emptyQueue}
+          text={messages.moderation.emptyQueueText}
+        />
       ) : null}
       <div className="list-stack">
         {cases.data?.items.map((moderationCase) => (
@@ -1854,6 +1867,7 @@ function OperationsView({
   readonly onBack: () => void;
   readonly notify: (message: string | null) => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const dashboard = useQuery({
     queryKey: ['operations-dashboard'],
@@ -1883,49 +1897,62 @@ function OperationsView({
         client.invalidateQueries({ queryKey: ['admin-feature-flags'] }),
         client.invalidateQueries({ queryKey: ['feature-flags'] }),
       ]);
-      notify('Feature flag обновлён и применяется без повторного деплоя.');
+      notify(messages.operations.flagUpdated);
     },
   });
   return (
     <div className="view-stack">
       <div className="editor-heading">
         <button type="button" onClick={onBack}>
-          ← К модерации
+          {messages.operations.backToModeration}
         </button>
-        <h1>Состояние системы</h1>
+        <h1>{messages.operations.title}</h1>
       </div>
-      <p className="section-description">
-        Агрегированные показатели без текстов личных диалогов и без идентификаторов читателей.
-      </p>
-      {dashboard.isPending ? <EmptyState title="Собираем показатели…" /> : null}
+      <p className="section-description">{messages.operations.description}</p>
+      {dashboard.isPending ? <EmptyState title={messages.operations.loading} /> : null}
       {dashboard.isError ? (
         <ErrorState error={dashboard.error} retry={() => void dashboard.refetch()} />
       ) : null}
       {dashboard.data ? (
-        <section className="operations-grid" aria-label="Системные показатели">
-          <Metric label="Пользователи" value={dashboard.data.users} />
-          <Metric label="Активны за 24 часа" value={dashboard.data.activeUsers24h} />
-          <Metric label="Сообщения за 24 часа" value={dashboard.data.messages24h} />
-          <Metric label="AI-запросы за 24 часа" value={dashboard.data.aiRequests24h} />
-          <Metric label="Ошибки генерации" value={dashboard.data.failedGenerations24h} />
+        <section className="operations-grid" aria-label={messages.operations.metricsLabel}>
+          <Metric label={messages.operations.users} value={dashboard.data.users} />
           <Metric
-            label="Расчётная AI-стоимость"
+            label={messages.operations.activeUsers24h}
+            value={dashboard.data.activeUsers24h}
+          />
+          <Metric label={messages.operations.messages24h} value={dashboard.data.messages24h} />
+          <Metric label={messages.operations.aiRequests24h} value={dashboard.data.aiRequests24h} />
+          <Metric
+            label={messages.operations.failedGenerations}
+            value={dashboard.data.failedGenerations24h}
+          />
+          <Metric
+            label={messages.operations.aiCost}
             value={`$${formatCredits(dashboard.data.aiCostMicros24h)}`}
           />
-          <Metric label="Ошибки оплаты" value={dashboard.data.paymentFailures24h} />
-          <Metric label="Очередь модерации" value={dashboard.data.moderationBacklog} />
-          <Metric label="Фоновые задания" value={dashboard.data.jobBacklog} />
-          <Metric label="События продукта" value={dashboard.data.productEvents24h} />
+          <Metric
+            label={messages.operations.paymentFailures}
+            value={dashboard.data.paymentFailures24h}
+          />
+          <Metric
+            label={messages.operations.moderationBacklog}
+            value={dashboard.data.moderationBacklog}
+          />
+          <Metric label={messages.operations.jobBacklog} value={dashboard.data.jobBacklog} />
+          <Metric
+            label={messages.operations.productEvents}
+            value={dashboard.data.productEvents24h}
+          />
           {Object.entries(dashboard.data.planDistribution)
             .sort(([left], [right]) => left.localeCompare(right))
             .map(([planCode, users]) => (
-              <Metric key={planCode} label={`Тариф ${planCode}`} value={users} />
+              <Metric key={planCode} label={messages.operations.plan(planCode)} value={users} />
             ))}
         </section>
       ) : null}
       {role === 'OWNER' ? <StaffManagement notify={notify} /> : null}
-      {role === 'OWNER' ? <OwnerBillingConfiguration notify={notify} /> : null}
       {role === 'OWNER' ? <AiSmokePanel notify={notify} /> : null}
+      {role === 'OWNER' ? <OwnerBillingConfiguration notify={notify} /> : null}
       {role === 'OWNER' ? (
         <section className="feature-flags-panel">
           <div className="section-heading">
@@ -1934,10 +1961,7 @@ function OperationsView({
               <h2>Feature flags</h2>
             </div>
           </div>
-          <p className="section-description">
-            Процент назначается стабильно по внутреннему ID пользователя. Изменения записываются в
-            audit log.
-          </p>
+          <p className="section-description">{messages.operations.flagsDescription}</p>
           {flags.data?.items.map((flag) => (
             <form
               className="feature-flag-row"
@@ -1957,7 +1981,7 @@ function OperationsView({
                 <span>{flag.key}</span>
               </label>
               <label>
-                <span>Охват, %</span>
+                <span>{messages.operations.rollout}</span>
                 <input
                   name="rolloutPercent"
                   type="number"
@@ -1967,7 +1991,7 @@ function OperationsView({
                 />
               </label>
               <button className="compact-button" type="submit" disabled={updateFlag.isPending}>
-                Сохранить
+                {messages.operations.save}
               </button>
             </form>
           ))}
@@ -1983,6 +2007,7 @@ function OwnerBillingConfiguration({
 }: {
   readonly notify: (message: string | null) => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const formString = getFormString;
   const plans = useQuery({
@@ -2006,7 +2031,7 @@ function OwnerBillingConfiguration({
         client.invalidateQueries({ queryKey: ['billing'] }),
         client.invalidateQueries({ queryKey: ['me'] }),
       ]);
-      notify('Настройки тарифа сохранены в audit log.');
+      notify(messages.billingAdmin.planSaved);
     },
   });
   const savePack = useMutation({
@@ -2030,7 +2055,7 @@ function OwnerBillingConfiguration({
         client.invalidateQueries({ queryKey: ['admin-billing-access-packs'] }),
         client.invalidateQueries({ queryKey: ['billing', 'access-packs'] }),
       ]);
-      notify('Разовый пакет доступа сохранён. Автопродление не создаётся.');
+      notify(messages.billingAdmin.packSaved);
     },
   });
   const packBody = (data: FormData) => ({
@@ -2047,14 +2072,11 @@ function OwnerBillingConfiguration({
       <div className="section-heading">
         <div>
           <span className="status-pill">OWNER · XTR</span>
-          <h2 id="billing-configuration-title">Тарифы и разовый доступ</h2>
+          <h2 id="billing-configuration-title">{messages.billingAdmin.title}</h2>
         </div>
       </div>
-      <p className="section-description">
-        Только разовая оплата Telegram Stars. Банковские карты, подписка, автопродление и
-        автопополнение не создаются.
-      </p>
-      {plans.isPending || packs.isPending ? <p>Загружаем конфигурацию…</p> : null}
+      <p className="section-description">{messages.billingAdmin.description}</p>
+      {plans.isPending || packs.isPending ? <p>{messages.billingAdmin.loading}</p> : null}
       {plans.error || packs.error ? <InlineError error={plans.error ?? packs.error} /> : null}
       <div className="view-stack">
         {plans.data?.items.map((plan) => (
@@ -2084,11 +2106,21 @@ function OwnerBillingConfiguration({
             }}
           >
             <h3>{plan.code}</h3>
-            <Field label="Название" name="displayName" defaultValue={plan.displayName} required />
+            <Field
+              label={messages.billingAdmin.name}
+              name="displayName"
+              defaultValue={plan.displayName}
+              required
+            />
             <div className="field-row">
-              <Field label="Ранг" name="rank" type="number" defaultValue={String(plan.rank)} />
               <Field
-                label="Множитель лимитов"
+                label={messages.billingAdmin.rank}
+                name="rank"
+                type="number"
+                defaultValue={String(plan.rank)}
+              />
+              <Field
+                label={messages.billingAdmin.limitMultiplier}
                 name="rateLimitMultiplier"
                 type="number"
                 defaultValue={String(plan.entitlements.rateLimitMultiplier)}
@@ -2096,13 +2128,13 @@ function OwnerBillingConfiguration({
             </div>
             <div className="field-row">
               <Field
-                label="Персонажи"
+                label={messages.billingAdmin.characters}
                 name="characterLimit"
                 type="number"
                 defaultValue={String(plan.entitlements.characterLimit)}
               />
               <Field
-                label="Образы"
+                label={messages.billingAdmin.personas}
                 name="personaLimit"
                 type="number"
                 defaultValue={String(plan.entitlements.personaLimit)}
@@ -2110,20 +2142,20 @@ function OwnerBillingConfiguration({
             </div>
             <div className="field-row">
               <Field
-                label="Память, токены"
+                label={messages.billingAdmin.memoryTokens}
                 name="memoryTokenBudget"
                 type="number"
                 defaultValue={String(plan.entitlements.memoryTokenBudget)}
               />
               <Field
-                label="Лор, токены"
+                label={messages.billingAdmin.loreTokens}
                 name="loreTokenBudget"
                 type="number"
                 defaultValue={String(plan.entitlements.loreTokenBudget)}
               />
             </div>
             <Field
-              label="Продвинутые операции в день"
+              label={messages.billingAdmin.advancedDaily}
               name="advancedOperationsDaily"
               type="number"
               defaultValue={String(plan.entitlements.advancedOperationsDaily)}
@@ -2141,16 +2173,17 @@ function OwnerBillingConfiguration({
                 </label>
               ))}
               <label>
-                <input type="checkbox" name="active" defaultChecked={plan.active} /> Активен
+                <input type="checkbox" name="active" defaultChecked={plan.active} />{' '}
+                {messages.billingAdmin.active}
               </label>
             </div>
             <button className="compact-primary" type="submit" disabled={savePlan.isPending}>
-              Сохранить тариф
+              {messages.billingAdmin.savePlan}
             </button>
           </form>
         ))}
       </div>
-      <h3>Пакеты доступа</h3>
+      <h3>{messages.billingAdmin.accessPacks}</h3>
       {[...(packs.data?.items ?? []), null].map((pack, index) => (
         <form
           className="editor-card"
@@ -2162,10 +2195,20 @@ function OwnerBillingConfiguration({
             savePack.mutate({ code, create: pack === null, body: packBody(data) });
           }}
         >
-          <h4>{pack ? pack.code : 'Новый пакет'}</h4>
-          {!pack ? <Field label="Код" name="code" required /> : null}
-          <Field label="Название" name="displayName" defaultValue={pack?.displayName} required />
-          <Field label="Описание" name="description" defaultValue={pack?.description} required />
+          <h4>{pack ? pack.code : messages.billingAdmin.newPack}</h4>
+          {!pack ? <Field label={messages.billingAdmin.code} name="code" required /> : null}
+          <Field
+            label={messages.billingAdmin.name}
+            name="displayName"
+            defaultValue={pack?.displayName}
+            required
+          />
+          <Field
+            label={messages.billingAdmin.descriptionLabel}
+            name="description"
+            defaultValue={pack?.description}
+            required
+          />
           <div className="field-row">
             <Field
               label="Stars"
@@ -2174,14 +2217,14 @@ function OwnerBillingConfiguration({
               defaultValue={String(pack?.starsAmount ?? 1)}
             />
             <Field
-              label="Дней"
+              label={messages.billingAdmin.days}
               name="durationDays"
               type="number"
               defaultValue={String(pack?.durationDays ?? 30)}
             />
           </div>
           <Select
-            label="Тариф"
+            label={messages.billingAdmin.plan}
             name="planCode"
             defaultValue={pack?.planCode ?? 'PLUS'}
             options={(plans.data?.items ?? [])
@@ -2189,16 +2232,17 @@ function OwnerBillingConfiguration({
               .map((plan) => [plan.code, plan.displayName] as const)}
           />
           <Field
-            label="Порядок"
+            label={messages.billingAdmin.order}
             name="sortOrder"
             type="number"
             defaultValue={String(pack?.sortOrder ?? index)}
           />
           <label className="terms-check">
-            <input type="checkbox" name="active" defaultChecked={pack?.active ?? false} /> Активен
+            <input type="checkbox" name="active" defaultChecked={pack?.active ?? false} />{' '}
+            {messages.billingAdmin.active}
           </label>
           <button className="compact-primary" type="submit" disabled={savePack.isPending}>
-            {pack ? 'Сохранить пакет' : 'Создать пакет'}
+            {pack ? messages.billingAdmin.savePack : messages.billingAdmin.createPack}
           </button>
         </form>
       ))}
@@ -2208,6 +2252,7 @@ function OwnerBillingConfiguration({
 }
 
 function AiSmokePanel({ notify }: { readonly notify: (message: string | null) => void }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [consented, setConsented] = useState(false);
   interface AiSmokeState {
@@ -2237,9 +2282,7 @@ function AiSmokePanel({ notify }: { readonly notify: (message: string | null) =>
       }));
       setConsented(false);
       notify(
-        result.run.alreadyAttempted
-          ? 'Контрольный запрос уже был выполнен ранее; повторного списания не произошло.'
-          : 'Единственный контрольный запрос завершён и записан в аудит.',
+        result.run.alreadyAttempted ? messages.aiAdmin.alreadyRun : messages.aiAdmin.completed,
       );
     },
     onSettled: () => client.invalidateQueries({ queryKey: ['admin-ai-smoke'] }),
@@ -2254,26 +2297,25 @@ function AiSmokePanel({ notify }: { readonly notify: (message: string | null) =>
       <div className="section-heading">
         <div>
           <span className="status-pill">OWNER · BOTHUB</span>
-          <h2 id="ai-smoke-title">{ru.aiSmoke.title}</h2>
+          <h2 id="ai-smoke-title">{messages.aiAdmin.title}</h2>
         </div>
       </div>
-      <p className="section-description">{ru.aiSmoke.description}</p>
+      <p className="section-description">{messages.aiAdmin.description}</p>
       <p className="section-description">
-        Доступные проверенные модели:{' '}
+        {messages.aiAdmin.availableModels}{' '}
         {capabilities && capabilities.availableCandidates.length > 0
           ? capabilities.availableCandidates.join(', ')
-          : 'проверка ещё не завершена'}
+          : messages.aiAdmin.capabilityPending}
       </p>
       {!v3ModelAvailable && !result ? (
         <p className="memory-warning" role="status">
-          V3 заблокирован до подтверждения доступности deepseek-chat-v3.1. Платный запрос не будет
-          отправлен.
+          {messages.aiAdmin.unavailable}
         </p>
       ) : null}
-      {smoke.isPending ? <p className="section-description">Проверяем состояние…</p> : null}
+      {smoke.isPending ? <p className="section-description">{messages.aiAdmin.checking}</p> : null}
       {!smoke.isPending && !result ? (
         <>
-          <p>{ru.aiSmoke.neverRun}</p>
+          <p>{messages.aiAdmin.neverRun}</p>
           <label className="ai-smoke-consent">
             <input
               type="checkbox"
@@ -2283,7 +2325,7 @@ function AiSmokePanel({ notify }: { readonly notify: (message: string | null) =>
                 setConsented(event.currentTarget.checked);
               }}
             />
-            <span>{ru.aiSmoke.consent}</span>
+            <span>{messages.aiAdmin.consent}</span>
           </label>
           <button
             type="button"
@@ -2292,7 +2334,7 @@ function AiSmokePanel({ notify }: { readonly notify: (message: string | null) =>
               run.mutate();
             }}
           >
-            {run.isPending ? 'Выполняется один запрос…' : ru.aiSmoke.run}
+            {run.isPending ? messages.aiAdmin.running : messages.aiAdmin.run}
           </button>
         </>
       ) : null}
@@ -2300,30 +2342,36 @@ function AiSmokePanel({ notify }: { readonly notify: (message: string | null) =>
         <div className="ai-smoke-result" aria-live="polite">
           <strong>{result.state}</strong>
           <span>
-            {result.model} · {result.inputTokens} входных / {result.outputTokens} выходных токенов
+            {result.model} · {messages.aiAdmin.tokenUsage(result.inputTokens, result.outputTokens)}
           </span>
           <span>
-            Протокол: {result.protocolVariant} · HTTP {result.httpStatus ?? 'нет ответа'}
+            {messages.aiAdmin.protocol}: {result.protocolVariant} · HTTP{' '}
+            {result.httpStatus ?? messages.aiAdmin.noResponse}
           </span>
           <span>
-            Provider: ${(result.providerReportedCostMicros / 1_000_000).toFixed(6)} · резерв: $
-            {(result.conservativeCostMicros / 1_000_000).toFixed(6)}
+            Provider: ${(result.providerReportedCostMicros / 1_000_000).toFixed(6)} ·{' '}
+            {messages.aiAdmin.reserve}: ${(result.conservativeCostMicros / 1_000_000).toFixed(6)}
           </span>
           {result.output ? <blockquote>{result.output}</blockquote> : null}
-          {result.errorCode ? <span>Код ошибки: {result.errorCode}</span> : null}
+          {result.errorCode ? (
+            <span>
+              {messages.aiAdmin.errorCode}: {result.errorCode}
+            </span>
+          ) : null}
         </div>
       ) : null}
       {previousRuns.length > 0 ? (
         <details>
-          <summary>Предыдущие контрольные попытки</summary>
+          <summary>{messages.aiAdmin.previousRuns}</summary>
           {previousRuns.map((item) => (
             <div className="ai-smoke-result" key={item.runKey}>
               <strong>
                 {item.runKey} · {item.state}
               </strong>
               <span>
-                {item.errorCode ?? 'без ошибки'} · HTTP {item.httpStatus ?? 'не был сохранён'} ·{' '}
-                {item.latencyMs ?? 0} мс
+                {item.errorCode ?? messages.aiAdmin.noError} · HTTP{' '}
+                {item.httpStatus ?? messages.aiAdmin.notRecorded} · {item.latencyMs ?? 0}{' '}
+                {messages.aiAdmin.milliseconds}
               </span>
             </div>
           ))}
@@ -2335,6 +2383,7 @@ function AiSmokePanel({ notify }: { readonly notify: (message: string | null) =>
 }
 
 function StaffManagement({ notify }: { readonly notify: (message: string | null) => void }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [telegramId, setTelegramId] = useState('');
   const [role, setRole] = useState<'MODERATOR' | 'SENIOR_MODERATOR'>('MODERATOR');
@@ -2352,7 +2401,7 @@ function StaffManagement({ notify }: { readonly notify: (message: string | null)
     onSuccess: async () => {
       setTelegramId('');
       await client.invalidateQueries({ queryKey: ['admin-staff'] });
-      notify('Модератор назначен. Действие записано в журнал аудита.');
+      notify(messages.staff.assigned);
     },
   });
   const revoke = useMutation({
@@ -2362,7 +2411,7 @@ function StaffManagement({ notify }: { readonly notify: (message: string | null)
       }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['admin-staff'] });
-      notify('Полномочия модератора отозваны.');
+      notify(messages.staff.revoked);
     },
   });
   return (
@@ -2370,13 +2419,10 @@ function StaffManagement({ notify }: { readonly notify: (message: string | null)
       <div className="section-heading">
         <div>
           <span className="status-pill">OWNER</span>
-          <h2 id="staff-title">Команда модерации</h2>
+          <h2 id="staff-title">{messages.staff.title}</h2>
         </div>
       </div>
-      <p className="section-description">
-        Назначение доступно только владельцу. Пользователь должен один раз открыть Velora, а
-        модераторы не видят и не могут изменять других сотрудников.
-      </p>
+      <p className="section-description">{messages.staff.description}</p>
       <form
         className="decision-form"
         onSubmit={(event) => {
@@ -2397,23 +2443,23 @@ function StaffManagement({ notify }: { readonly notify: (message: string | null)
           />
         </label>
         <label className="field">
-          <span>Роль</span>
+          <span>{messages.staff.role}</span>
           <select
             value={role}
             onChange={(event) => {
               setRole(event.target.value as 'MODERATOR' | 'SENIOR_MODERATOR');
             }}
           >
-            <option value="MODERATOR">Модератор</option>
-            <option value="SENIOR_MODERATOR">Старший модератор</option>
+            <option value="MODERATOR">{messages.staff.moderator}</option>
+            <option value="SENIOR_MODERATOR">{messages.staff.seniorModerator}</option>
           </select>
         </label>
         <button className="compact-primary" type="submit" disabled={assign.isPending}>
-          Назначить
+          {messages.staff.assign}
         </button>
         <InlineError error={assign.error} />
       </form>
-      {staff.isPending ? <EmptyState title="Загружаем команду…" /> : null}
+      {staff.isPending ? <EmptyState title={messages.staff.loading} /> : null}
       {staff.isError ? <ErrorState error={staff.error} retry={() => void staff.refetch()} /> : null}
       <div className="list-stack">
         {staff.data?.items.map((member) => (
@@ -2422,7 +2468,9 @@ function StaffManagement({ notify }: { readonly notify: (message: string | null)
               <strong>{member.displayName}</strong>
               <small>
                 {member.telegramId} {member.username ? `@${member.username}` : ''} ·{' '}
-                {member.role === 'SENIOR_MODERATOR' ? 'старший модератор' : 'модератор'}
+                {member.role === 'SENIOR_MODERATOR'
+                  ? messages.staff.seniorModeratorLower
+                  : messages.staff.moderatorLower}
               </small>
             </span>
             <button
@@ -2430,12 +2478,12 @@ function StaffManagement({ notify }: { readonly notify: (message: string | null)
               type="button"
               disabled={revoke.isPending}
               onClick={() => {
-                if (window.confirm(`Снять полномочия у ${member.displayName}?`)) {
+                if (window.confirm(messages.staff.revokeConfirmation(member.displayName))) {
                   revoke.mutate(member.telegramId);
                 }
               }}
             >
-              Снять
+              {messages.staff.revoke}
             </button>
           </article>
         ))}
@@ -3744,7 +3792,7 @@ function ErrorState({ error, retry }: { readonly error: Error; readonly retry: (
   return (
     <div className="error-panel" role="alert">
       <strong>{messages.common.sectionLoadFailed}</strong>
-      <p>{error.message}</p>
+      <p>{localizedErrorMessage(error, messages)}</p>
       <button type="button" onClick={retry}>
         {messages.common.retry}
       </button>
@@ -3752,12 +3800,14 @@ function ErrorState({ error, retry }: { readonly error: Error; readonly retry: (
   );
 }
 function InlineError({ error }: { readonly error: Error | null }) {
+  const { messages } = useI18n();
   return error ? (
     <p className="error" role="alert">
-      {error.message}
+      {localizedErrorMessage(error, messages)}
     </p>
   ) : null;
 }
+
 function Editor({
   title,
   onCancel,

@@ -37,7 +37,7 @@ export async function apiRequest<T>(url: string, init: RequestInit = {}): Promis
     const envelope = payload as ErrorEnvelope | null;
     throw new ApiError(
       envelope?.error?.code ?? 'REQUEST_FAILED',
-      envelope?.error?.message ?? 'Запрос не выполнен.',
+      envelope?.error?.message ?? 'The request could not be completed.',
       response.status,
       envelope?.error?.requestId,
     );
@@ -70,12 +70,14 @@ export async function apiSse(
     const envelope = payload as ErrorEnvelope | null;
     throw new ApiError(
       envelope?.error?.code ?? 'REQUEST_FAILED',
-      envelope?.error?.message ?? 'Запрос не выполнен.',
+      envelope?.error?.message ?? 'The request could not be completed.',
       response.status,
       envelope?.error?.requestId,
     );
   }
-  if (!response.body) throw new ApiError('EMPTY_STREAM', 'Сервис не вернул поток ответа.', 502);
+  if (!response.body) {
+    throw new ApiError('EMPTY_STREAM', 'The service did not return a response stream.', 502);
+  }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -116,8 +118,8 @@ async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
     throw new ApiError(
       offline ? 'NETWORK_OFFLINE' : 'NETWORK_ERROR',
       offline
-        ? 'Нет подключения к сети. Проверь соединение и повтори действие.'
-        : 'Не удалось связаться с сервисом. Попробуй ещё раз.',
+        ? 'No network connection. Check your connection and try again.'
+        : 'Could not reach the service. Try again.',
       0,
     );
   }

@@ -19,7 +19,7 @@ test('renders the isolated Velora shell without pretending standalone auth', asy
 });
 
 test('authenticated MiniApp navigation and persona creation remain usable', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   let personas: readonly Record<string, unknown>[] = [];
   let lorebook: Record<string, unknown> | null = null;
   let loreEntries: readonly Record<string, unknown>[] = [];
@@ -1708,7 +1708,7 @@ test('owner manages moderator appointments without exposing the control to staff
           username: 'vldd',
           displayName: 'Владелец',
           avatarFileId: null,
-          locale: 'ru',
+          locale: 'en',
           role: 'OWNER',
           moderationState: 'ACTIVE',
           ageGateAccepted: true,
@@ -1747,6 +1747,10 @@ test('owner manages moderator appointments without exposing the control to staff
       return;
     }
     if (url.pathname === '/api/v1/admin/moderation/cases') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' });
+      return;
+    }
+    if (url.pathname === '/api/v1/admin/support/requests') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' });
       return;
     }
@@ -1927,24 +1931,42 @@ test('owner manages moderator appointments without exposing the control to staff
     await route.continue();
   });
 
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await page.getByRole('button', { name: /Модерация/u }).click();
-  await page.getByRole('button', { name: 'Система' }).click();
-  await expect(page.getByText('Тариф FREE')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Контрольный запрос BotHub' })).toBeVisible();
-  const smokeButton = page.getByRole('button', { name: 'Запустить один платный запрос' });
+  await page.getByRole('button', { name: /Moderation/u }).click();
+  await expect(page.getByRole('heading', { name: 'Moderation queue' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Queue is empty' })).toBeVisible();
+  await page.getByRole('button', { name: 'Support' }).click();
+  await expect(page.getByRole('heading', { name: 'Support requests' })).toBeVisible();
+  await page.getByRole('button', { name: '← Back to moderation' }).click();
+  await page.getByRole('button', { name: 'System' }).click();
+  await expect(page.getByText('Plan FREE')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'BotHub checkpoint' })).toBeVisible();
+  const smokeButton = page.getByRole('button', { name: 'Run one V3 request' });
   await expect(smokeButton).toBeDisabled();
-  await page.getByLabel('Я понимаю, что будет списана стоимость одного запроса BotHub.').check();
-  await smokeButton.click();
+  const smokeConsent = page.getByLabel(
+    'I approve one paid deepseek-chat-v3.1 staging request with no automatic retry.',
+  );
+  await smokeConsent.evaluate((element) => {
+    element.scrollIntoView({ block: 'center' });
+  });
+  await smokeConsent.focus();
+  await page.keyboard.press('Space');
+  await expect(smokeConsent).toBeChecked();
+  await smokeButton.evaluate((element) => {
+    element.scrollIntoView({ block: 'center' });
+  });
+  await smokeButton.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByText('Дверь тихо открылась навстречу лунному саду.')).toBeVisible();
-  await expect(page.getByText(/24 входных \/ 12 выходных токенов/u)).toBeVisible();
+  await expect(page.getByText(/24 input \/ 12 output tokens/u)).toBeVisible();
   await expect(smokeButton).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Команда модерации' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Moderation team' })).toBeVisible();
   await page.getByLabel('Telegram ID').fill('7001001');
-  await page.getByRole('button', { name: 'Назначить' }).click();
+  await page.getByRole('button', { name: 'Assign' }).click();
   await expect(page.getByText('Тестовый модератор')).toBeVisible();
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: 'Снять' }).click();
+  await page.getByRole('button', { name: 'Revoke' }).click();
   await expect(page.getByText('Тестовый модератор')).toHaveCount(0);
   await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll');
 });

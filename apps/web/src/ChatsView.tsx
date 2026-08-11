@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { apiRequest, apiSse } from './api';
+import { localizedErrorMessage } from './error-localization';
 import { useI18n, type Locale, type WebMessages } from './i18n';
 import { selectMessageWindow } from './message-window';
 import { SafeMarkdown } from './SafeMarkdown';
@@ -77,7 +78,7 @@ function ChatList({ onOpen }: { readonly onOpen: (id: string) => void }) {
       ) : null}
       {conversations.isError ? (
         <p className="error" role="alert">
-          {conversations.error.message}
+          {localizedErrorMessage(conversations.error, messages)}
         </p>
       ) : null}
       {conversations.data?.items.length === 0 ? (
@@ -224,7 +225,11 @@ function ChatThread({
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
       await streamReply(userMessage.id, 'REPLY');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : translations.chat.sendFailed);
+      setError(
+        caught instanceof Error
+          ? localizedErrorMessage(caught, translations)
+          : translations.chat.sendFailed,
+      );
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
     } finally {
       setGenerationId(null);
@@ -240,7 +245,11 @@ function ChatThread({
     try {
       await streamReply(parentMessageId, mode);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : translations.chat.variantFailed);
+      setError(
+        caught instanceof Error
+          ? localizedErrorMessage(caught, translations)
+          : translations.chat.variantFailed,
+      );
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
     } finally {
       setGenerationId(null);
@@ -261,7 +270,11 @@ function ChatThread({
         client.invalidateQueries({ queryKey: ['conversation', conversationId] }),
       ]);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : translations.chat.branchFailed);
+      setError(
+        caught instanceof Error
+          ? localizedErrorMessage(caught, translations)
+          : translations.chat.branchFailed,
+      );
     }
   };
 
@@ -284,7 +297,11 @@ function ChatThread({
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
       if (message.role === 'USER') await streamReply(edited.id, 'REPLY');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : translations.chat.editFailed);
+      setError(
+        caught instanceof Error
+          ? localizedErrorMessage(caught, translations)
+          : translations.chat.editFailed,
+      );
     } finally {
       setSending(false);
     }
@@ -301,7 +318,11 @@ function ChatThread({
       setActionMessageId(null);
       await client.invalidateQueries({ queryKey: ['messages', conversationId] });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : translations.chat.deleteFailed);
+      setError(
+        caught instanceof Error
+          ? localizedErrorMessage(caught, translations)
+          : translations.chat.deleteFailed,
+      );
     }
   };
 
@@ -322,7 +343,11 @@ function ChatThread({
       setReportDetails('');
       setActionMessageId(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : translations.chat.reportFailed);
+      setError(
+        caught instanceof Error
+          ? localizedErrorMessage(caught, translations)
+          : translations.chat.reportFailed,
+      );
     }
   };
 
@@ -332,7 +357,11 @@ function ChatThread({
       await client.invalidateQueries({ queryKey: ['conversations'] });
       onBack();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : translations.chat.deleteChatFailed);
+      setError(
+        caught instanceof Error
+          ? localizedErrorMessage(caught, translations)
+          : translations.chat.deleteChatFailed,
+      );
     }
   };
 
@@ -922,7 +951,7 @@ function ChatSettingsPanel({
         <p className="settings-cost-note">{messages.chat.prepaidNote}</p>
         {save.error ? (
           <span className="error" role="alert">
-            {save.error.message}
+            {localizedErrorMessage(save.error, messages)}
           </span>
         ) : null}
         {saved ? (
@@ -1055,7 +1084,7 @@ function ChatMemoryPanel({ conversationId }: { readonly conversationId: string }
       {memory.data?.pendingJob ? <small role="status">{messages.chat.memoryPending}</small> : null}
       {error ? (
         <span className="error" role="alert">
-          {error.message}
+          {localizedErrorMessage(error, messages)}
         </span>
       ) : null}
     </aside>
@@ -1278,7 +1307,7 @@ function ChatLorePanel({ conversationId }: { readonly conversationId: string }) 
       </div>
       {change.isError ? (
         <span className="error" role="alert">
-          {change.error.message}
+          {localizedErrorMessage(change.error, messages)}
         </span>
       ) : null}
       <div className="active-lore-summary">

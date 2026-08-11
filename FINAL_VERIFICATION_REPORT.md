@@ -21,7 +21,7 @@ verified; the full product from the master brief is still in progress.
 - staging D1 migrations 0001-0025 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `426f198c-1e26-4c91-88ae-b45a8c569283` is live with a five-minute
+- staging Worker version `4ef2c7a5-5a5a-433c-840d-1685fdda2e99` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - persona CRUD/default and character immutable-version CRUD/publish/discovery pass against a real
@@ -170,9 +170,9 @@ verified; the full product from the master brief is still in progress.
   unit and local Worker integration tests, while later in-app locale choices are preserved.
 - the web runtime has typed Russian/English dictionaries and switches authenticated language
   without reload. Auth/standalone, offline recovery, onboarding, navigation, discovery, billing,
-  settings, chats, editors, profiles, reports, private support, legal information and account data
-  controls are covered; the remaining moderation and owner operations screens stay explicitly
-  incomplete.
+  settings, chats, editors, profiles, reports, private support, legal information, account data
+  controls, moderation and owner operations are covered. Generic transport failures are translated
+  at the rendering boundary, while safe domain messages remain available for diagnosis.
 - live Telegram initData produced active sessions and automatically persisted the confirmed
   Telegram ID `1040929628` as `OWNER`, without a manual database role change;
 - the installed BotHub key passed a non-generative authenticated model-list check. The former
