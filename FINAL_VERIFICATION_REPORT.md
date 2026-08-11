@@ -1,6 +1,6 @@
 # Velora verification report
 
-Updated: 2026-08-11.
+Updated: 2026-08-12.
 
 Velora is **not production-ready**. The isolated foundation and staging MVP for Telegram auth,
 personas, versioned characters, discovery interactions, image media, branching conversations, lorebooks,
@@ -17,11 +17,11 @@ verified; the full product from the master brief is still in progress.
   backup/restore and the explicit production gates from zero without embedding secrets;
 - Cloudflare Free-only architecture with no card or automatic plan upgrade;
 - separate `velora-staging` and `velora-production` D1 databases;
-- production D1 is intentionally unmigrated; staging currently has 60 application tables;
-- staging D1 migrations 0001-0025 passed; `quick_check` returned `ok` and
+- production D1 is intentionally unmigrated; staging currently has 65 application tables;
+- staging D1 migrations 0001-0026 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `19904cde-712c-4075-bede-294920fbefb1` is live with a five-minute
+- staging Worker version `c5a53c7e-baa0-4923-ad45-facddae9fdfc` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - the public OpenAPI 3.1 route contract is generated from the concrete Hono route table, exposes
@@ -220,6 +220,15 @@ verified; the full product from the master brief is still in progress.
   `244d09fd-172e-4b3c-9fb0-12e671bc8c4e` was deployed with paid AI enabled and payments disabled;
   health/readiness, unauthenticated-generation 401, matching V3/provider readiness and D1
   `quick_check=ok` passed after deploy.
+- owner grants by internal Velora ID or Telegram ID are owner-only, CSRF-protected, idempotent and
+  audited separately from payments. Local Worker+D1 regression proved combined plan/credit issue,
+  replay without double credit, effective Pro access, access revocation and retained credit. The
+  full gate passed 118 unit, 6 roleplay-quality, 4 contract, 27 integration and 9/9 E2E tests;
+  clean-clone CI `31541638382` passed. Fresh backup
+  `velora-staging-pre-0026-2026-08-12T012235Z.sql` restored independently to 26 migrations and 65
+  tables before the remote migration. Staging Worker `c5a53c7e-baa0-4923-ad45-facddae9fdfc`
+  serves 102 OpenAPI paths, rejects unauthenticated grant reads with 401, retains one and only one
+  V3 run, and keeps `PAYMENTS_ENABLED=false`. No real owner grant was invented or applied.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.

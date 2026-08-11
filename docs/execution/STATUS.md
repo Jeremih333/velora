@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-08-11.
+Updated: 2026-08-12.
 
 | Area                         | Status            | Evidence / blocker                                                                       |
 | ---------------------------- | ----------------- | ---------------------------------------------------------------------------------------- |
@@ -26,6 +26,7 @@ Updated: 2026-08-11.
 | Moderation                   | VERIFIED_MVP      | reports, RBAC, appeals, audit and non-sanctioning risk signals                           |
 | One-time Stars billing       | IMPLEMENTED_GATED | exact invoice/grant/refund, owner catalog and MiniApp E2E; disabled                      |
 | Non-renewing plan access     | VERIFIED_MVP      | Free/Plus/Pro rights, stacked periods, expiry/refund and owner controls                  |
+| Owner user grants            | VERIFIED_STAGING  | ID lookup, audited/idempotent plan+credit grants, revocation; no fake payments           |
 | Reliability controls         | VERIFIED_MVP      | limits, private events, live deduped alert/recovery, admin metrics                       |
 | Local capacity               | VERIFIED_SLICE    | 40 user/D1/search requests, 4 AI streams; budget is first boundary                       |
 | Fixtures and staging seed    | VERIFIED          | idempotent 4 users/12 chars/4 personas/2 lore/240 chat/3 cases                           |
@@ -39,7 +40,7 @@ Updated: 2026-08-11.
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                        |
 | Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                        |
 | Paid AI                      | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                    |
-| Staging                      | VERIFIED          | Worker `244d09fd`; D1 25/63 healthy, BotHub READY; paid roleplay enabled after V3        |
+| Staging                      | VERIFIED          | Worker `c5a53c7e`; D1 26/65 healthy; paid roleplay on, payments off                      |
 | Production                   | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                  |
 
 RoleMate resources have not been changed or bound to Velora.

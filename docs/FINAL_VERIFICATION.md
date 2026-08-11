@@ -8,13 +8,13 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
 | Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 100-path smoke | VERIFIED          | Assets bypass is explicit         |
-| D1                                   | 63 application tables, 25 migrations | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
+| D1                                   | 65 application tables, 26 migrations | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
 | AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | V3 HTTP 200            | VERIFIED_STAGING  | production remains disabled       |
 | Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
 | First-run onboarding                 | 4-step idempotent Worker/UI flow     | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | policy required; rest optional    |
 | Likes/bookmarks/reviews              | D1 constraints and MiniApp           | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | no viewer identities              |
-| Billing/moderation/admin             | exact Stars gate and RBAC            | unit/integration/E2E   | live Stars pending     | IMPLEMENTED_GATED | payments stay disabled            |
+| Billing/moderation/admin             | Stars gate, RBAC and owner grants    | unit/integration/E2E   | owner-grant staging UI | IMPLEMENTED_GATED | payments stay disabled            |
 | Reliability/operations               | limits/events/alerts/data controls   | unit/integration/E2E   | live alert/recovery    | VERIFIED_MVP      | owner receipt witnessed           |
 | Support/legal                        | private tickets, admin queue, policy | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | contents excluded from audit      |
 | User profiles                        | separate identity, privacy, avatar   | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | Telegram identity stays private   |
@@ -100,6 +100,10 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - GitHub CI `31538305930` and staging Worker `244d09fd-172e-4b3c-9fb0-12e671bc8c4e`: PASS;
 - post-deploy health/readiness, unauthenticated-generation 401, matching completed V3/provider
   readiness and D1 `quick_check=ok`: PASS;
+- owner grants gate: 118 unit, 6 roleplay-quality, 4 contract, 27 integration and 9/9 E2E PASS;
+  fresh pre-0026 export restored to 26 migrations/65 tables; CI `31541638382`, staging Worker
+  `c5a53c7e-baa0-4923-ad45-facddae9fdfc`, 102 OpenAPI paths, unauthenticated grant 401, empty
+  foreign-key check and unchanged single V3 run: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

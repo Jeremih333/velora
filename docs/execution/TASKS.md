@@ -290,6 +290,10 @@
       200, 42 input / 20 output tokens and $0.000030 provider cost; enable paid roleplay only in
       staging Worker `244d09fd-172e-4b3c-9fb0-12e671bc8c4e` after CI `31538305930`, while
       production/local and one-time Stars payments remain disabled.
+- [x] Add owner-only plan and AI-credit grants by internal Velora ID or Telegram ID without fake
+      payments; prove RBAC, CSRF, idempotency, effective access, revocation and retained credits,
+      restore the pre-0026 staging export, migrate to 26/65 and deploy staging Worker
+      `c5a53c7e-baa0-4923-ad45-facddae9fdfc` after CI `31541638382`.
 
 ## Next
 
