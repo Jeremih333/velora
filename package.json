@@ -11,6 +11,7 @@
     "dev": "corepack pnpm --parallel --filter @velora/web --filter @velora/api dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "security:scan": "node toolkit/secret-scan.mjs",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run --exclude tests/integration/** --exclude tests/e2e/**",
