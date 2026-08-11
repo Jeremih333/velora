@@ -1579,6 +1579,10 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Chats/u })).toBeVisible();
   await expect(page.getByText('Settings saved.')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(
+    await page.locator('html').evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).toBe('rgb(16, 11, 29)');
   await expectVisualSnapshot(page, 'settings');
   await page.getByRole('button', { name: /Chats/u }).click();
   await page.getByRole('button', { name: 'Back to chats' }).click();
