@@ -201,17 +201,21 @@ verified; the full product from the master brief is still in progress.
   owner separately confirmed an active ELITE plan and CAPS balance, so insufficient plan/balance is
   not treated as the established cause;
 - V2 was blocked before its run key and before Chat Completions because its required model was
-  missing. The V3 owner checkpoint uses the selected available model and documented streaming
-  shape without `stream_options`, requires a new exact Russian confirmation, claims a distinct D1
-  run key before network access, permits no retry/fallback and stores only safe HTTP category,
-  usage/cost, latency and output hash rather than prompt, response body or generated text;
+  missing. The owner-authorized V3 checkpoint completed once with `deepseek-chat-v3.1`, the
+  documented streaming shape and HTTP 200: 42 input tokens, 20 output tokens, $0.000030 provider
+  cost and 4,211 ms latency. It claimed its distinct D1 run key before network access, allowed no
+  retry/fallback and stored only safe HTTP category, usage/cost, latency and output hash rather
+  than prompt, response body or generated text;
 - all deployed roleplay profiles now point only to the selected available model, while the
-  independent `PAID_AI_ENABLED=false` server gate prevents any user generation and credit/CAPS
+  independent `PAID_AI_ENABLED=false` server gate prevents any production/local user generation and credit/CAPS
   spend until the checkpoint succeeds and the owner separately approves enablement; even after
   enablement, a second readiness gate requires a completed V3 whose model matches both the active
   profile and reconciled BotHub capability;
 - the first post-0020 E2E run exposed a mobile toast/sticky-header click obstruction; after the
   UI fix, the required Android/iPhone/Desktop rerun completed all 9 cases without retry.
+- the staging-paid-enable gate on 2026-08-12 passed 117 unit/regression, 6 structural roleplay,
+  4 contract and 26 integration tests. The full 9-case E2E run recorded one transient iPhone
+  navigation retry; that exact scenario then passed independently with retries disabled.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.
@@ -230,9 +234,8 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 ## Deliberately blocked
 
-- paid roleplay inference has a staging BotHub secret and a reconciled capability check, but V1
-  failed, V2 was safely rejected without a provider request, and deliberately bounded V3 remains
-  blocked on fresh owner consent; auto-top-up is disabled and deployment did not execute V3;
+- paid roleplay inference passed the deliberately bounded V3 checkpoint and is enabled only on
+  staging; production remains disabled pending separate owner approval and live staging evidence;
 - R2 is not enabled on the account, so the initial free design uses Telegram `file_id` storage;
 - production deploy remains gated until the live integrations and their tests pass.
 

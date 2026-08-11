@@ -286,12 +286,14 @@
       D1 quick-check plus Telegram/BotHub READY with paid gates off and zero V3 runs.
 - [x] Fix conversation creation for safe opaque IDs emitted by the staging catalogue and cover the
       exact new-user start-story failure with domain validation plus a real Worker+D1 regression.
+- [x] Complete the immutable owner-authorized BotHub V3 checkpoint with `deepseek-chat-v3.1`, HTTP
+      200, 42 input / 20 output tokens and $0.000030 provider cost; enable paid roleplay only in
+      staging while production/local and one-time Stars payments remain disabled.
 
 ## Next
 
 - Optional reviewed advanced classifiers.
-- Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting
-  checkpoint through the staged owner control. V1 is immutable failed evidence; V2 was never
-  claimed because its required model was absent.
+- Real Stars smoke and full live-chat roleplay verification on staging. V1 remains immutable failed
+  evidence; V2 was never claimed because its required model was absent; V3 completed exactly once.
 
 Tasks move to `VERIFIED` only with evidence in `STATUS.md` and final verification.

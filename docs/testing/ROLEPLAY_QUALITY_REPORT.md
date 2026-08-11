@@ -23,7 +23,8 @@ preserve escaped literals and do not evaluate arbitrary tokens.
 
 ## Honest boundary
 
-This suite proves deterministic context assembly, selection and budgeting. It cannot prove prose
-quality, character fidelity or provider availability without asking the selected model to answer.
-That final model-quality checkpoint is intentionally pending and may run once only after the owner
-sends the exact confirmation phrase `ПОТРАТИТЬ 1 ЗАПРОС V3`. Paid AI and payments remain disabled.
+This suite proves deterministic context assembly, selection and budgeting. The separate immutable
+owner-authorized V3 provider checkpoint completed once with `deepseek-chat-v3.1`, HTTP 200, 42
+input tokens and 20 output tokens. Its short bounded response proves provider availability and the
+wire protocol, not broad prose quality across all A-F scenarios. Paid roleplay is enabled only on
+staging; payments and production paid AI remain disabled.

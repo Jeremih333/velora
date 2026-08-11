@@ -8,7 +8,7 @@
 | Likes/reviews         | DB constraints       | idempotent aggregates  | react/update/review    | self/duplicate     |
 | Chat/branches         | state/prompt         | stream/idempotency     | send/regenerate/edit   | double send/budget |
 | Prompt inspector      | exact rendered parts | creator 200/reader 403 | sections/token view    | hidden prompt IDOR |
-| Roleplay quality A-F  | typed prompt corpus  | real builder + lore    | paid V3 pending        | bounded/no leakage |
+| Roleplay quality A-F  | typed prompt corpus  | real builder + lore    | V3 HTTP 200            | bounded/no leakage |
 | Memory/lore           | version/hierarchy    | 1,201-message D1 flow  | attach/inspect         | ownership/limits   |
 | Credits/payment       | ledger               | duplicate update       | test invoice           | double grant       |
 | Moderation            | transitions          | case/audit             | report/appeal          | least privilege    |

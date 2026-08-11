@@ -192,8 +192,8 @@ powershell -ExecutionPolicy Bypass -File toolkit/set-bothub-key.ps1 -Environment
 - имеет неизменяемый idempotency key;
 - не запускается автоматически после покупки тарифа или deploy.
 
-До успешной сверки usage/balance `PAID_AI_ENABLED=false`. Память, модерация, поиск и служебные
-задачи не должны тратить BotHub CAPS.
+После успешной сверки usage/balance `PAID_AI_ENABLED=true` разрешён только в staging. Production и
+local остаются `false`; память, модерация, поиск и служебные задачи не должны тратить BotHub CAPS.
 
 Годовой расчёт и допущения: [docs/operations/COST_MODEL.md](docs/operations/COST_MODEL.md).
 

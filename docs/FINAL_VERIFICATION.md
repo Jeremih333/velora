@@ -10,7 +10,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 100-path smoke | VERIFIED          | Assets bypass is explicit         |
 | D1                                   | 63 application tables, 25 migrations | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
-| AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | capability READY       | IMPLEMENTED_GATED | V1 failed; V2 not run; V3 pending |
+| AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | V3 HTTP 200            | VERIFIED_STAGING  | production remains disabled       |
 | Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
 | First-run onboarding                 | 4-step idempotent Worker/UI flow     | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | policy required; rest optional    |
 | Likes/bookmarks/reviews              | D1 constraints and MiniApp           | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | no viewer identities              |
@@ -20,15 +20,15 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | User profiles                        | separate identity, privacy, avatar   | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | Telegram identity stays private   |
 | Production                           | none                                 | none                   | none                   | NOT_STARTED       | cannot claim success              |
 
-## Command report — 2026-08-11
+## Command report — 2026-08-12
 
 - secret scan: PASS;
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 117 PASS; API contract: 4 PASS; integration/schema/cost-model: 25 PASS;
-- dedicated roleplay quality A-F structural corpus: PASS; live model prose evaluation remains
-  gated behind the exact one-request V3 confirmation;
+- unit/regression: 117 PASS; API contract: 4 PASS; integration/schema/cost-model: 26 PASS;
+- dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
+  completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
 - production builds: PASS;
 - Playwright Android/iPhone/Desktop: 9 PASS;
@@ -61,14 +61,15 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - product profile ownership, avatar IDOR denial, private/block visibility, profile-name discovery,
   reversible moderation, portable export and account erasure regressions: PASS;
 - active staging credit packs: 0; `PAYMENTS_ENABLED=false`: PASS;
-- paid roleplay deployment gate: `PAID_AI_ENABLED=false`: PASS;
+- paid roleplay deployment gate: production/local remain `PAID_AI_ENABLED=false`; staging is
+  `true` only after the immutable owner-authorized V3 completed against the active model: PASS;
 - paid roleplay readiness gate requires matching completed V3, active profile and reconciled
-  provider capability: PASS (currently closed because V3 has zero runs);
+  provider capability: PASS and open for staging;
 - generated session/webhook secrets are installed; missing session fails closed with 401;
 - bot token, webhook secret, BotHub key and confirmed owner ID are installed; Telegram webhook,
   commands, menu and descriptions reconciled to `READY`; live Telegram `initData` persisted the
   verified `OWNER`; BotHub allowlisted capability health is `READY`, with
-  `deepseek-chat-v3.1` selected; successful paid inference remains pending.
+  `deepseek-chat-v3.1` selected; the immutable V3 paid checkpoint completed successfully.
 - Russian and English Telegram command/payment/media replies, locale variants (`en-US`, `en_US`)
   and localized Mini App buttons pass unit and local Worker integration checks; a user's later
   in-app locale choice is not overwritten by subsequent webhook updates.
@@ -82,8 +83,8 @@ Velora is **not production-ready yet**. This report is updated only with factual
   the owner, then its exact fixture was removed and D1 changed the alert to `RESOLVED`: PASS.
 - V1 paid smoke is preserved as an HTTP failure before output with zero recorded usage. V2 was
   blocked before claiming its run key because its model is absent from the authenticated
-  catalogue. V3 targets the selected available model, remains owner-only and CSRF-protected,
-  allows no retry/fallback and has not been launched during deploy: PASS.
+  catalogue. Owner-only, CSRF-protected V3 completed exactly once against the selected model with
+  HTTP 200 and no retry/fallback: PASS.
 - owner-only draft previews reject ordinary draft chat creation and foreign draft access, retain
   their version/persona snapshot, display an explicit test label and do not increase creator chat
   statistics: PASS.
@@ -94,5 +95,9 @@ Velora is **not production-ready yet**. This report is updated only with factual
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe
   identifier characters remain rejected: PASS.
+- the paid-deployment boundary regression proves staging AI is enabled while production/local AI
+  and payments in every environment remain disabled: PASS;
+- the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
+  iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 
 These results prove only the implemented foundation, not the unimplemented product surface.
