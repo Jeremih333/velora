@@ -248,10 +248,14 @@
       story settings, memory, prompt inspector and lore panel; verify the language switch in the
       authenticated browser flow and deploy staging Worker
       `2fef274a-9baf-40d5-a15d-fecff72bfb3f` with BotHub READY and zero V3 runs.
+- [x] Localize persona management and the complete versioned character editor, including publish
+      states, autosave feedback, greeting preview and shared editor/error controls; verify both
+      editors after an in-session language switch and deploy staging Worker
+      `0cf2cc06-1040-45fc-8659-b9708b2cc132` with BotHub READY and zero V3 runs.
 
 ## Next
 
-- Continue removing hardcoded Russian UI strings from character/persona/lore editors,
+- Continue removing hardcoded Russian UI strings from lore editors,
   profiles, support and administration.
 - Optional reviewed advanced classifiers.
 - Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting

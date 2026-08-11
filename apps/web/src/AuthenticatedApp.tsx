@@ -2437,6 +2437,7 @@ function Metric({ label, value }: { readonly label: string; readonly value: stri
 }
 
 function PersonasView({ notify }: { readonly notify: (message: string | null) => void }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const personas = useQuery({
     queryKey: ['personas'],
@@ -2448,14 +2449,14 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
       apiRequest<{ readonly deleted: boolean }>(`/api/v1/personas/${id}`, { method: 'DELETE' }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['personas'] });
-      notify('Образ удалён.');
+      notify(messages.personas.removed);
     },
   });
   const makeDefault = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/v1/personas/${id}/default`, { method: 'POST' }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['personas'] });
-      notify('Основной образ изменён.');
+      notify(messages.personas.defaultChanged);
     },
   });
   if (editing)
@@ -2471,9 +2472,9 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
   return (
     <div className="view-stack">
       <ViewHeader
-        eyebrow="ТВОЯ РОЛЬ"
-        title="Образы"
-        description="Выбери, кем ты входишь в историю. Первый образ становится основным автоматически."
+        eyebrow={messages.personas.eyebrow}
+        title={messages.personas.title}
+        description={messages.personas.description}
         action={
           <button
             className="compact-primary"
@@ -2482,7 +2483,7 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
               setEditing('new');
             }}
           >
-            ＋ Создать
+            {messages.personas.create}
           </button>
         }
       />
@@ -2490,7 +2491,7 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
         <ErrorState error={personas.error} retry={() => void personas.refetch()} />
       ) : null}
       {personas.data?.items.length === 0 ? (
-        <EmptyState title="Создай первый образ" text="Он будет использоваться в новых историях." />
+        <EmptyState title={messages.personas.emptyTitle} text={messages.personas.emptyText} />
       ) : null}
       <div className="list-stack">
         {personas.data?.items.map((persona) => (
@@ -2498,10 +2499,14 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
             <Avatar name={persona.name} fileId={persona.avatarFileId} />
             <div className="list-copy">
               <h2>{persona.name}</h2>
-              <p>{persona.shortDescription || 'Описание ещё не добавлено'}</p>
+              <p>{persona.shortDescription || messages.personas.noDescription}</p>
               <div className="tag-list">
-                <span>{persona.visibility === 'PUBLIC' ? 'Публичный' : 'Личный'}</span>
-                {persona.isDefault ? <span>Основной</span> : null}
+                <span>
+                  {persona.visibility === 'PUBLIC'
+                    ? messages.personas.public
+                    : messages.personas.private}
+                </span>
+                {persona.isDefault ? <span>{messages.personas.default}</span> : null}
               </div>
             </div>
             <div className="card-actions">
@@ -2511,7 +2516,7 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
                   setEditing(persona);
                 }}
               >
-                Изменить
+                {messages.personas.edit}
               </button>
               {!persona.isDefault ? (
                 <button
@@ -2520,17 +2525,18 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
                     makeDefault.mutate(persona.id);
                   }}
                 >
-                  Сделать основным
+                  {messages.personas.makeDefault}
                 </button>
               ) : null}
               <button
                 className="danger-link"
                 type="button"
                 onClick={() => {
-                  if (window.confirm(`Удалить образ «${persona.name}»?`)) remove.mutate(persona.id);
+                  if (window.confirm(messages.personas.removeConfirm(persona.name)))
+                    remove.mutate(persona.id);
                 }}
               >
-                Удалить
+                {messages.personas.remove}
               </button>
             </div>
           </article>
@@ -2549,6 +2555,7 @@ function PersonaEditor({
   readonly onClose: () => void;
   readonly notify: (message: string | null) => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const existing = persona === 'new' ? null : persona;
   const save = useMutation({
@@ -2560,7 +2567,7 @@ function PersonaEditor({
       }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['personas'] });
-      notify(existing ? 'Изменения сохранены.' : 'Образ создан.');
+      notify(existing ? messages.personas.saved : messages.personas.created);
       onClose();
     },
   });
@@ -2584,43 +2591,74 @@ function PersonaEditor({
   };
   return (
     <Editor
-      title={existing ? 'Редактировать образ' : 'Новый образ'}
+      title={existing ? messages.personas.editTitle : messages.personas.newTitle}
       onCancel={onClose}
       onSubmit={submit}
       pending={save.isPending}
       error={save.error}
     >
-      <Field label="Имя" name="name" defaultValue={existing?.name} required maxLength={80} />
       <Field
-        label="Коротко о себе"
+        label={messages.personas.name}
+        name="name"
+        defaultValue={existing?.name}
+        required
+        maxLength={80}
+      />
+      <Field
+        label={messages.personas.shortDescription}
         name="shortDescription"
         defaultValue={existing?.shortDescription}
         maxLength={280}
       />
       <TextArea
-        label="Полное описание"
+        label={messages.personas.longDescription}
         name="longDescription"
         defaultValue={existing?.longDescription}
       />
-      <TextArea label="Характер" name="personality" defaultValue={existing?.personality} />
-      <TextArea label="Внешность" name="appearance" defaultValue={existing?.appearance} />
-      <TextArea label="Стиль речи" name="speakingStyle" defaultValue={existing?.speakingStyle} />
-      <TextArea label="Предыстория" name="background" defaultValue={existing?.background} />
-      <Field label="Местоимения" name="pronouns" defaultValue={existing?.pronouns} maxLength={80} />
+      <TextArea
+        label={messages.personas.personality}
+        name="personality"
+        defaultValue={existing?.personality}
+      />
+      <TextArea
+        label={messages.personas.appearance}
+        name="appearance"
+        defaultValue={existing?.appearance}
+      />
+      <TextArea
+        label={messages.personas.speakingStyle}
+        name="speakingStyle"
+        defaultValue={existing?.speakingStyle}
+      />
+      <TextArea
+        label={messages.personas.background}
+        name="background"
+        defaultValue={existing?.background}
+      />
       <Field
-        label="Возраст образа"
+        label={messages.personas.pronouns}
+        name="pronouns"
+        defaultValue={existing?.pronouns}
+        maxLength={80}
+      />
+      <Field
+        label={messages.personas.representedAge}
         name="representedAge"
         defaultValue={existing?.representedAge ?? ''}
         maxLength={80}
       />
-      <TextArea label="Личные заметки" name="customNotes" defaultValue={existing?.customNotes} />
+      <TextArea
+        label={messages.personas.customNotes}
+        name="customNotes"
+        defaultValue={existing?.customNotes}
+      />
       <Select
-        label="Видимость"
+        label={messages.personas.visibility}
         name="visibility"
         defaultValue={existing?.visibility ?? 'PRIVATE'}
         options={[
-          ['PRIVATE', 'Только мне'],
-          ['PUBLIC', 'Публичный'],
+          ['PRIVATE', messages.personas.onlyMe],
+          ['PUBLIC', messages.personas.public],
         ]}
       />
     </Editor>
@@ -2636,6 +2674,7 @@ function CharactersView({
   readonly onStarted: (id: string) => void;
   readonly onOpenLorebooks: () => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const characters = useQuery({
     queryKey: ['characters'],
@@ -2692,9 +2731,9 @@ function CharactersView({
       notify(
         variables.command === 'publish'
           ? result.publishState === 'MODERATION_PENDING'
-            ? (result.message ?? ru.character.matureReviewPending)
-            : 'Персонаж опубликован.'
-          : 'Готово.',
+            ? messages.characters.matureReviewPending
+            : messages.characters.published
+          : messages.characters.done,
       );
     },
   });
@@ -2711,13 +2750,13 @@ function CharactersView({
   return (
     <div className="view-stack">
       <ViewHeader
-        eyebrow="ТВОИ МИРЫ"
-        title="Персонажи"
-        description="Черновики версионируются: конфликтующие изменения не перезапишут твою работу."
+        eyebrow={messages.characters.eyebrow}
+        title={messages.characters.title}
+        description={messages.characters.description}
         action={
           <div className="header-actions">
             <button className="secondary compact-button" type="button" onClick={onOpenLorebooks}>
-              ⌘ Книги мира
+              {messages.characters.lorebooks}
             </button>
             <button
               className="compact-primary"
@@ -2726,7 +2765,7 @@ function CharactersView({
                 setEditing('new');
               }}
             >
-              ＋ Создать
+              {messages.characters.create}
             </button>
           </div>
         }
@@ -2736,26 +2775,24 @@ function CharactersView({
       ) : null}
       <InlineError error={preview.error} />
       {stats.data ? (
-        <section className="creator-stats" aria-label="Статистика автора">
+        <section className="creator-stats" aria-label={messages.characters.creatorStats}>
           <span>
-            <strong>{stats.data.chatsStarted}</strong> начато чатов
+            <strong>{stats.data.chatsStarted}</strong> {messages.characters.chatsStarted}
           </span>
           <span>
-            <strong>{stats.data.likes}</strong> лайков
+            <strong>{stats.data.likes}</strong> {messages.characters.likes}
           </span>
           <span>
-            <strong>{stats.data.bookmarks}</strong> закладок
+            <strong>{stats.data.bookmarks}</strong> {messages.characters.bookmarks}
           </span>
           <span>
-            <strong>{stats.data.averageRating?.toFixed(1) ?? '—'}</strong> рейтинг
+            <strong>{stats.data.averageRating?.toFixed(1) ?? '—'}</strong>{' '}
+            {messages.characters.rating}
           </span>
         </section>
       ) : null}
       {characters.data?.items.length === 0 ? (
-        <EmptyState
-          title="Здесь появятся персонажи"
-          text="Создай первого и опубликуй, когда он будет готов."
-        />
+        <EmptyState title={messages.characters.emptyTitle} text={messages.characters.emptyText} />
       ) : null}
       <div className="list-stack">
         {characters.data?.items.map((character) => (
@@ -2768,12 +2805,12 @@ function CharactersView({
                 <span>v{character.version}</span>
                 <span>
                   {character.publishState === 'PUBLISHED'
-                    ? 'Опубликован'
+                    ? messages.characters.statePublished
                     : character.publishState === 'MODERATION_PENDING'
-                      ? 'На проверке'
+                      ? messages.characters.statePending
                       : character.publishState === 'HIDDEN' || character.publishState === 'REJECTED'
-                        ? 'Скрыт модерацией'
-                        : 'Черновик'}
+                        ? messages.characters.stateHidden
+                        : messages.characters.stateDraft}
                 </span>
                 {character.tags.slice(0, 2).map((tag) => (
                   <span key={tag}>{tag}</span>
@@ -2790,8 +2827,8 @@ function CharactersView({
                 }}
               >
                 {preview.isPending && preview.variables === character.id
-                  ? 'Открываем тест…'
-                  : 'Тестовый диалог'}
+                  ? messages.characters.openingPreview
+                  : messages.characters.previewChat}
               </button>
               <button
                 type="button"
@@ -2799,7 +2836,7 @@ function CharactersView({
                   setEditing(character);
                 }}
               >
-                Редактировать
+                {messages.characters.edit}
               </button>
               {character.publishState === 'PUBLISHED' ||
               character.publishState === 'MODERATION_PENDING' ? (
@@ -2809,7 +2846,9 @@ function CharactersView({
                     action.mutate({ id: character.id, command: 'unpublish' });
                   }}
                 >
-                  {character.publishState === 'MODERATION_PENDING' ? 'Отменить проверку' : 'Снять'}
+                  {character.publishState === 'MODERATION_PENDING'
+                    ? messages.characters.cancelReview
+                    : messages.characters.unpublish}
                 </button>
               ) : (
                 <button
@@ -2818,7 +2857,7 @@ function CharactersView({
                     action.mutate({ id: character.id, command: 'publish' });
                   }}
                 >
-                  Опубликовать
+                  {messages.characters.publish}
                 </button>
               )}
               <button
@@ -2827,17 +2866,17 @@ function CharactersView({
                   action.mutate({ id: character.id, command: 'duplicate' });
                 }}
               >
-                Копия
+                {messages.characters.duplicate}
               </button>
               <button
                 className="danger-link"
                 type="button"
                 onClick={() => {
-                  if (window.confirm(`Удалить «${character.name}»?`))
+                  if (window.confirm(messages.characters.removeConfirm(character.name)))
                     action.mutate({ id: character.id, command: 'delete' });
                 }}
               >
-                Удалить
+                {messages.characters.remove}
               </button>
             </div>
           </article>
@@ -2856,6 +2895,7 @@ function CharacterEditor({
   readonly onClose: () => void;
   readonly notify: (message: string | null) => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const existing = character === 'new' ? null : character;
   const currentCharacter = useRef<Character | null>(existing);
@@ -2868,9 +2908,11 @@ function CharacterEditor({
     'INCOMPLETE' | 'DIRTY' | 'SAVING' | 'SAVED' | 'FAILED'
   >(existing ? 'SAVED' : 'INCOMPLETE');
   const [saveError, setSaveError] = useState<Error | null>(null);
-  const [previewName, setPreviewName] = useState(existing?.name ?? 'Персонаж');
+  const [previewName, setPreviewName] = useState(
+    existing?.name ?? messages.characters.characterFallback,
+  );
   const [previewGreeting, setPreviewGreeting] = useState(
-    existing?.firstMessage ?? 'Привет, {{user}}.',
+    existing?.firstMessage ?? messages.characters.greetingFallback,
   );
   const autosaveEnabled = allowsCharacterAutosave(existing?.publishState ?? null);
 
@@ -2948,7 +2990,7 @@ function CharacterEditor({
       await client.invalidateQueries({ queryKey: ['characters'] });
       return true;
     } catch (error) {
-      const normalized = error instanceof Error ? error : new Error('Не удалось сохранить.');
+      const normalized = error instanceof Error ? error : new Error(messages.characters.saveFailed);
       setSaveError(normalized);
       setSaveState('FAILED');
       return false;
@@ -2985,13 +3027,13 @@ function CharacterEditor({
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     const createdInitially = currentCharacter.current === null;
     if (await persistForm(true)) {
-      notify(createdInitially ? 'Персонаж создан.' : 'Новая версия сохранена.');
+      notify(createdInitially ? messages.characters.created : messages.characters.versionSaved);
       onClose();
     }
   };
   return (
     <Editor
-      title={existing ? 'Редактор персонажа' : 'Новый персонаж'}
+      title={existing ? messages.characters.editorTitle : messages.characters.newTitle}
       onCancel={onClose}
       onSubmit={(event) => {
         void submit(event);
@@ -3003,38 +3045,38 @@ function CharacterEditor({
       status={
         <span className={`save-status is-${saveState.toLowerCase()}`} role="status">
           {saveState === 'SAVING'
-            ? 'Сохраняем…'
+            ? messages.characters.saving
             : saveState === 'SAVED'
-              ? '✓ Сохранено'
+              ? messages.characters.saved
               : saveState === 'FAILED'
-                ? 'Не удалось сохранить'
+                ? messages.characters.failed
                 : saveState === 'INCOMPLETE'
-                  ? 'Заполни обязательные поля'
-                  : 'Изменения ожидают сохранения'}
+                  ? messages.characters.incomplete
+                  : messages.characters.dirty}
         </span>
       }
     >
       <fieldset className="editor-section">
-        <legend>Основное</legend>
+        <legend>{messages.characters.basics}</legend>
         <Field
-          label="Имя"
+          label={messages.characters.name}
           name="name"
           defaultValue={existing?.name}
           required
           maxLength={100}
           onChange={(value) => {
-            setPreviewName(value || 'Персонаж');
+            setPreviewName(value || messages.characters.characterFallback);
           }}
         />
         <Field
-          label="Короткая фраза"
+          label={messages.characters.tagline}
           name="tagline"
           defaultValue={existing?.tagline}
           required
           maxLength={180}
         />
         <TextArea
-          label="Описание (не менее 20 символов)"
+          label={messages.characters.descriptionField}
           name="description"
           defaultValue={existing?.description}
           required
@@ -3042,30 +3084,38 @@ function CharacterEditor({
         />
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Характер</legend>
+        <legend>{messages.characters.personalitySection}</legend>
         <TextArea
-          label="Характер (не менее 20 символов)"
+          label={messages.characters.personalityField}
           name="personality"
           defaultValue={existing?.personality}
           required
           minLength={20}
         />
-        <TextArea label="Стиль речи" name="speechStyle" defaultValue={existing?.speechStyle} />
+        <TextArea
+          label={messages.characters.speechStyle}
+          name="speechStyle"
+          defaultValue={existing?.speechStyle}
+        />
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Сценарий</legend>
-        <TextArea label="Сценарий" name="scenario" defaultValue={existing?.scenario} />
-        <TextArea label="Цели" name="goals" defaultValue={existing?.goals} />
+        <legend>{messages.characters.scenarioSection}</legend>
         <TextArea
-          label="Правила поведения"
+          label={messages.characters.scenario}
+          name="scenario"
+          defaultValue={existing?.scenario}
+        />
+        <TextArea label={messages.characters.goals} name="goals" defaultValue={existing?.goals} />
+        <TextArea
+          label={messages.characters.behaviourRules}
           name="behaviourRules"
           defaultValue={existing?.behaviourRules}
         />
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Первое сообщение</legend>
+        <legend>{messages.characters.firstMessageSection}</legend>
         <TextArea
-          label="Первое сообщение"
+          label={messages.characters.firstMessage}
           name="firstMessage"
           defaultValue={existing?.firstMessage}
           required
@@ -3073,98 +3123,99 @@ function CharacterEditor({
           onChange={setPreviewGreeting}
         />
         <TextArea
-          label="Альтернативные приветствия"
+          label={messages.characters.alternateGreetings}
           name="alternateGreetings"
           defaultValue={existing?.alternateGreetings.join('\n---\n')}
-          placeholder="Разделяй варианты отдельной строкой ---"
+          placeholder={messages.characters.alternateGreetingsHint}
         />
-        <section className="template-preview" aria-label="Предпросмотр приветствия">
-          <span>ПРЕДПРОСМОТР С ОБРАЗОМ «ТВОЙ ОБРАЗ»</span>
+        <section className="template-preview" aria-label={messages.characters.greetingPreview}>
+          <span>{messages.characters.greetingPreviewCaption}</span>
           <strong>{previewName}</strong>
           <p>
             {renderTemplate(previewGreeting, {
               char: previewName,
-              user: 'Твой образ',
-              persona: 'Твой образ',
+              user: messages.characters.userPersonaFallback,
+              persona: messages.characters.userPersonaFallback,
               scenario: '',
               description: '',
               memory: '',
-            }).value || 'Приветствие пока пусто.'}
+            }).value || messages.characters.emptyGreeting}
           </p>
         </section>
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Примеры</legend>
-        <p>
-          Здесь работают безопасные переменные <code>{'{{char}}'}</code> и <code>{'{{user}}'}</code>
-          . JavaScript и неизвестные команды не исполняются.
-        </p>
+        <legend>{messages.characters.examples}</legend>
+        <p>{messages.characters.templateSafety}</p>
         <TextArea
-          label="Примеры диалогов"
+          label={messages.characters.exampleDialogues}
           name="exampleDialogues"
           defaultValue={existing?.exampleDialogues}
-          placeholder={'{{user}}: Привет\n{{char}}: Привет. Я рад тебя видеть.'}
+          placeholder={messages.characters.examplePlaceholder}
         />
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Инструкции</legend>
+        <legend>{messages.characters.instructions}</legend>
         <TextArea
-          label="Инструкции автора"
+          label={messages.characters.creatorInstructions}
           name="systemInstructions"
           defaultValue={existing?.systemInstructions}
         />
         <TextArea
-          label="Инструкции после истории"
+          label={messages.characters.postHistoryInstructions}
           name="postHistoryInstructions"
           defaultValue={existing?.postHistoryInstructions}
         />
         <TextArea
-          label="Заметки автора"
+          label={messages.characters.creatorNotes}
           name="creatorNotes"
           defaultValue={existing?.creatorNotes}
         />
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Лор</legend>
-        <p>
-          Книги мира подключаются после первого сохранения в разделе «Книги мира». Тестовый диалог
-          использует выбранный снимок черновика.
-        </p>
+        <legend>{messages.characters.lore}</legend>
+        <p>{messages.characters.loreHint}</p>
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Внешность</legend>
-        <TextArea label="Внешность" name="appearance" defaultValue={existing?.appearance} />
-        <TextArea label="Предыстория" name="background" defaultValue={existing?.background} />
+        <legend>{messages.characters.appearanceSection}</legend>
+        <TextArea
+          label={messages.characters.appearance}
+          name="appearance"
+          defaultValue={existing?.appearance}
+        />
+        <TextArea
+          label={messages.characters.background}
+          name="background"
+          defaultValue={existing?.background}
+        />
       </fieldset>
       <fieldset className="editor-section">
-        <legend>Публикация</legend>
-        <Field label="Теги через запятую" name="tags" defaultValue={existing?.tags.join(', ')} />
+        <legend>{messages.characters.publication}</legend>
+        <Field
+          label={messages.characters.tags}
+          name="tags"
+          defaultValue={existing?.tags.join(', ')}
+        />
         <div className="field-row">
           <Select
-            label="Язык"
+            label={messages.characters.language}
             name="language"
             defaultValue={existing?.language ?? 'ru'}
             options={[
-              ['ru', 'Русский'],
-              ['en', 'English'],
+              ['ru', messages.characters.russian],
+              ['en', messages.characters.english],
             ]}
           />
           <Select
-            label="Рейтинг"
+            label={messages.characters.contentRating}
             name="contentRating"
             defaultValue={existing?.contentRating ?? 'SAFE'}
             options={[
-              ['SAFE', 'Безопасный'],
-              ['MATURE', '18+'],
+              ['SAFE', messages.characters.safe],
+              ['MATURE', messages.characters.mature],
             ]}
           />
         </div>
-        {!autosaveEnabled ? (
-          <p className="meta">
-            Опубликованный персонаж сохраняется только по кнопке, чтобы изменения не отправились на
-            модерацию случайно.
-          </p>
-        ) : null}
+        {!autosaveEnabled ? <p className="meta">{messages.characters.manualSaveHint}</p> : null}
       </fieldset>
     </Editor>
   );
@@ -3655,12 +3706,13 @@ function EmptyState({ title, text }: { readonly title: string; readonly text?: s
   );
 }
 function ErrorState({ error, retry }: { readonly error: Error; readonly retry: () => void }) {
+  const { messages } = useI18n();
   return (
     <div className="error-panel" role="alert">
-      <strong>Не удалось загрузить раздел</strong>
+      <strong>{messages.common.sectionLoadFailed}</strong>
       <p>{error.message}</p>
       <button type="button" onClick={retry}>
-        Попробовать снова
+        {messages.common.retry}
       </button>
     </div>
   );
@@ -3693,11 +3745,12 @@ function Editor({
   readonly status?: React.ReactNode;
   readonly children: React.ReactNode;
 }) {
+  const { messages } = useI18n();
   return (
     <div className="view-stack">
       <div className="editor-heading">
         <button type="button" onClick={onCancel}>
-          ← Назад
+          {messages.common.back}
         </button>
         <h1>{title}</h1>
       </div>
@@ -3707,10 +3760,10 @@ function Editor({
         <InlineError error={error} />
         <div className="editor-actions">
           <button className="secondary" type="button" onClick={onCancel}>
-            Отменить
+            {messages.common.cancel}
           </button>
           <button className="primary" type="submit" disabled={pending}>
-            {pending ? 'Сохраняем…' : 'Сохранить'}
+            {pending ? messages.common.saving : messages.common.save}
           </button>
         </div>
       </form>
