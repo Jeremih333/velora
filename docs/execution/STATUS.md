@@ -33,9 +33,9 @@ Updated: 2026-08-11.
 | User profiles                | VERIFIED_MVP      | separate identity, avatar IDOR/privacy, blocks, moderation and E2E      |
 | Cloudflare resources         | IMPLEMENTED       | isolated staging/production D1; production DB still unmigrated          |
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen       |
-| Telegram bot                 | VERIFIED_MVP      | reconciliation READY; live initData assigned verified OWNER             |
+| Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY       |
 | Paid AI                      | IMPLEMENTED_GATED | global/readiness gates off; V3 awaits fresh owner consent               |
-| Staging                      | VERIFIED          | Worker `762922ac`; D1 25/63 healthy, paid gates off                     |
+| Staging                      | VERIFIED          | Worker `e3b2da11`; D1 25/63 healthy, paid gates off                     |
 | Production                   | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                 |
 
 RoleMate resources have not been changed or bound to Velora.

@@ -11,7 +11,12 @@ export interface TelegramIdentity {
 export interface PersistedTelegramUser {
   readonly id: string;
   readonly displayName: string;
+  readonly locale: 'ru' | 'en';
   readonly role: 'USER' | 'OWNER';
+}
+
+export function normalizeTelegramLocale(languageCode: string | undefined): 'ru' | 'en' {
+  return languageCode?.trim().toLowerCase().split(/[-_]/u, 1)[0] === 'en' ? 'en' : 'ru';
 }
 
 export async function upsertTelegramUser(
@@ -33,7 +38,6 @@ export async function upsertTelegramUser(
        ON CONFLICT(telegram_id) DO UPDATE SET
          username = excluded.username,
          display_name = excluded.display_name,
-         locale = excluded.locale,
          role = CASE WHEN users.role = 'OWNER' THEN users.role ELSE excluded.role END,
          updated_at = excluded.updated_at,
          last_seen_at = excluded.last_seen_at`,
@@ -43,7 +47,7 @@ export async function upsertTelegramUser(
       identity.id,
       identity.username ?? null,
       displayName,
-      identity.languageCode === 'en' ? 'en' : 'ru',
+      normalizeTelegramLocale(identity.languageCode),
       role,
       timestamp,
       timestamp,
@@ -52,9 +56,16 @@ export async function upsertTelegramUser(
     .run();
 
   const persisted = await database
-    .prepare('SELECT id, display_name AS displayName, role FROM users WHERE telegram_id = ?')
+    .prepare(
+      'SELECT id, display_name AS displayName, locale, role FROM users WHERE telegram_id = ?',
+    )
     .bind(identity.id)
-    .first<{ id: string; displayName: string; role: 'USER' | 'OWNER' }>();
+    .first<{
+      id: string;
+      displayName: string;
+      locale: 'ru' | 'en';
+      role: 'USER' | 'OWNER';
+    }>();
   if (!persisted) {
     throw new AppError('USER_INITIALIZATION_FAILED', 'Не удалось создать профиль.', 503);
   }

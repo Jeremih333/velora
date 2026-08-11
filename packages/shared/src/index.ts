@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+export { en } from './locales/en';
 export { ru } from './locales/ru';
 
 export const uuidSchema = z.uuid();

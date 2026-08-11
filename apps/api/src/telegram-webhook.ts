@@ -1,4 +1,4 @@
-import { AppError, asError, nowMs, ru } from '@velora/shared';
+import { AppError, asError, en, nowMs, ru } from '@velora/shared';
 import { z } from 'zod';
 import {
   selectTelegramImage,
@@ -6,7 +6,7 @@ import {
   telegramDocumentSchema,
   telegramPhotoSchema,
 } from './telegram-media';
-import { upsertTelegramUser } from './telegram-user';
+import { normalizeTelegramLocale, upsertTelegramUser } from './telegram-user';
 import {
   answerStarsPreCheckout,
   grantSuccessfulStarsPayment,
@@ -84,38 +84,15 @@ export function parseBotCommand(text: string | undefined, botUsername: string): 
   return command;
 }
 
-export function commandMessage(command: string): string | null {
-  if (command === 'start') {
-    return '✨ *Добро пожаловать в Velora*\n\nСоздавай персонажей и истории с памятью — прямо внутри Telegram.';
-  }
-  if (command === 'help') {
-    return '🪄 *Velora*\n\nОткрой приложение кнопкой ниже. Если вход не сработал, закрой Mini App и открой его заново.';
-  }
-  if (command === 'app') {
-    return '🌙 *Открыть Velora*\n\nНажми кнопку ниже, чтобы продолжить свои истории.';
-  }
-  if (command === 'support') {
-    return '🛟 *Поддержка Velora*\n\nОпиши проблему одним сообщением после открытия раздела поддержки в приложении. Не отправляй пароли и платёжные данные.';
-  }
-  if (command === 'settings') {
-    return '⚙️ *Настройки*\n\nТема, язык, persona по умолчанию, приватность и управление данными находятся внутри приложения.';
-  }
-  if (command === 'terms') {
-    return '📜 *Условия использования*\n\nАктуальная версия условий доступна в разделе «Правовая информация» внутри Velora.';
-  }
-  if (command === 'privacy') {
-    return '🔐 *Конфиденциальность*\n\nVelora проверяет Telegram-вход на сервере и не публикует приватные истории. Политика доступна внутри приложения.';
-  }
-  if (command === 'premium') {
-    return '✨ *Пополнение Velora*\n\nТолько разовые покупки через Telegram Stars — без подписки и автоматического списания.';
-  }
-  if (command === 'report') {
-    return '🛡️ *Сообщить о нарушении*\n\nОткрой нужного персонажа или сообщение в Velora и выбери «Пожаловаться», чтобы модерация получила необходимый контекст.';
-  }
-  if (command === 'paysupport') {
-    return '⭐ *Поддержка по платежам*\n\nСохрани сообщение Telegram об оплате и открой раздел поддержки в Velora. Укажи дату и число Stars — платёжные секреты присылать не нужно.';
-  }
-  return null;
+type SupportedLocale = 'ru' | 'en';
+
+function telegramMessages(locale: SupportedLocale) {
+  return locale === 'en' ? en : ru;
+}
+
+export function commandMessage(command: string, locale: SupportedLocale = 'ru'): string | null {
+  const messages = telegramMessages(locale).telegram.command;
+  return command in messages ? messages[command as keyof typeof messages] : null;
 }
 
 export async function secretsEqual(
@@ -144,6 +121,7 @@ export async function sendTelegramCommandReply(
   text: string,
   appUrl: string,
   apiBaseUrl = 'https://api.telegram.org',
+  locale: SupportedLocale = 'ru',
 ): Promise<void> {
   const response = await fetcher(`${apiBaseUrl}/bot${token}/sendMessage`, {
     method: 'POST',
@@ -152,7 +130,11 @@ export async function sendTelegramCommandReply(
       chat_id: chatId,
       text,
       parse_mode: 'Markdown',
-      reply_markup: { inline_keyboard: [[{ text: 'Открыть Velora', web_app: { url: appUrl } }]] },
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: telegramMessages(locale).telegram.openButton, web_app: { url: appUrl } }],
+        ],
+      },
     }),
   });
   const result = telegramApiResponseSchema.parse(await response.json());
@@ -219,7 +201,13 @@ export async function processTelegramUpdate(
         botToken: options.botToken,
         queryId: preCheckout.id,
         ok: accepted,
-        ...(accepted ? {} : { errorMessage: 'Счёт недействителен или больше недоступен.' }),
+        ...(accepted
+          ? {}
+          : {
+              errorMessage: telegramMessages(
+                normalizeTelegramLocale(preCheckout.from.language_code),
+              ).telegram.invalidInvoice,
+            }),
       });
       await markUpdate(database, update.update_id, 'COMPLETED');
       return 'processed';
@@ -241,7 +229,8 @@ export async function processTelegramUpdate(
       options.ownerTelegramId,
     );
     const command = parseBotCommand(message.text, options.botUsername);
-    let reply = command ? commandMessage(command) : null;
+    const locale = user.locale;
+    let reply = command ? commandMessage(command, locale) : null;
     if (message.successful_payment) {
       const result = await grantSuccessfulStarsPayment(database, String(message.from.id), {
         invoicePayload: message.successful_payment.invoice_payload,
@@ -257,10 +246,9 @@ export async function processTelegramUpdate(
           : {}),
       });
       if (result === 'granted_access') {
-        reply = ru.billing.accessGrantedBot;
+        reply = telegramMessages(locale).billing.accessGrantedBot;
       } else if (result === 'granted') {
-        reply =
-          '✅ *AI-кредиты начислены*\n\nПокупка разовая: подписка и автоматические списания не создавались.';
+        reply = telegramMessages(locale).telegram.creditsGranted;
       }
     }
     if (message.refunded_payment) {
@@ -272,14 +260,13 @@ export async function processTelegramUpdate(
         providerPaymentChargeId: message.refunded_payment.provider_payment_charge_id,
       });
       if (result === 'reversed') {
-        reply = ru.billing.refundProcessedBot;
+        reply = telegramMessages(locale).billing.refundProcessedBot;
       }
     }
     const image = selectTelegramImage(message.photo, message.document);
     if (image) {
       await storeTelegramImage(database, user.id, image, options.botToken, fetcher);
-      reply =
-        '🖼️ *Изображение сохранено*\n\nВыбери его в редакторе persona или персонажа. До проверки модерацией изображение доступно только в приватных черновиках.';
+      reply = telegramMessages(locale).telegram.imageSaved;
     }
     if (reply) {
       await sendTelegramCommandReply(
@@ -289,6 +276,7 @@ export async function processTelegramUpdate(
         reply,
         options.publicAppUrl,
         options.telegramApiBaseUrl,
+        locale,
       );
     }
     await markUpdate(database, update.update_id, 'COMPLETED');

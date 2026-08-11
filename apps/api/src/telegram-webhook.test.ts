@@ -6,6 +6,7 @@ import {
   secretsEqual,
   sendTelegramCommandReply,
 } from './telegram-webhook';
+import { normalizeTelegramLocale } from './telegram-user';
 
 describe('Telegram webhook protocol', () => {
   it('parses addressed commands without accepting commands for another bot', () => {
@@ -28,6 +29,15 @@ describe('Telegram webhook protocol', () => {
       expect(commandMessage(command), command).not.toBeNull();
     }
     expect(commandMessage('unknown')).toBeNull();
+    expect(commandMessage('start', 'en')).toContain('Welcome to Velora');
+  });
+
+  it('normalizes Telegram language variants for new users', () => {
+    expect(normalizeTelegramLocale('en')).toBe('en');
+    expect(normalizeTelegramLocale('en-US')).toBe('en');
+    expect(normalizeTelegramLocale('EN_us')).toBe('en');
+    expect(normalizeTelegramLocale('ru')).toBe('ru');
+    expect(normalizeTelegramLocale(undefined)).toBe('ru');
   });
 
   it('validates the minimal private-message update and rejects malformed ids', () => {
@@ -52,11 +62,13 @@ describe('Telegram webhook protocol', () => {
   });
 
   it('sends one Mini App command response and rejects Telegram failures', async () => {
-    const okFetch = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const okFetch = vi.fn<typeof fetch>().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
     );
     await expect(
       sendTelegramCommandReply(
@@ -73,6 +85,22 @@ describe('Telegram webhook protocol', () => {
       reply_markup: { inline_keyboard: readonly (readonly { web_app: { url: string } }[])[] };
     };
     expect(request.reply_markup.inline_keyboard[0]?.[0]?.web_app.url).toBe('https://app.test');
+
+    await sendTelegramCommandReply(
+      okFetch,
+      'token',
+      43,
+      commandMessage('start', 'en') ?? '',
+      'https://app.test',
+      'https://api.telegram.org',
+      'en',
+    );
+    const englishBody = okFetch.mock.calls[1]?.[1]?.body;
+    if (typeof englishBody !== 'string') throw new Error('Expected an English JSON request body.');
+    const englishRequest = JSON.parse(englishBody) as {
+      reply_markup: { inline_keyboard: readonly (readonly { text: string }[])[] };
+    };
+    expect(englishRequest.reply_markup.inline_keyboard[0]?.[0]?.text).toBe('Open Velora');
 
     const failedFetch = vi
       .fn<typeof fetch>()

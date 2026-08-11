@@ -235,6 +235,10 @@
       privacy and bidirectional blocks, use profile names in discovery/reviews/public cards,
       add profile reporting and reversible content moderation, restore the pre-0024 backup and
       deploy staging Worker `c2e83ae1-6ba1-4dc0-a901-2c35257e1e1d` at 0024/60 tables.
+- [x] Localize Telegram command, payment and media replies plus the Mini App button in Russian and
+      English; normalize `en`, `en-US` and `en_US` for new users without overwriting a locale later
+      selected in Velora, with unit/local Worker coverage and staging Worker
+      `e3b2da11-75b2-46b0-bf97-f994259741ae` health/readiness smoke.
 
 ## Next
 

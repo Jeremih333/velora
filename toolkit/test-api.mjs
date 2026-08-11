@@ -10,7 +10,7 @@ const toolkitDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.dirname(toolkitDir);
 const apiRoot = path.join(projectRoot, 'apps', 'api');
 const persistenceRoot = mkdtempSync(path.join(tmpdir(), 'velora-api-test-'));
-process.once('exit', () => {
+function cleanupPersistenceRoot() {
   try {
     rmSync(persistenceRoot, {
       recursive: true,
@@ -18,6 +18,21 @@ process.once('exit', () => {
       maxRetries: 10,
       retryDelay: 100,
     });
+    return true;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      ['EBUSY', 'ENOTEMPTY', 'EPERM'].includes(String(error.code))
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+process.once('exit', () => {
+  try {
+    cleanupPersistenceRoot();
   } catch {
     // Best effort only during process teardown; normal cleanup awaits child shutdown below.
   }
@@ -1260,6 +1275,43 @@ try {
   const telegramUserId = Number(telegramId);
   const telegramChargeId = `telegram-charge-${randomUUID()}`;
   const paymentUpdateBase = 1_000_000_000 + Math.floor(Math.random() * 1_000_000_000);
+  const englishTelegramUserId = 1_000_000_000 + Math.floor(Math.random() * 900_000_000);
+  const commandRepliesBefore = telegramRequests.filter(
+    (item) => item.method === 'sendMessage',
+  ).length;
+  await request(
+    '/telegram/webhook',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': 'integration-webhook-secret',
+      },
+      body: JSON.stringify({
+        update_id: paymentUpdateBase - 1,
+        message: {
+          message_id: 900000,
+          from: {
+            id: englishTelegramUserId,
+            first_name: 'English',
+            language_code: 'en-US',
+          },
+          chat: { id: englishTelegramUserId, type: 'private' },
+          text: '/start',
+        },
+      }),
+    },
+    200,
+  );
+  const commandReplies = telegramRequests.filter((item) => item.method === 'sendMessage');
+  const englishReply = commandReplies.at(-1)?.body;
+  if (
+    commandReplies.length !== commandRepliesBefore + 1 ||
+    !englishReply?.text?.includes('Welcome to Velora') ||
+    englishReply?.reply_markup?.inline_keyboard?.[0]?.[0]?.text !== 'Open Velora'
+  ) {
+    throw new Error('English Telegram locale did not produce a localized command reply.');
+  }
   await request(
     '/telegram/webhook',
     {
@@ -3735,12 +3787,11 @@ try {
   worker.kill();
   await workerExit;
   await new Promise((resolve) => providerServer.close(resolve));
-  rmSync(persistenceRoot, {
-    recursive: true,
-    force: true,
-    maxRetries: 10,
-    retryDelay: 100,
-  });
+  if (!cleanupPersistenceRoot()) {
+    process.stderr.write(
+      `Warning: Windows still holds the isolated test directory; exit cleanup will retry: ${persistenceRoot}\n`,
+    );
+  }
 }
 
 async function waitUntilReady() {
