@@ -260,11 +260,14 @@
       selection, statistics, visibility, report reasons and blocking confirmation; verify both
       profile modes after the runtime language switch and deploy staging Worker
       `4687cd16-2951-4e78-bd70-406af9a35f67` with BotHub READY and zero V3 runs.
+- [x] Localize private support, legal information, portable export, block management and the
+      account-deletion flow; verify the English settings flow across desktop/iPhone/Android and
+      deploy staging Worker `426f198c-1e26-4c91-88ae-b45a8c569283` with BotHub READY, paid gates
+      off and zero V3 runs.
 
 ## Next
 
-- Continue removing hardcoded Russian UI strings from support and administration.
-  profiles, support and administration.
+- Continue removing hardcoded Russian UI strings from moderation and owner operations.
 - Optional reviewed advanced classifiers.
 - Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting
   checkpoint through the staged owner control. V1 is immutable failed evidence; V2 was never

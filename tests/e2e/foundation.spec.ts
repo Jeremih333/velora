@@ -1613,6 +1613,17 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(page.getByRole('heading', { name: 'One-time top-up' })).toBeVisible();
   await expect(page.getByText('No card, subscription, or automatic top-up')).toBeVisible();
   await page.getByRole('button', { name: /Settings/u }).click();
+  await expect(page.getByRole('region', { name: 'Support' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Terms and privacy' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Account management' })).toBeVisible();
+  await expect(page.getByText('Chats: 1')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Blocked users' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Delete account', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Request account deletion' }).click();
+  const englishDeletionDialog = page.getByRole('alertdialog', { name: 'Delete account?' });
+  await expect(englishDeletionDialog).toBeVisible();
+  await expect(englishDeletionDialog.getByLabel('Confirmation')).toBeVisible();
+  await englishDeletionDialog.getByRole('button', { name: 'Cancel' }).click();
   await page.getByLabel('Language').selectOption('ru');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Настройки', exact: true })).toBeVisible();

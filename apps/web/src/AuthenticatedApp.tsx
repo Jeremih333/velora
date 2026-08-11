@@ -6,7 +6,7 @@ import { apiRequest } from './api';
 import { allowsCharacterAutosave, pendingAutosaveState } from './character-autosave';
 import { ChatsView } from './ChatsView';
 import { LorebooksView } from './LorebooksView';
-import { getWebMessages, useI18n, type Locale } from './i18n';
+import { getWebMessages, useI18n, type Locale, type WebMessages } from './i18n';
 import { openTelegramInvoice, type InvoiceStatus } from './telegram';
 import type {
   AccessPackCatalog,
@@ -1729,6 +1729,7 @@ function SupportQueueView({
   readonly onBack: () => void;
   readonly notify: (message: string | null) => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const [state, setState] = useState<SupportState>('OPEN');
   const [notes, setNotes] = useState<Readonly<Record<string, string>>>({});
@@ -1748,43 +1749,45 @@ function SupportQueueView({
       }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['admin-support'] });
-      notify(ru.support.updated);
+      notify(messages.support.updated);
     },
   });
   return (
     <div className="view-stack">
       <div className="editor-heading">
         <button type="button" onClick={onBack}>
-          ← К модерации
+          {messages.support.backToModeration}
         </button>
-        <h1>{ru.support.queueTitle}</h1>
+        <h1>{messages.support.queueTitle}</h1>
       </div>
       <label className="field">
-        <span>Статус</span>
+        <span>{messages.support.status}</span>
         <select
           value={state}
           onChange={(event) => {
             setState(event.target.value as SupportState);
           }}
         >
-          <option value="OPEN">Новые</option>
-          <option value="IN_REVIEW">В работе</option>
-          <option value="RESOLVED">Решены</option>
-          <option value="CLOSED">Закрыты</option>
+          <option value="OPEN">{messages.support.filterOpen}</option>
+          <option value="IN_REVIEW">{messages.support.filterInReview}</option>
+          <option value="RESOLVED">{messages.support.filterResolved}</option>
+          <option value="CLOSED">{messages.support.filterClosed}</option>
         </select>
       </label>
-      {requests.isPending ? <EmptyState title="Загружаем обращения…" /> : null}
+      {requests.isPending ? <EmptyState title={messages.support.loadingRequests} /> : null}
       {requests.error ? <InlineError error={requests.error} /> : null}
-      {requests.data?.items.length === 0 ? <EmptyState title="Обращений нет" /> : null}
+      {requests.data?.items.length === 0 ? (
+        <EmptyState title={messages.support.noRequests} />
+      ) : null}
       <div className="list-stack">
         {requests.data?.items.map((item) => (
           <article className="editor-card support-card" key={item.id}>
-            <span className="status-pill">{supportStateLabel(item.state)}</span>
+            <span className="status-pill">{supportStateLabel(item.state, messages)}</span>
             <h2>{item.subject}</h2>
-            <p className="meta">{supportCategoryLabel(item.category)}</p>
+            <p className="meta">{supportCategoryLabel(item.category, messages)}</p>
             <p>{item.message}</p>
             <label className="field">
-              <span>Ответ или заметка</span>
+              <span>{messages.support.responseOrNote}</span>
               <textarea
                 maxLength={4000}
                 rows={3}
@@ -1802,7 +1805,7 @@ function SupportQueueView({
                   update.mutate({ id: item.id, state: 'IN_REVIEW' });
                 }}
               >
-                В работу
+                {messages.support.takeInReview}
               </button>
               <button
                 className="primary"
@@ -1812,7 +1815,7 @@ function SupportQueueView({
                   update.mutate({ id: item.id, state: 'RESOLVED' });
                 }}
               >
-                Решено
+                {messages.support.markResolved}
               </button>
             </div>
           </article>
@@ -1823,22 +1826,22 @@ function SupportQueueView({
   );
 }
 
-function supportCategoryLabel(category: SupportCategory): string {
+function supportCategoryLabel(category: SupportCategory, messages: WebMessages): string {
   return {
-    GENERAL: 'Общий вопрос',
-    TECHNICAL: 'Техническая проблема',
-    PAYMENT: 'Оплата и Stars',
-    SAFETY: 'Безопасность',
-    DATA: 'Персональные данные',
+    GENERAL: messages.support.categoryGeneral,
+    TECHNICAL: messages.support.categoryTechnical,
+    PAYMENT: messages.support.categoryPayment,
+    SAFETY: messages.support.categorySafety,
+    DATA: messages.support.categoryData,
   }[category];
 }
 
-function supportStateLabel(state: SupportState): string {
+function supportStateLabel(state: SupportState, messages: WebMessages): string {
   return {
-    OPEN: 'Новое',
-    IN_REVIEW: 'В работе',
-    RESOLVED: 'Решено',
-    CLOSED: 'Закрыто',
+    OPEN: messages.support.stateOpen,
+    IN_REVIEW: messages.support.stateInReview,
+    RESOLVED: messages.support.stateResolved,
+    CLOSED: messages.support.stateClosed,
   }[state];
 }
 
@@ -3245,7 +3248,7 @@ function SettingsView({
   readonly notify: (message: string | null) => void;
   readonly onLocaleChange: (locale: Locale) => void;
 }) {
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
   const client = useQueryClient();
   const [showDeletionDialog, setShowDeletionDialog] = useState(false);
   const [deletionConfirmation, setDeletionConfirmation] = useState('');
@@ -3297,7 +3300,7 @@ function SettingsView({
       setSupportSubject('');
       setSupportMessage('');
       await client.invalidateQueries({ queryKey: ['support-requests'] });
-      notify(ru.support.created);
+      notify(messages.support.created);
     },
   });
   const requestDeletion = useMutation({
@@ -3314,14 +3317,14 @@ function SettingsView({
       setShowDeletionDialog(false);
       setDeletionConfirmation('');
       await client.invalidateQueries({ queryKey: ['data-controls'] });
-      notify('Заявка создана. Аккаунт можно восстановить в течение 7 дней.');
+      notify(messages.dataControls.deletionRequested);
     },
   });
   const cancelDeletion = useMutation({
     mutationFn: () => apiRequest('/api/v1/data-controls/account-deletion', { method: 'DELETE' }),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['data-controls'] });
-      notify('Удаление аккаунта отменено.');
+      notify(messages.dataControls.deletionCancelled);
     },
   });
   const unblock = useMutation({
@@ -3331,7 +3334,7 @@ function SettingsView({
         client.invalidateQueries({ queryKey: ['blocks'] }),
         client.invalidateQueries({ queryKey: ['discovery'] }),
       ]);
-      notify('Пользователь разблокирован.');
+      notify(messages.dataControls.userUnblocked);
     },
   });
   const exportData = useMutation({
@@ -3415,9 +3418,9 @@ function SettingsView({
       </form>
       <section className="editor-card account-controls" aria-labelledby="support-title">
         <div>
-          <p className="eyebrow">ПОМОЩЬ</p>
-          <h2 id="support-title">{ru.support.title}</h2>
-          <p className="meta">{ru.support.privacyNote}</p>
+          <p className="eyebrow">{messages.support.eyebrow}</p>
+          <h2 id="support-title">{messages.support.title}</h2>
+          <p className="meta">{messages.support.privacyNote}</p>
         </div>
         <form
           className="view-stack"
@@ -3427,7 +3430,7 @@ function SettingsView({
           }}
         >
           <label className="field">
-            <span>Категория</span>
+            <span>{messages.support.category}</span>
             <select
               name="supportCategory"
               value={supportCategory}
@@ -3435,15 +3438,15 @@ function SettingsView({
                 setSupportCategory(event.target.value as SupportCategory);
               }}
             >
-              <option value="GENERAL">Общий вопрос</option>
-              <option value="TECHNICAL">Техническая проблема</option>
-              <option value="PAYMENT">Оплата и Stars</option>
-              <option value="SAFETY">Безопасность</option>
-              <option value="DATA">Персональные данные</option>
+              <option value="GENERAL">{messages.support.categoryGeneral}</option>
+              <option value="TECHNICAL">{messages.support.categoryTechnical}</option>
+              <option value="PAYMENT">{messages.support.categoryPayment}</option>
+              <option value="SAFETY">{messages.support.categorySafety}</option>
+              <option value="DATA">{messages.support.categoryData}</option>
             </select>
           </label>
           <label className="field">
-            <span>Тема</span>
+            <span>{messages.support.subject}</span>
             <input
               required
               minLength={3}
@@ -3455,7 +3458,7 @@ function SettingsView({
             />
           </label>
           <label className="field">
-            <span>Сообщение</span>
+            <span>{messages.support.message}</span>
             <textarea
               required
               minLength={20}
@@ -3468,17 +3471,19 @@ function SettingsView({
             />
           </label>
           <button className="primary" type="submit" disabled={createSupportRequest.isPending}>
-            {createSupportRequest.isPending ? 'Отправляем…' : 'Отправить обращение'}
+            {createSupportRequest.isPending ? messages.support.sending : messages.support.send}
           </button>
           {createSupportRequest.error ? <InlineError error={createSupportRequest.error} /> : null}
         </form>
-        <div className="list-stack" aria-label="Мои обращения">
+        <div className="list-stack" aria-label={messages.support.myRequests}>
           {supportRequests.data?.items.map((item) => (
             <article className="support-card" key={item.id}>
-              <span className="status-pill">{supportStateLabel(item.state)}</span>
+              <span className="status-pill">{supportStateLabel(item.state, messages)}</span>
               <strong>{item.subject}</strong>
               <p>{item.message}</p>
-              {item.resolutionNote ? <p className="meta">Ответ: {item.resolutionNote}</p> : null}
+              {item.resolutionNote ? (
+                <p className="meta">{messages.support.response(item.resolutionNote)}</p>
+              ) : null}
             </article>
           ))}
         </div>
@@ -3487,35 +3492,48 @@ function SettingsView({
 
       <section className="editor-card account-controls" aria-labelledby="legal-title">
         <div>
-          <p className="eyebrow">ПРАВОВАЯ ИНФОРМАЦИЯ</p>
-          <h2 id="legal-title">Условия и конфиденциальность</h2>
+          <p className="eyebrow">{messages.legal.eyebrow}</p>
+          <h2 id="legal-title">{messages.legal.title}</h2>
         </div>
         <details>
-          <summary>Условия использования</summary>
-          <p>{ru.support.terms}</p>
+          <summary>{messages.legal.termsTitle}</summary>
+          <p>{messages.legal.terms}</p>
         </details>
         <details>
-          <summary>Политика конфиденциальности</summary>
-          <p>{ru.support.privacy}</p>
+          <summary>{messages.legal.privacyTitle}</summary>
+          <p>{messages.legal.privacy}</p>
         </details>
-        <p className="meta">Редакция от 11 августа 2026 года.</p>
+        <p className="meta">{messages.legal.revision}</p>
       </section>
       <section className="editor-card account-controls" aria-labelledby="data-controls-title">
         <div>
-          <p className="eyebrow">ДАННЫЕ И ДОСТУП</p>
-          <h2 id="data-controls-title">Управление аккаунтом</h2>
+          <p className="eyebrow">{messages.dataControls.eyebrow}</p>
+          <h2 id="data-controls-title">{messages.dataControls.title}</h2>
           <p className="meta">
-            План: {account.plan} · AI-кредиты: {formatCredits(account.creditBalanceMicros)}
+            {messages.dataControls.accountSummary(
+              account.plan,
+              formatCredits(account.creditBalanceMicros, locale),
+            )}
           </p>
         </div>
-        {dataControls.isPending ? <p className="meta">Собираем сведения об аккаунте…</p> : null}
+        {dataControls.isPending ? <p className="meta">{messages.dataControls.loading}</p> : null}
         {dataControls.error ? <InlineError error={dataControls.error} /> : null}
         {dataControls.data ? (
           <div className="export-summary">
-            <span>Диалоги: {dataControls.data.export.counts.conversations}</span>
-            <span>Персонажи: {dataControls.data.export.counts.characters}</span>
-            <span>Лорбуки: {dataControls.data.export.counts.lorebooks}</span>
-            <span>Обращения: {dataControls.data.export.counts.supportRequests}</span>
+            <span>
+              {messages.dataControls.conversations(dataControls.data.export.counts.conversations)}
+            </span>
+            <span>
+              {messages.dataControls.characters(dataControls.data.export.counts.characters)}
+            </span>
+            <span>
+              {messages.dataControls.lorebooks(dataControls.data.export.counts.lorebooks)}
+            </span>
+            <span>
+              {messages.dataControls.supportRequests(
+                dataControls.data.export.counts.supportRequests,
+              )}
+            </span>
           </div>
         ) : null}
         <div className="data-actions">
@@ -3527,32 +3545,33 @@ function SettingsView({
               exportData.mutate();
             }}
           >
-            {exportData.isPending ? 'Подготавливаем…' : 'Скачать данные'}
+            {exportData.isPending
+              ? messages.dataControls.preparing
+              : messages.dataControls.download}
           </button>
         </div>
         {exportData.error ? <InlineError error={exportData.error} /> : null}
-        <p className="meta">
-          Экспорт подготовлен как переносимый манифест диалогов, персонажей и лорбуков. Полные
-          ресурсы доступны по указанным в нём API-маршрутам.
-        </p>
+        <p className="meta">{messages.dataControls.exportHint}</p>
       </section>
 
       <section className="editor-card account-controls" aria-labelledby="blocks-title">
         <div>
-          <p className="eyebrow">КОНФИДЕНЦИАЛЬНОСТЬ</p>
-          <h2 id="blocks-title">Заблокированные пользователи</h2>
+          <p className="eyebrow">{messages.dataControls.privacyEyebrow}</p>
+          <h2 id="blocks-title">{messages.dataControls.blockedTitle}</h2>
         </div>
-        {blocks.isPending ? <p className="meta">Загружаем список…</p> : null}
+        {blocks.isPending ? <p className="meta">{messages.dataControls.blockedLoading}</p> : null}
         {blocks.error ? <InlineError error={blocks.error} /> : null}
         {blocks.data?.items.length === 0 ? (
-          <p className="meta">Вы пока никого не блокировали.</p>
+          <p className="meta">{messages.dataControls.noBlockedUsers}</p>
         ) : null}
         <div className="blocked-list">
           {blocks.data?.items.map((user) => (
             <article key={user.userId}>
               <div>
                 <strong>{user.displayName}</strong>
-                <small>{user.username ? `@${user.username}` : 'Без публичного username'}</small>
+                <small>
+                  {user.username ? `@${user.username}` : messages.dataControls.noUsername}
+                </small>
               </div>
               <button
                 type="button"
@@ -3561,7 +3580,7 @@ function SettingsView({
                   unblock.mutate(user.userId);
                 }}
               >
-                Разблокировать
+                {messages.dataControls.unblock}
               </button>
             </article>
           ))}
@@ -3570,15 +3589,18 @@ function SettingsView({
 
       <section className="editor-card deletion-zone" aria-labelledby="deletion-title">
         <div>
-          <p className="eyebrow">ОПАСНАЯ ЗОНА</p>
-          <h2 id="deletion-title">Удаление аккаунта</h2>
+          <p className="eyebrow">{messages.dataControls.dangerEyebrow}</p>
+          <h2 id="deletion-title">{messages.dataControls.deletionTitle}</h2>
         </div>
         {dataControls.data?.deletion?.state === 'PENDING' ? (
           <>
             <p>
-              Удаление запланировано на{' '}
-              <strong>{new Date(dataControls.data.deletion.executeAfter).toLocaleString()}</strong>.
-              До этого момента заявку можно отменить.
+              {messages.dataControls.deletionScheduled(
+                new Date(dataControls.data.deletion.executeAfter).toLocaleString(
+                  locale === 'ru' ? 'ru-RU' : 'en-US',
+                ),
+              )}{' '}
+              {messages.dataControls.deletionMayCancel}
             </p>
             <button
               className="secondary"
@@ -3588,20 +3610,14 @@ function SettingsView({
                 cancelDeletion.mutate();
               }}
             >
-              Отменить удаление
+              {messages.dataControls.cancelDeletion}
             </button>
           </>
         ) : (
           <>
-            <p>
-              После 7-дневного периода отмены профиль и пользовательский контент будут удалены или
-              обезличены. Платёжные записи, доказательства модерации и аудит сохраняются только в
-              объёме, необходимом для споров, защиты от мошенничества и безопасности.
-            </p>
+            <p>{messages.dataControls.deletionWarning}</p>
             {account.role === 'OWNER' ? (
-              <p className="warning-copy">
-                Владелец должен сначала передать роль и операционные обязанности.
-              </p>
+              <p className="warning-copy">{messages.dataControls.ownerWarning}</p>
             ) : (
               <button
                 className="danger-text"
@@ -3610,7 +3626,7 @@ function SettingsView({
                   setShowDeletionDialog(true);
                 }}
               >
-                Запросить удаление аккаунта
+                {messages.dataControls.requestDeletion}
               </button>
             )}
           </>
@@ -3634,13 +3650,13 @@ function SettingsView({
             aria-modal="true"
             aria-labelledby="confirm-deletion-title"
           >
-            <h2 id="confirm-deletion-title">Удалить аккаунт?</h2>
+            <h2 id="confirm-deletion-title">{messages.dataControls.confirmTitle}</h2>
             <p>
-              У вас будет 7 дней на отмену. После срока пользовательский контент восстановить
-              нельзя. Для подтверждения введите <strong>УДАЛИТЬ</strong>.
+              {messages.dataControls.confirmText} {messages.dataControls.confirmationInstruction}{' '}
+              <strong>{messages.dataControls.confirmationWord}</strong>.
             </p>
             <label className="field">
-              <span>Подтверждение</span>
+              <span>{messages.dataControls.confirmation}</span>
               <input
                 autoFocus
                 value={deletionConfirmation}
@@ -3658,17 +3674,20 @@ function SettingsView({
                   setDeletionConfirmation('');
                 }}
               >
-                Отмена
+                {messages.dataControls.cancel}
               </button>
               <button
                 className="danger"
                 type="button"
-                disabled={deletionConfirmation !== 'УДАЛИТЬ' || requestDeletion.isPending}
+                disabled={
+                  deletionConfirmation !== messages.dataControls.confirmationWord ||
+                  requestDeletion.isPending
+                }
                 onClick={() => {
                   requestDeletion.mutate();
                 }}
               >
-                Запланировать удаление
+                {messages.dataControls.scheduleDeletion}
               </button>
             </div>
           </section>
