@@ -125,7 +125,7 @@ Pop-Location
 ```
 
 Production-команда существует, но сейчас запускать её нельзя: база намеренно имеет все миграции
-0001–0026 в pending. После ручного production gate:
+0001–0027 в pending. После ручного production gate:
 
 ```powershell
 corepack pnpm --filter @velora/api db:migrate:production
@@ -253,7 +253,7 @@ backup обязателен до миграции; destructive migration без 
 node toolkit/test-restore.mjs toolkit/backups/<staging-backup>.sql
 ```
 
-Drill импортирует данные backup в заново построенную схему, проверяет 65 таблиц/26 миграций,
+Drill импортирует данные backup в заново построенную схему, проверяет 66 таблиц/27 миграций,
 `quick_check`, foreign keys и реальный `/ready`, затем удаляет временную базу. Он не пишет в staging
 или production.
 

@@ -155,6 +155,29 @@ export interface PaymentHistoryItem {
   readonly paidAt: number | null;
 }
 
+export interface OwnerPayment {
+  readonly id: string;
+  readonly target: {
+    readonly id: string;
+    readonly telegramId: string;
+    readonly displayName: string;
+  };
+  readonly starsAmount: number;
+  readonly state: string;
+  readonly kind: 'CREDITS' | 'PLAN_ACCESS';
+  readonly packCode: string | null;
+  readonly planCode: string | null;
+  readonly creditAmountMicros: number | null;
+  readonly createdAt: number;
+  readonly paidAt: number | null;
+  readonly refund: {
+    readonly id: string;
+    readonly state: 'CLAIMED' | 'SUBMITTED' | 'CONFIRMED' | 'UNKNOWN';
+    readonly reason: string;
+    readonly updatedAt: number;
+  } | null;
+}
+
 export interface Persona {
   readonly id: string;
   readonly name: string;

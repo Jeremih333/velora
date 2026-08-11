@@ -4,13 +4,18 @@ import {
   creditPackInputSchema,
   creditPackPatchSchema,
   ownerUserGrantInputSchema,
+  ownerStarsRefundInputSchema,
   planPatchSchema,
   starsAccessInvoiceInputSchema,
   starsInvoiceInputSchema,
 } from '@velora/domain';
 import { AppError, asError, createId, nowMs, ru } from '@velora/shared';
 import { Hono } from 'hono';
-import { createStarsInvoiceLink } from './telegram-payments';
+import {
+  createStarsInvoiceLink,
+  requestStarsRefund,
+  reverseRefundedStarsPayment,
+} from './telegram-payments';
 import { readPlanEntitlements, type PlanEntitlements } from './plans';
 import type { Env, Variables } from './types';
 
@@ -81,6 +86,37 @@ interface OwnerUserGrantRow {
   readonly accessStartsAt: number | null;
   readonly accessExpiresAt: number | null;
   readonly accessRevokedAt: number | null;
+}
+
+interface OwnerPaymentRow {
+  readonly id: string;
+  readonly userId: string;
+  readonly telegramId: string;
+  readonly displayName: string;
+  readonly amount: number;
+  readonly state: string;
+  readonly packCode: string | null;
+  readonly accessPackCode: string | null;
+  readonly planCode: string | null;
+  readonly creditAmountMicros: number | null;
+  readonly createdAt: number;
+  readonly paidAt: number | null;
+  readonly invoicePayload: string;
+  readonly telegramPaymentChargeId: string | null;
+  readonly providerPaymentChargeId: string | null;
+  readonly refundRequestId: string | null;
+  readonly refundState: string | null;
+  readonly refundReason: string | null;
+  readonly refundUpdatedAt: number | null;
+}
+
+interface RefundRequestRow {
+  readonly id: string;
+  readonly paymentId: string;
+  readonly state: 'CLAIMED' | 'SUBMITTED' | 'CONFIRMED' | 'UNKNOWN';
+  readonly reason: string;
+  readonly createdAt: number;
+  readonly updatedAt: number;
 }
 
 const packProjection = `code, display_name AS displayName, description,
@@ -346,6 +382,125 @@ billingRoutes.get('/admin/billing/packs', async (context) => {
     `SELECT ${packProjection} FROM credit_packs ORDER BY sort_order, stars_amount, code`,
   ).all<CreditPackRow>();
   return context.json({ items: result.results.map(toPackResponse) });
+});
+
+billingRoutes.get('/admin/billing/payments', async (context) => {
+  const result = await context.env.DB.prepare(
+    `SELECT p.id, p.user_id AS userId, u.telegram_id AS telegramId,
+     u.display_name AS displayName, p.amount, p.state, p.pack_code AS packCode,
+     p.access_pack_code AS accessPackCode, p.plan_code AS planCode,
+     p.credit_amount_micros AS creditAmountMicros, p.created_at AS createdAt,
+     p.paid_at AS paidAt, p.invoice_payload AS invoicePayload,
+     p.telegram_payment_charge_id AS telegramPaymentChargeId,
+     p.provider_payment_charge_id AS providerPaymentChargeId,
+     r.id AS refundRequestId, r.state AS refundState, r.reason AS refundReason,
+     r.updated_at AS refundUpdatedAt
+     FROM payments p JOIN users u ON u.id = p.user_id
+     LEFT JOIN stars_refund_requests r ON r.payment_id = p.id
+     ORDER BY p.created_at DESC, p.id DESC LIMIT 100`,
+  ).all<OwnerPaymentRow>();
+  return context.json({ items: result.results.map(toOwnerPaymentResponse) });
+});
+
+billingRoutes.post('/admin/billing/payments/:paymentId/refund', async (context) => {
+  if (!context.env.TELEGRAM_BOT_TOKEN) {
+    throw new AppError('SERVICE_NOT_CONFIGURED', ru.billing.telegramUnavailable, 503);
+  }
+  const principal = context.get('principal');
+  const paymentId = context.req.param('paymentId');
+  const input = ownerStarsRefundInputSchema.parse(await context.req.json());
+  const payment = await readOwnerPayment(context.env.DB, paymentId);
+  if (!payment) throw new AppError('PAYMENT_NOT_FOUND', 'Платёж не найден.', 404);
+  const existing = await readRefundRequest(context.env.DB, paymentId, input.idempotencyKey);
+  if (existing?.paymentId === paymentId) {
+    return context.json({ ...existing, alreadySubmitted: true });
+  }
+  if (existing) throw new AppError('IDEMPOTENCY_CONFLICT', 'Ключ возврата уже использован.', 409);
+  if (
+    payment.state !== 'ENTITLEMENT_GRANTED' ||
+    !payment.telegramPaymentChargeId ||
+    !hasExactlyOneOwnerPaymentKind(payment)
+  ) {
+    throw new AppError('PAYMENT_NOT_REFUNDABLE', 'Этот платёж нельзя вернуть.', 409);
+  }
+  const timestamp = nowMs();
+  const requestId = createId();
+  try {
+    await context.env.DB.prepare(
+      `INSERT INTO stars_refund_requests
+       (id, payment_id, requested_by, state, reason, idempotency_key, created_at, updated_at)
+       VALUES (?, ?, ?, 'CLAIMED', ?, ?, ?, ?)`,
+    )
+      .bind(
+        requestId,
+        payment.id,
+        principal.userId,
+        input.reason,
+        input.idempotencyKey,
+        timestamp,
+        timestamp,
+      )
+      .run();
+  } catch (error) {
+    if (!/UNIQUE|constraint/iu.test(asError(error).message)) throw error;
+    const replay = await readRefundRequest(context.env.DB, paymentId, input.idempotencyKey);
+    if (replay?.paymentId === paymentId) {
+      return context.json({ ...replay, alreadySubmitted: true });
+    }
+    throw new AppError('IDEMPOTENCY_CONFLICT', 'Ключ возврата уже использован.', 409);
+  }
+  try {
+    const transportResult = await requestStarsRefund((request, init) => fetch(request, init), {
+      ...(context.env.ENVIRONMENT === 'local' && context.env.TELEGRAM_API_BASE_URL
+        ? { apiBaseUrl: context.env.TELEGRAM_API_BASE_URL }
+        : {}),
+      botToken: context.env.TELEGRAM_BOT_TOKEN,
+      userTelegramId: payment.telegramId,
+      telegramPaymentChargeId: payment.telegramPaymentChargeId,
+    });
+    await context.env.DB.prepare(
+      `UPDATE stars_refund_requests SET state = 'SUBMITTED', updated_at = ? WHERE id = ?`,
+    )
+      .bind(nowMs(), requestId)
+      .run();
+    await reverseRefundedStarsPayment(context.env.DB, payment.telegramId, {
+      currency: 'XTR',
+      totalAmount: payment.amount,
+      invoicePayload: payment.invoicePayload,
+      telegramPaymentChargeId: payment.telegramPaymentChargeId,
+      providerPaymentChargeId: payment.providerPaymentChargeId ?? '',
+    });
+    const completedAt = nowMs();
+    await context.env.DB.batch([
+      context.env.DB.prepare(
+        `UPDATE stars_refund_requests SET state = 'CONFIRMED', error_code = NULL, updated_at = ?
+           WHERE id = ?`,
+      ).bind(completedAt, requestId),
+      context.env.DB.prepare(
+        `INSERT INTO audit_logs
+           (id, actor_id, action, target_type, target_id, request_id, metadata_json, created_at)
+           VALUES (?, ?, 'TELEGRAM_STARS_REFUNDED', 'PAYMENT', ?, ?, ?, ?)`,
+      ).bind(
+        createId(),
+        principal.userId,
+        payment.id,
+        context.get('requestId'),
+        JSON.stringify({ refundRequestId: requestId, transportResult }),
+        completedAt,
+      ),
+    ]);
+    const completed = await readRefundRequest(context.env.DB, paymentId, input.idempotencyKey);
+    if (!completed) throw new Error('REFUND_REQUEST_STATE_LOST');
+    return context.json({ ...completed, alreadySubmitted: false }, 201);
+  } catch (error) {
+    await context.env.DB.prepare(
+      `UPDATE stars_refund_requests SET state = 'UNKNOWN', error_code = ?, updated_at = ?
+       WHERE id = ? AND state != 'CONFIRMED'`,
+    )
+      .bind(error instanceof AppError ? error.code : 'REFUND_UNKNOWN', nowMs(), requestId)
+      .run();
+    throw error;
+  }
 });
 
 billingRoutes.post('/admin/billing/packs', async (context) => {
@@ -692,6 +847,75 @@ async function requirePack(database: D1Database, code: string): Promise<CreditPa
     .first<CreditPackRow>();
   if (!pack) throw new AppError('CREDIT_PACK_NOT_FOUND', 'Пакет кредитов не найден.', 404);
   return pack;
+}
+
+async function readOwnerPayment(
+  database: D1Database,
+  paymentId: string,
+): Promise<OwnerPaymentRow | null> {
+  return database
+    .prepare(
+      `SELECT p.id, p.user_id AS userId, u.telegram_id AS telegramId,
+       u.display_name AS displayName, p.amount, p.state, p.pack_code AS packCode,
+       p.access_pack_code AS accessPackCode, p.plan_code AS planCode,
+       p.credit_amount_micros AS creditAmountMicros, p.created_at AS createdAt,
+       p.paid_at AS paidAt, p.invoice_payload AS invoicePayload,
+       p.telegram_payment_charge_id AS telegramPaymentChargeId,
+       p.provider_payment_charge_id AS providerPaymentChargeId,
+       r.id AS refundRequestId, r.state AS refundState, r.reason AS refundReason,
+       r.updated_at AS refundUpdatedAt
+       FROM payments p JOIN users u ON u.id = p.user_id
+       LEFT JOIN stars_refund_requests r ON r.payment_id = p.id WHERE p.id = ?`,
+    )
+    .bind(paymentId)
+    .first<OwnerPaymentRow>();
+}
+
+async function readRefundRequest(
+  database: D1Database,
+  paymentId: string,
+  idempotencyKey: string,
+): Promise<RefundRequestRow | null> {
+  return database
+    .prepare(
+      `SELECT id, payment_id AS paymentId, state, reason,
+       created_at AS createdAt, updated_at AS updatedAt
+       FROM stars_refund_requests WHERE payment_id = ? OR idempotency_key = ? LIMIT 1`,
+    )
+    .bind(paymentId, idempotencyKey)
+    .first<RefundRequestRow>();
+}
+
+function hasExactlyOneOwnerPaymentKind(payment: OwnerPaymentRow): boolean {
+  const credits = payment.creditAmountMicros !== null && payment.accessPackCode === null;
+  const access =
+    payment.creditAmountMicros === null &&
+    payment.accessPackCode !== null &&
+    payment.planCode !== null;
+  return credits !== access;
+}
+
+function toOwnerPaymentResponse(row: OwnerPaymentRow) {
+  return {
+    id: row.id,
+    target: { id: row.userId, telegramId: row.telegramId, displayName: row.displayName },
+    starsAmount: row.amount,
+    state: row.state,
+    kind: row.accessPackCode ? 'PLAN_ACCESS' : 'CREDITS',
+    packCode: row.accessPackCode ?? row.packCode,
+    planCode: row.planCode,
+    creditAmountMicros: row.creditAmountMicros,
+    createdAt: row.createdAt,
+    paidAt: row.paidAt,
+    refund: row.refundRequestId
+      ? {
+          id: row.refundRequestId,
+          state: row.refundState,
+          reason: row.refundReason,
+          updatedAt: row.refundUpdatedAt,
+        }
+      : null,
+  };
 }
 
 async function resolveGrantTarget(

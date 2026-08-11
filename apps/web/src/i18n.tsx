@@ -454,6 +454,15 @@ const russianMessages = {
     revokeAccess: 'Отозвать тариф',
     revoked: 'отозван',
     activeUntil: 'активен до',
+    recentPayments: 'Последние платежи Stars',
+    refundDescription:
+      'Возврат доступен только для фактически начисленного платежа. Повторная отправка в Telegram заблокирована.',
+    noPayments: 'Платежей пока нет.',
+    refund: 'Вернуть Stars',
+    refundState: 'Состояние возврата',
+    refundReasonPrompt: 'Укажите причину возврата (не менее 3 символов).',
+    refundConfirmation: 'Вернуть Stars и отозвать начисленный доступ или кредиты?',
+    refundCompleted: 'Возврат подтверждён Telegram, начисление отозвано.',
   },
   aiAdmin: {
     title: 'Контрольный запрос BotHub V3',
@@ -1280,6 +1289,15 @@ const englishMessages: WebMessages = {
     revokeAccess: 'Revoke plan',
     revoked: 'revoked',
     activeUntil: 'active until',
+    recentPayments: 'Recent Stars payments',
+    refundDescription:
+      'Only a granted payment can be refunded. Duplicate submission to Telegram is blocked.',
+    noPayments: 'No payments yet.',
+    refund: 'Refund Stars',
+    refundState: 'Refund state',
+    refundReasonPrompt: 'Enter the refund reason (at least 3 characters).',
+    refundConfirmation: 'Refund the Stars and revoke the granted access or credits?',
+    refundCompleted: 'Telegram confirmed the refund and the grant was revoked.',
   },
   aiAdmin: {
     title: 'BotHub checkpoint',

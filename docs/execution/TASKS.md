@@ -297,11 +297,15 @@
 - [x] Complete an owner-driven end-to-end Russian roleplay generation through the real Telegram
       Mini App; verify the request, generation and persisted message all completed with exactly one
       accounting charge, without reading or recording private conversation text.
+- [x] Add owner-only Stars refund initiation through Telegram `refundStarPayment`, enforce one
+      submission per payment, reconcile the entitlement immediately and on webhook replay, expose
+      the safe payment/refund state in MiniApp, restore the pre-0027 staging export and deploy
+      Worker `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` with payments still disabled.
 
 ## Next
 
 - Optional reviewed advanced classifiers.
-- Real Stars smoke and full live-chat roleplay verification on staging. V1 remains immutable failed
-  evidence; V2 was never claimed because its required model was absent; V3 completed exactly once.
+- Real Stars smoke on staging after explicit legal/2FA/1-XTR owner consent. V1 remains immutable
+  failed evidence; V2 was never claimed because its required model was absent; V3 completed exactly once.
 
 Tasks move to `VERIFIED` only with evidence in `STATUS.md` and final verification.

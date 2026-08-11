@@ -8,7 +8,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
 | Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 102-path smoke | VERIFIED          | Assets bypass is explicit         |
-| D1                                   | 65 application tables, 26 migrations | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
+| D1                                   | 66 schema tables, 27 migrations      | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
 | AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | full live chat         | VERIFIED_STAGING  | production remains disabled       |
 | Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
@@ -26,7 +26,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 118 PASS; API contract: 4 PASS; integration/schema/cost-model: 27 PASS;
+- unit/regression: 120 PASS; API contract: 4 PASS; integration/schema/cost-model: 27 PASS;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
@@ -107,6 +107,10 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - owner-confirmed Telegram Mini App live chat: request/generation/message `COMPLETED`, 413 input / 33
   output tokens, 7,080 ms latency, persisted 84-character output and exactly one linked charge;
   private message text was not inspected or recorded: PASS;
+- owner Stars refund preflight: exact Telegram method/body, owner RBAC, CSRF, payment-level
+  idempotency, immediate reversal and duplicate webhook all pass; pre-0027 export restored to
+  27 migrations/66 tables; staging Worker `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` serves 104
+  OpenAPI paths with `PAYMENTS_ENABLED=false`: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

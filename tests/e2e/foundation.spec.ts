@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Dialog, type Page } from '@playwright/test';
 
 async function expectVisualSnapshot(page: Page, name: string): Promise<void> {
   if (process.platform !== 'linux') return;
@@ -1707,6 +1707,21 @@ test('owner manages moderator appointments without exposing the control to staff
   let staff: readonly Record<string, unknown>[] = [];
   let smokeRun: Readonly<Record<string, unknown>> | null = null;
   let userGrants: readonly Record<string, unknown>[] = [];
+  let ownerPayments: readonly Record<string, unknown>[] = [
+    {
+      id: 'payment-1',
+      target: { id: 'user-2', telegramId: '7001001', displayName: 'Test buyer' },
+      starsAmount: 1,
+      state: 'ENTITLEMENT_GRANTED',
+      kind: 'CREDITS',
+      packCode: 'test-pack',
+      planCode: null,
+      creditAmountMicros: 10_000,
+      createdAt: 1,
+      paidAt: 2,
+      refund: null,
+    },
+  ];
   await page.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -1920,6 +1935,51 @@ test('owner manages moderator appointments without exposing the control to staff
       });
       return;
     }
+    if (url.pathname === '/api/v1/admin/billing/payments' && request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: ownerPayments }),
+      });
+      return;
+    }
+    if (
+      url.pathname === '/api/v1/admin/billing/payments/payment-1/refund' &&
+      request.method() === 'POST'
+    ) {
+      const input = request.postDataJSON() as {
+        readonly reason: string;
+        readonly idempotencyKey: string;
+      };
+      expect(input.reason).toBe('Owner test refund');
+      expect(input.idempotencyKey).toBeTruthy();
+      ownerPayments = [
+        {
+          ...ownerPayments[0],
+          state: 'REFUNDED',
+          refund: {
+            id: 'refund-1',
+            state: 'CONFIRMED',
+            reason: input.reason,
+            updatedAt: 3,
+          },
+        },
+      ];
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'refund-1',
+          paymentId: 'payment-1',
+          state: 'CONFIRMED',
+          reason: input.reason,
+          createdAt: 2,
+          updatedAt: 3,
+          alreadySubmitted: false,
+        }),
+      });
+      return;
+    }
     if (url.pathname === '/api/v1/admin/billing/user-grants') {
       if (request.method() === 'POST') {
         const input = request.postDataJSON() as {
@@ -2057,6 +2117,20 @@ test('owner manages moderator appointments without exposing the control to staff
   await grantSection.getByRole('button', { name: 'Grant', exact: true }).click();
   await expect(page.getByText('The plan and AI credits were granted to the user.')).toBeVisible();
   await expect(grantSection.getByText('Telegram 1040929628')).toBeVisible();
+  const paymentsSection = page
+    .getByRole('heading', { name: 'Recent Stars payments' })
+    .locator('..');
+  await expect(paymentsSection.getByText('1 XTR · ENTITLEMENT_GRANTED')).toBeVisible();
+  const dialogHandler = async (dialog: Dialog) => {
+    await dialog.accept(dialog.type() === 'prompt' ? 'Owner test refund' : undefined);
+  };
+  page.on('dialog', dialogHandler);
+  await paymentsSection.getByRole('button', { name: 'Refund Stars' }).click();
+  await expect(
+    page.getByText('Telegram confirmed the refund and the grant was revoked.'),
+  ).toBeVisible();
+  await expect(paymentsSection.getByText('Refund state: CONFIRMED')).toBeVisible();
+  page.off('dialog', dialogHandler);
   await expect(page.getByRole('heading', { name: 'Moderation team' })).toBeVisible();
   await page.getByLabel('Telegram ID', { exact: true }).fill('7001001');
   await page.getByRole('button', { name: 'Assign' }).click();

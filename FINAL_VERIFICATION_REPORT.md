@@ -17,11 +17,11 @@ verified; the full product from the master brief is still in progress.
   backup/restore and the explicit production gates from zero without embedding secrets;
 - Cloudflare Free-only architecture with no card or automatic plan upgrade;
 - separate `velora-staging` and `velora-production` D1 databases;
-- production D1 is intentionally unmigrated; staging currently has 65 application tables;
-- staging D1 migrations 0001-0026 passed; `quick_check` returned `ok` and
+- production D1 is intentionally unmigrated; staging currently has 66 schema tables;
+- staging D1 migrations 0001-0027 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `c5a53c7e-baa0-4923-ad45-facddae9fdfc` is live with a five-minute
+- staging Worker version `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - the public OpenAPI 3.1 route contract is generated from the concrete Hono route table, exposes
@@ -95,7 +95,8 @@ verified; the full product from the master brief is still in progress.
   restoration, contextual risk signals and append-only audit pass a three-user Worker+D1 flow;
 - a single report signal is verified not to change account state or trigger an automatic sanction;
 - owner-configurable Stars packs, exact `XTR` pre-checkout, successful grant, replay protection,
-  forged-recurring rejection and idempotent refund reversal pass a real local Worker+D1 flow;
+  forged-recurring rejection, owner-only `refundStarPayment` initiation and idempotent refund
+  reversal pass a real local Worker+D1 flow;
 - Free, Plus and Pro have typed server-side limits for resources, memory/lore, advanced daily
   operations, rate limits and model profiles; expired access is rejected on every protected call;
 - owner-configured non-renewing access packs grant stackable fixed periods only after exact Stars
@@ -236,6 +237,13 @@ verified; the full product from the master brief is still in progress.
   20,221-micro usage charge. The owner confirmed the rendered response; private message text was
   neither queried nor copied into this report. This closes the single live-chat transport and
   accounting checkpoint, but does not claim broad A-F live prose-quality coverage.
+- owner-only Stars refund initiation is now CSRF-protected and claimed before the Telegram call;
+  one payment cannot be submitted twice, ambiguous transport state is not retried automatically,
+  and neither charge identifier is exposed in the API or UI. Unit, contract, local Worker+D1 and
+  three-device E2E passed. Backup `velora-staging-pre-0027-2026-08-12T0218Z.sql` restored into the
+  reviewed 27-migration/66-table schema before staging migration; Worker
+  `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` is healthy with `PAYMENTS_ENABLED=false`. No real Stars
+  invoice or refund was sent during this preflight.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.

@@ -10,7 +10,7 @@ Updated: 2026-08-12.
 | Knowledge base               | IMPLEMENTED       | required hierarchy created; evolves with code                                            |
 | Owner documentation          | VERIFIED          | root zero-to-production README with guarded commands and links                           |
 | Monorepo                     | IMPLEMENTED       | strict TS packages, Worker API, Mini App shell, CI                                       |
-| API contract                 | VERIFIED          | generated OpenAPI 3.1, 102 staging paths, contract + real Worker smoke                   |
+| API contract                 | VERIFIED          | generated OpenAPI 3.1, 104 staging paths, contract + real Worker smoke                   |
 | GitHub                       | VERIFIED          | private `Jeremih333/velora`; clean-clone CI covers full quality gate                     |
 | Personas                     | VERIFIED_MVP      | owned CRUD/default, validation, moderation gates, local Worker test                      |
 | Characters/discovery         | VERIFIED_MVP      | versioned section editor, draft autosave, Mature review before feed                      |
@@ -24,7 +24,7 @@ Updated: 2026-08-12.
 | AI provider adapter          | VERIFIED_MVP      | allowlisted key capability READY; selected `deepseek-chat-v3.1`                          |
 | Lorebooks                    | VERIFIED_MVP      | CRUD, safe v1 transfer, deterministic keys/budgets, prompt integration                   |
 | Moderation                   | VERIFIED_MVP      | reports, RBAC, appeals, audit and non-sanctioning risk signals                           |
-| One-time Stars billing       | IMPLEMENTED_GATED | exact invoice/grant/refund, owner catalog and MiniApp E2E; disabled                      |
+| One-time Stars billing       | IMPLEMENTED_GATED | invoice/grant plus idempotent owner refund initiation and reversal; disabled             |
 | Non-renewing plan access     | VERIFIED_MVP      | Free/Plus/Pro rights, stacked periods, expiry/refund and owner controls                  |
 | Owner user grants            | VERIFIED_STAGING  | ID lookup, audited/idempotent plan+credit grants, revocation; no fake payments           |
 | Reliability controls         | VERIFIED_MVP      | limits, private events, live deduped alert/recovery, admin metrics                       |
@@ -40,7 +40,7 @@ Updated: 2026-08-12.
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                        |
 | Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                        |
 | Paid AI                      | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                    |
-| Staging                      | VERIFIED          | Worker `c5a53c7e`; D1 26/65 healthy; paid roleplay on, payments off                      |
+| Staging                      | VERIFIED          | Worker `48b3c4cf`; D1 27/66 healthy; paid roleplay on, payments off                      |
 | Production                   | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                  |
 
 RoleMate resources have not been changed or bound to Velora.

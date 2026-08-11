@@ -3,6 +3,11 @@
 Status: `BLOCKED_HUMAN`. No live invoice is enabled or priced until the owner completes the legal
 and payment checkpoint below.
 
+The refund preflight is complete in staging Worker `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea`:
+owner-only initiation, payment-level idempotency, Telegram transport, entitlement reversal and
+duplicate webhook reconciliation pass automated tests. `PAYMENTS_ENABLED=false`; no real Stars
+were spent or refunded by this preflight.
+
 ## Why this requires the owner
 
 Velora sells digital access and AI credits inside Telegram, so the live currency must be `XTR`.

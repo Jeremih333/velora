@@ -332,6 +332,17 @@ const providerServer = createServer(async (request, response) => {
     response.end('{"ok":true,"result":true}');
     return;
   }
+  if (request.url === '/botintegration-bot-token/refundStarPayment') {
+    telegramRequests.push({ method: 'refundStarPayment', body });
+    if (typeof body.user_id !== 'number' || typeof body.telegram_payment_charge_id !== 'string') {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end('{"ok":false,"description":"invalid refund"}');
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end('{"ok":true,"result":true}');
+    return;
+  }
   if (request.url === '/botintegration-bot-token/sendMessage') {
     telegramRequests.push({ method: 'sendMessage', body });
     response.writeHead(200, { 'content-type': 'application/json' });
@@ -1560,6 +1571,74 @@ try {
       provider_payment_charge_id: '',
     },
   };
+  await request('/api/v1/admin/billing/payments', { headers }, 403);
+  await request(
+    `/api/v1/admin/billing/payments/${invoice.id}/refund`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        reason: 'Forbidden regular-user refund',
+        idempotencyKey: `refund-forbidden:${randomUUID()}`,
+      }),
+    },
+    403,
+  );
+  const ownerPayments = await request(
+    '/api/v1/admin/billing/payments',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (!ownerPayments.items.some((item) => item.id === invoice.id)) {
+    throw new Error('Owner payment catalog omitted the completed Stars payment.');
+  }
+  const refundKey = `owner-refund:${randomUUID()}`;
+  const ownerRefund = await request(
+    `/api/v1/admin/billing/payments/${invoice.id}/refund`,
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        reason: 'Owner refund integration regression',
+        idempotencyKey: refundKey,
+      }),
+    },
+    201,
+  );
+  if (ownerRefund.state !== 'CONFIRMED' || ownerRefund.alreadySubmitted !== false) {
+    throw new Error('Owner Stars refund did not reach a confirmed state.');
+  }
+  const repeatedOwnerRefund = await request(
+    `/api/v1/admin/billing/payments/${invoice.id}/refund`,
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        reason: 'Owner refund integration regression',
+        idempotencyKey: refundKey,
+      }),
+    },
+    200,
+  );
+  if (repeatedOwnerRefund.state !== 'CONFIRMED' || repeatedOwnerRefund.alreadySubmitted !== true) {
+    throw new Error('Owner Stars refund replay was not idempotent.');
+  }
+  const refundCalls = telegramRequests.filter((item) => item.method === 'refundStarPayment');
+  if (
+    refundCalls.length !== 1 ||
+    refundCalls[0]?.body?.user_id !== telegramUserId ||
+    refundCalls[0]?.body?.telegram_payment_charge_id !== telegramChargeId
+  ) {
+    throw new Error('Owner refund emitted an incorrect or duplicate Telegram API request.');
+  }
   await request(
     '/telegram/webhook',
     {
@@ -1768,6 +1847,9 @@ try {
     telegram_payment_charge_id: accessChargeId,
     provider_payment_charge_id: '',
   };
+  const repliesBeforeWebhookOnlyRefund = telegramRequests.filter(
+    (item) => item.method === 'sendMessage',
+  ).length;
   await request(
     '/telegram/webhook',
     {
@@ -1788,6 +1870,12 @@ try {
     },
     200,
   );
+  const repliesAfterWebhookOnlyRefund = telegramRequests.filter(
+    (item) => item.method === 'sendMessage',
+  ).length;
+  if (repliesAfterWebhookOnlyRefund !== repliesBeforeWebhookOnlyRefund + 1) {
+    throw new Error('Webhook-only Stars refund was reversed but not acknowledged to the user.');
+  }
   const compactedPlusMe = await request('/api/v1/me', { headers }, 200);
   if (
     compactedPlusMe.plan !== 'PLUS' ||

@@ -50,6 +50,46 @@ const telegramInvoiceLinkResponseSchema = z.object({
   description: z.string().optional(),
 });
 
+export type StarsRefundTransportResult = 'submitted' | 'already_refunded';
+
+export async function requestStarsRefund(
+  fetcher: typeof fetch,
+  input: {
+    readonly apiBaseUrl?: string;
+    readonly botToken: string;
+    readonly userTelegramId: string;
+    readonly telegramPaymentChargeId: string;
+  },
+): Promise<StarsRefundTransportResult> {
+  const userId = Number(input.userTelegramId);
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    throw new AppError(
+      'TELEGRAM_USER_ID_INVALID',
+      'Telegram ID получателя возврата некорректен.',
+      409,
+    );
+  }
+  const response = await fetcher(
+    `${input.apiBaseUrl ?? 'https://api.telegram.org'}/bot${input.botToken}/refundStarPayment`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        telegram_payment_charge_id: input.telegramPaymentChargeId,
+      }),
+    },
+  );
+  const result = telegramBooleanResponseSchema.parse(await response.json());
+  if (response.ok && result.ok && result.result === true) return 'submitted';
+  if (result.description?.includes('CHARGE_ALREADY_REFUNDED')) return 'already_refunded';
+  throw new AppError(
+    'TELEGRAM_REFUND_FAILED',
+    'Telegram не подтвердил возврат. Автоматический повтор отключён для защиты от двойной операции.',
+    503,
+  );
+}
+
 export async function createStarsInvoiceLink(
   fetcher: typeof fetch,
   input: {
@@ -324,7 +364,10 @@ export async function reverseRefundedStarsPayment(
   if (!hasExactlyOnePurchaseKind(payment)) {
     throw new AppError('PAYMENT_PACK_MISSING', 'У исходного платежа нет доступного пакета.', 409);
   }
-  if (payment.state === 'REFUNDED') return 'duplicate';
+  if (payment.state === 'REFUNDED') {
+    await markRefundRequestConfirmed(database, payment.id);
+    return 'duplicate';
+  }
   if (payment.state !== 'ENTITLEMENT_GRANTED') {
     throw new AppError('PAYMENT_NOT_REFUNDABLE', 'Платёж ещё не был начислен.', 409);
   }
@@ -388,6 +431,7 @@ export async function reverseRefundedStarsPayment(
           ),
       );
     }
+    const paymentStateUpdateIndex = statements.length;
     statements.push(
       database
         .prepare(
@@ -395,9 +439,15 @@ export async function reverseRefundedStarsPayment(
            WHERE id = ? AND state = 'ENTITLEMENT_GRANTED'`,
         )
         .bind(timestamp, payment.id),
+      database
+        .prepare(
+          `UPDATE stars_refund_requests SET state = 'CONFIRMED', error_code = NULL, updated_at = ?
+           WHERE payment_id = ? AND state != 'CONFIRMED'`,
+        )
+        .bind(timestamp, payment.id),
     );
     const results = await database.batch(statements);
-    if (results[0]?.meta.changes !== 1 || results.at(-1)?.meta.changes !== 1) {
+    if (results[0]?.meta.changes !== 1 || results[paymentStateUpdateIndex]?.meta.changes !== 1) {
       throw new Error('PAYMENT_REFUND_TRANSACTION_INCOMPLETE');
     }
     return 'reversed';
@@ -409,6 +459,16 @@ export async function reverseRefundedStarsPayment(
     if (replay?.state === 'REFUNDED') return 'duplicate';
     throw error;
   }
+}
+
+async function markRefundRequestConfirmed(database: D1Database, paymentId: string): Promise<void> {
+  await database
+    .prepare(
+      `UPDATE stars_refund_requests SET state = 'CONFIRMED', error_code = NULL, updated_at = ?
+       WHERE payment_id = ? AND state != 'CONFIRMED'`,
+    )
+    .bind(nowMs(), paymentId)
+    .run();
 }
 
 async function readPayment(

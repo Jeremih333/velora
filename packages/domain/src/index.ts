@@ -295,6 +295,12 @@ export const ownerUserGrantInputSchema = z
       context.addIssue({ code: 'custom', message: 'A plan or credits must be granted.' });
     }
   });
+export const ownerStarsRefundInputSchema = z
+  .object({
+    reason: z.string().trim().min(3).max(500),
+    idempotencyKey: idempotencyKeySchema,
+  })
+  .strict();
 export const generationCreateSchema = z.object({
   parentMessageId: z.uuid().optional(),
   mode: z.enum(['REPLY', 'CONTINUE']).default('REPLY'),

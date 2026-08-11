@@ -32,6 +32,7 @@ import type {
   Persona,
   PublicFeatureFlags,
   OperationsDashboard,
+  OwnerPayment,
   OwnerUserGrant,
   Settings,
   StaffAssignment,
@@ -2023,6 +2024,10 @@ function OwnerBillingConfiguration({
     queryKey: ['admin-billing-user-grants'],
     queryFn: () => apiRequest<ListResponse<OwnerUserGrant>>('/api/v1/admin/billing/user-grants'),
   });
+  const ownerPayments = useQuery({
+    queryKey: ['admin-billing-payments'],
+    queryFn: () => apiRequest<ListResponse<OwnerPayment>>('/api/v1/admin/billing/payments'),
+  });
   const savePlan = useMutation({
     mutationFn: (input: { readonly code: string; readonly body: Record<string, unknown> }) =>
       apiRequest(`/api/v1/admin/billing/plans/${input.code}`, {
@@ -2098,6 +2103,22 @@ function OwnerBillingConfiguration({
         client.invalidateQueries({ queryKey: ['me'] }),
       ]);
       notify(messages.billingAdmin.grantRevoked);
+    },
+  });
+  const refundPayment = useMutation({
+    mutationFn: (input: { readonly paymentId: string; readonly reason: string }) =>
+      apiRequest(`/api/v1/admin/billing/payments/${encodeURIComponent(input.paymentId)}/refund`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason: input.reason, idempotencyKey: crypto.randomUUID() }),
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-billing-payments'] }),
+        client.invalidateQueries({ queryKey: ['billing-payments'] }),
+        client.invalidateQueries({ queryKey: ['me'] }),
+      ]);
+      notify(messages.billingAdmin.refundCompleted);
     },
   });
   const packBody = (data: FormData) => ({
@@ -2223,6 +2244,49 @@ function OwnerBillingConfiguration({
           ))}
         </div>
         <InlineError error={grants.error ?? revokeGrant.error} />
+      </section>
+      <section className="editor-card" aria-labelledby="owner-payments-title">
+        <h3 id="owner-payments-title">{messages.billingAdmin.recentPayments}</h3>
+        <p className="section-description">{messages.billingAdmin.refundDescription}</p>
+        {ownerPayments.isPending ? <p>{messages.billingAdmin.loading}</p> : null}
+        {ownerPayments.data?.items.length === 0 ? <p>{messages.billingAdmin.noPayments}</p> : null}
+        <div className="list-stack">
+          {ownerPayments.data?.items.map((payment) => (
+            <article className="moderation-card" key={payment.id}>
+              <strong>{payment.target.displayName}</strong>
+              <span>
+                {payment.starsAmount} XTR · {payment.state}
+              </span>
+              <small>
+                {payment.target.id} · Telegram {payment.target.telegramId}
+              </small>
+              {payment.refund ? (
+                <span>
+                  {messages.billingAdmin.refundState}: {payment.refund.state}
+                </span>
+              ) : null}
+              {payment.state === 'ENTITLEMENT_GRANTED' && !payment.refund ? (
+                <button
+                  className="compact-button danger"
+                  type="button"
+                  disabled={refundPayment.isPending}
+                  onClick={() => {
+                    const reason = window.prompt(messages.billingAdmin.refundReasonPrompt);
+                    if (
+                      reason?.trim() &&
+                      window.confirm(messages.billingAdmin.refundConfirmation)
+                    ) {
+                      refundPayment.mutate({ paymentId: payment.id, reason: reason.trim() });
+                    }
+                  }}
+                >
+                  {messages.billingAdmin.refund}
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+        <InlineError error={ownerPayments.error ?? refundPayment.error} />
       </section>
       <div className="view-stack">
         {plans.data?.items.map((plan) => (

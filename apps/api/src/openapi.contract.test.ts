@@ -45,6 +45,8 @@ describe('OpenAPI route contract', () => {
       ['post', '/api/v1/billing/invoices'],
       ['post', '/api/v1/admin/operations/ai-smoke'],
       ['post', '/api/v1/admin/billing/user-grants'],
+      ['get', '/api/v1/admin/billing/payments'],
+      ['post', '/api/v1/admin/billing/payments/{paymentId}/refund'],
       ['get', '/api/v1/data-export'],
       ['post', '/telegram/webhook'],
     ] as const) {
