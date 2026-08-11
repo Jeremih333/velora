@@ -275,6 +275,9 @@
       CSRF, webhook-secret, parameter, SSE and safe-error boundaries, add a dedicated contract CI
       gate plus real Wrangler/Assets regression, and deploy staging Worker
       `316c52b0-36a9-4de2-8294-c7c00089ff6e` with 100 paths, healthy D1 and zero V3 runs.
+- [x] Lock 24 reviewed Linux visual baselines into mandatory CI, correct explicit theme/WebKit
+      controls and mobile chat/navigation geometry, pass CI run `31527975737`, and deploy staging
+      Worker `e6f640e7-c6b5-4f9b-84b9-8df5e4ecc8b2` with healthy D1 and zero V3 runs.
 
 ## Next
 

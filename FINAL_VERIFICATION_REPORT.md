@@ -21,7 +21,7 @@ verified; the full product from the master brief is still in progress.
 - staging D1 migrations 0001-0025 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `316c52b0-36a9-4de2-8294-c7c00089ff6e` is live with a five-minute
+- staging Worker version `e6f640e7-c6b5-4f9b-84b9-8df5e4ecc8b2` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - the public OpenAPI 3.1 route contract is generated from the concrete Hono route table, exposes

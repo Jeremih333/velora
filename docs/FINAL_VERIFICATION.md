@@ -33,7 +33,9 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - staging `/health`, `/ready`, `/openapi.json`, static shell and security-header smoke: PASS;
 - OpenAPI 3.1 publishes 100 concrete route paths with cookie/CSRF/webhook security and a stable
   error envelope; a real Wrangler integration regression guards its Worker-first Assets route;
-- staging migrations through 0025, 63-table integrity and Worker `316c52b0` smoke: PASS;
+- staging migrations through 0025, 63-table integrity and Worker `e6f640e7` smoke: PASS;
+- 24 Linux visual baselines across eight Android/iPhone/Desktop states and independent CI run
+  `31527975737`: PASS;
 - idempotent quality seed: 4 synthetic users, 4 personas, 12 SAFE characters, 2 lorebooks,
   240-message chat and 3 moderation cases; remote pre-seed export and post-seed integrity: PASS;
 - typed AI SSE fixtures for fragmented success, missing usage and stream error: PASS;

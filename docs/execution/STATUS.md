@@ -38,7 +38,7 @@ Updated: 2026-08-11.
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                        |
 | Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                        |
 | Paid AI                      | IMPLEMENTED_GATED | global/readiness gates off; V3 awaits fresh owner consent                                |
-| Staging                      | VERIFIED          | Worker `316c52b0`; D1 25/63 healthy, BotHub READY, paid gates off                        |
+| Staging                      | VERIFIED          | Worker `e6f640e7`; D1 25/63 healthy, BotHub READY, paid gates off                        |
 | Production                   | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                  |
 
 RoleMate resources have not been changed or bound to Velora.
