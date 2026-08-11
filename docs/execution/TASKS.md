@@ -281,6 +281,9 @@
 - [x] Add the typed A-F roleplay quality corpus from master sections 158-159, run it through the
       production prompt/lore builders, fix nested template expansion and make the structural suite
       an explicit CI gate without spending BotHub CAPS.
+- [x] Pass GitHub CI `31530811020`, deploy the prompt fix to staging Worker
+      `19904cde-712c-4075-bede-294920fbefb1`, and verify health/readiness, 25 migrations,
+      D1 quick-check plus Telegram/BotHub READY with paid gates off and zero V3 runs.
 
 ## Next
 

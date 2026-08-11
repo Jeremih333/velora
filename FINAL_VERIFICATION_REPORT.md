@@ -21,7 +21,7 @@ verified; the full product from the master brief is still in progress.
 - staging D1 migrations 0001-0025 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `e6f640e7-c6b5-4f9b-84b9-8df5e4ecc8b2` is live with a five-minute
+- staging Worker version `19904cde-712c-4075-bede-294920fbefb1` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - the public OpenAPI 3.1 route contract is generated from the concrete Hono route table, exposes
@@ -74,6 +74,8 @@ verified; the full product from the master brief is still in progress.
   the real prompt/lore builders; it exposed and fixed one-level nested template leakage, and now
   verifies relevant context, unrelated-lore exclusion, branch retention and token bounds without
   spending BotHub CAPS;
+- GitHub CI `31530811020` independently passed the complete Linux gate for the A-F corpus and
+  nested-template fix before staging deployment;
 - completed and streaming messages use sanitized Markdown without arbitrary HTML or unsafe URLs;
   regenerate/continue, immutable edits, variant restoration, reports and branch deletion pass
   Worker+D1 and responsive UI regressions;
