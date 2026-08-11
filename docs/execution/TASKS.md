@@ -256,10 +256,14 @@
       entry editing and deterministic key options; verify a real existing book after the runtime
       language switch and deploy staging Worker `f89cd7e7-5439-4d13-9b1f-d45e8708f645` with BotHub
       READY and zero V3 runs.
+- [x] Localize own/public profiles and the shared report form, including profile editing, avatar
+      selection, statistics, visibility, report reasons and blocking confirmation; verify both
+      profile modes after the runtime language switch and deploy staging Worker
+      `4687cd16-2951-4e78-bd70-406af9a35f67` with BotHub READY and zero V3 runs.
 
 ## Next
 
-- Continue removing hardcoded Russian UI strings from profiles,
+- Continue removing hardcoded Russian UI strings from support and administration.
   profiles, support and administration.
 - Optional reviewed advanced classifiers.
 - Real Stars smoke and one explicitly approved prepaid BotHub V3 roleplay quality/accounting

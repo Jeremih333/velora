@@ -1137,6 +1137,7 @@ function ProfileView({
   readonly notify: (message: string | null) => void;
   readonly onBack: () => void;
 }) {
+  const { messages } = useI18n();
   const client = useQueryClient();
   const isOwn = userId === currentUserId;
   const [editing, setEditing] = useState(false);
@@ -1165,7 +1166,7 @@ function ProfileView({
         client.invalidateQueries({ queryKey: ['profile', userId] }),
         client.invalidateQueries({ queryKey: ['discovery'] }),
       ]);
-      notify(ru.profile.saved);
+      notify(messages.profile.saved);
     },
   });
   const block = useMutation({
@@ -1175,11 +1176,11 @@ function ProfileView({
         client.invalidateQueries({ queryKey: ['blocks'] }),
         client.invalidateQueries({ queryKey: ['discovery'] }),
       ]);
-      notify(ru.profile.blocked);
+      notify(messages.profile.blocked);
       onBack();
     },
   });
-  if (profile.isPending) return <EmptyState title={ru.profile.loading} />;
+  if (profile.isPending) return <EmptyState title={messages.profile.loading} />;
   if (profile.isError)
     return <ErrorState error={profile.error} retry={() => void profile.refetch()} />;
   if (editing && profile.data.isOwn) {
@@ -1199,44 +1200,49 @@ function ProfileView({
         }}
       >
         <ViewHeader
-          eyebrow="ПРОФИЛЬ"
-          title="Редактировать профиль"
-          description={ru.profile.editDescription}
+          eyebrow={messages.profile.editEyebrow}
+          title={messages.profile.editTitle}
+          description={messages.profile.editDescription}
         />
         <Field
-          label="Отображаемое имя"
+          label={messages.profile.displayName}
           name="displayName"
           defaultValue={profile.data.displayName}
           required
           maxLength={80}
         />
-        <TextArea label="О себе" name="bio" defaultValue={profile.data.bio} maxLength={1000} />
+        <TextArea
+          label={messages.profile.bio}
+          name="bio"
+          defaultValue={profile.data.bio}
+          maxLength={1000}
+        />
         <label className="field">
-          <span>Аватар из личной медиатеки</span>
+          <span>{messages.profile.avatarLibrary}</span>
           <select name="avatarFileId" defaultValue={profile.data.avatarFileId ?? ''}>
-            <option value="">Без аватара</option>
+            <option value="">{messages.profile.noAvatar}</option>
             {media.data?.items
               .filter(
                 (item) => item.mimeType.startsWith('image/') && item.moderationState !== 'REJECTED',
               )
               .map((item) => (
                 <option value={item.id} key={item.id}>
-                  {item.originalName ?? `Изображение ${item.id.slice(0, 8)}`} ·{' '}
+                  {item.originalName ?? messages.profile.imageFallback(item.id)} ·{' '}
                   {item.moderationState}
                 </option>
               ))}
           </select>
         </label>
         <Select
-          label="Видимость"
+          label={messages.profile.visibility}
           name="visibility"
           defaultValue={profile.data.visibility}
           options={[
-            ['PUBLIC', 'Публичный профиль'],
-            ['PRIVATE', 'Только мне'],
+            ['PUBLIC', messages.profile.publicProfile],
+            ['PRIVATE', messages.profile.onlyMe],
           ]}
         />
-        <p className="meta">{ru.profile.avatarPendingOwn}</p>
+        <p className="meta">{messages.profile.avatarPendingOwn}</p>
         {save.error ? <InlineError error={save.error} /> : null}
         <div className="dialog-actions">
           <button
@@ -1245,10 +1251,10 @@ function ProfileView({
               setEditing(false);
             }}
           >
-            Отмена
+            {messages.profile.cancel}
           </button>
           <button className="primary" type="submit" disabled={save.isPending}>
-            Сохранить профиль
+            {messages.profile.saveProfile}
           </button>
         </div>
       </form>
@@ -1257,30 +1263,36 @@ function ProfileView({
   return (
     <div className="view-stack">
       <button className="text-button profile-back" type="button" onClick={onBack}>
-        ← В каталог
+        {messages.profile.backToCatalog}
       </button>
       <article className="editor-card public-profile">
         <div className="profile-identity">
           <Avatar name={profile.data.displayName} fileId={profile.data.avatarFileId} />
           <div>
-            <p className="eyebrow">{profile.data.isOwn ? 'МОЙ ПРОФИЛЬ' : 'АВТОР'}</p>
+            <p className="eyebrow">
+              {profile.data.isOwn ? messages.profile.ownEyebrow : messages.profile.authorEyebrow}
+            </p>
             <h1>{profile.data.displayName}</h1>
             <span className="status-pill">
-              {profile.data.visibility === 'PUBLIC' ? 'Публичный' : 'Приватный'}
+              {profile.data.visibility === 'PUBLIC'
+                ? messages.profile.public
+                : messages.profile.private}
             </span>
           </div>
         </div>
-        <p className="profile-bio">{profile.data.bio || ru.profile.emptyBio}</p>
-        {profile.data.avatarPending ? <p className="meta">{ru.profile.avatarPending}</p> : null}
-        <div className="creator-stats" aria-label="Статистика профиля">
+        <p className="profile-bio">{profile.data.bio || messages.profile.emptyBio}</p>
+        {profile.data.avatarPending ? (
+          <p className="meta">{messages.profile.avatarPending}</p>
+        ) : null}
+        <div className="creator-stats" aria-label={messages.profile.stats}>
           <span>
-            <strong>{profile.data.stats.characters}</strong> персонажей
+            <strong>{profile.data.stats.characters}</strong> {messages.profile.characters}
           </span>
           <span>
-            <strong>{profile.data.stats.likes}</strong> отметок нравится
+            <strong>{profile.data.stats.likes}</strong> {messages.profile.likes}
           </span>
           <span>
-            <strong>{profile.data.stats.chats}</strong> начатых историй
+            <strong>{profile.data.stats.chats}</strong> {messages.profile.chats}
           </span>
         </div>
         {profile.data.isOwn ? (
@@ -1291,7 +1303,7 @@ function ProfileView({
               setEditing(true);
             }}
           >
-            Редактировать профиль
+            {messages.profile.edit}
           </button>
         ) : (
           <div className="profile-actions">
@@ -1302,7 +1314,7 @@ function ProfileView({
                 setReporting((value) => !value);
               }}
             >
-              ⚑ Пожаловаться
+              {messages.profile.report}
             </button>
             <button
               className="text-button danger-link"
@@ -1311,7 +1323,7 @@ function ProfileView({
                 setConfirmingBlock(true);
               }}
             >
-              Заблокировать
+              {messages.profile.block}
             </button>
           </div>
         )}
@@ -1321,7 +1333,7 @@ function ProfileView({
             targetType="USER_PROFILE"
             onDone={() => {
               setReporting(false);
-              notify(ru.profile.reportSent);
+              notify(messages.profile.reportSent);
             }}
           />
         ) : null}
@@ -1329,9 +1341,9 @@ function ProfileView({
           <div
             className="inline-confirm"
             role="alertdialog"
-            aria-label="Подтверждение блокировки профиля"
+            aria-label={messages.profile.blockConfirmation}
           >
-            <p>{ru.profile.blockWarning}</p>
+            <p>{messages.profile.blockWarning}</p>
             <div className="dialog-actions">
               <button
                 type="button"
@@ -1339,7 +1351,7 @@ function ProfileView({
                   setConfirmingBlock(false);
                 }}
               >
-                Отмена
+                {messages.profile.cancel}
               </button>
               <button
                 className="danger"
@@ -1349,16 +1361,16 @@ function ProfileView({
                   block.mutate();
                 }}
               >
-                Заблокировать
+                {messages.profile.block}
               </button>
             </div>
           </div>
         ) : null}
       </article>
       <section className="profile-characters" aria-labelledby="profile-characters-title">
-        <h2 id="profile-characters-title">Опубликованные персонажи</h2>
+        <h2 id="profile-characters-title">{messages.profile.publishedCharacters}</h2>
         {profile.data.characters.length === 0 ? (
-          <p className="meta">Публичных персонажей пока нет.</p>
+          <p className="meta">{messages.profile.noPublicCharacters}</p>
         ) : null}
         <div className="list-stack">
           {profile.data.characters.map((character) => (
@@ -1386,6 +1398,7 @@ function ReportForm({
   readonly targetType?: 'CHARACTER' | 'USER_PROFILE';
   readonly onDone: () => void;
 }) {
+  const { messages } = useI18n();
   const [reason, setReason] = useState('ABUSE_HARASSMENT');
   const [description, setDescription] = useState('');
   const report = useMutation({
@@ -1406,31 +1419,33 @@ function ReportForm({
       }}
     >
       <label className="field">
-        <span>Причина</span>
+        <span>{messages.reports.reason}</span>
         <select
-          aria-label="Причина жалобы"
+          aria-label={messages.reports.reasonLabel}
           value={reason}
           onChange={(event) => {
             setReason(event.target.value);
           }}
         >
-          <option value="UNDERAGE">Несовершеннолетний возраст</option>
-          <option value="SEXUAL_CONTENT_INVOLVING_MINORS">Сексуализация несовершеннолетних</option>
-          <option value="ABUSE_HARASSMENT">Оскорбления или преследование</option>
-          <option value="NON_CONSENSUAL_EXPLOITATIVE_MATERIAL">Эксплуатация без согласия</option>
-          <option value="ILLEGAL_CONTENT">Незаконный контент</option>
-          <option value="IMPERSONATION">Выдаёт себя за другого</option>
-          <option value="HATE">Разжигание ненависти</option>
-          <option value="SELF_HARM_CONCERN">Риск самоповреждения</option>
-          <option value="SPAM">Спам</option>
-          <option value="COPYRIGHT">Нарушение авторских прав</option>
-          <option value="OTHER">Другое</option>
+          <option value="UNDERAGE">{messages.reports.underage}</option>
+          <option value="SEXUAL_CONTENT_INVOLVING_MINORS">{messages.reports.sexualMinors}</option>
+          <option value="ABUSE_HARASSMENT">{messages.reports.harassment}</option>
+          <option value="NON_CONSENSUAL_EXPLOITATIVE_MATERIAL">
+            {messages.reports.exploitative}
+          </option>
+          <option value="ILLEGAL_CONTENT">{messages.reports.illegal}</option>
+          <option value="IMPERSONATION">{messages.reports.impersonation}</option>
+          <option value="HATE">{messages.reports.hate}</option>
+          <option value="SELF_HARM_CONCERN">{messages.reports.selfHarm}</option>
+          <option value="SPAM">{messages.reports.spam}</option>
+          <option value="COPYRIGHT">{messages.reports.copyright}</option>
+          <option value="OTHER">{messages.reports.other}</option>
         </select>
       </label>
       <label className="field">
-        <span>Описание</span>
+        <span>{messages.reports.description}</span>
         <textarea
-          aria-label="Описание жалобы"
+          aria-label={messages.reports.descriptionLabel}
           maxLength={2000}
           rows={3}
           value={description}
@@ -1441,10 +1456,10 @@ function ReportForm({
       </label>
       <div className="form-actions">
         <button className="compact-primary" type="submit" disabled={report.isPending}>
-          {report.isPending ? 'Отправляем…' : 'Отправить жалобу'}
+          {report.isPending ? messages.reports.sending : messages.reports.send}
         </button>
         <button className="compact-button" type="button" onClick={onDone}>
-          Отмена
+          {messages.reports.cancel}
         </button>
       </div>
       {report.error ? <InlineError error={report.error} /> : null}
