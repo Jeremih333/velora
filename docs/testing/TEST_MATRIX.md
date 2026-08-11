@@ -22,3 +22,6 @@ window regression. Synthetic load is never directed at production.
 
 Keyboard focus, labels, reduced motion, 200% font scaling and offline draft retention are recorded
 in [ACCESSIBILITY_REPORT.md](ACCESSIBILITY_REPORT.md).
+
+Twenty-four Linux pixel baselines for eight critical states across Android, iPhone and desktop are
+recorded in [VISUAL_REVIEW.md](VISUAL_REVIEW.md) and compared by the mandatory E2E gate.
