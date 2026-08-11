@@ -22,6 +22,9 @@
   Velora owner before enabling outbound Telegram alerts. Never copy an identity from another bot.
 - AI credit: inspect internal usage/runway, show the owner the exact BotHub amount and payment
   method, then let the owner manually fund it; never automate a purchase or recurring payment.
+- Live Stars: follow [LIVE_STARS_CHECKPOINT.md](../testing/LIVE_STARS_CHECKPOINT.md). Do not enable
+  or price a pack until the owner accepts the legal/payment checkpoint and explicitly authorizes
+  the one-Star staging purchase.
 - Backup/restore: follow `BACKUP_RESTORE.md` and record the staging restore result.
 - Synthetic staging data: follow `../testing/FIXTURES.md`. The seed runner is allowlisted to the
   staging D1 ID, requires an exact confirmation and exports a backup before its idempotent import;

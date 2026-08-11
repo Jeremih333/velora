@@ -57,6 +57,16 @@ before paid roleplay is enabled. Provider-reported usage is never allowed to red
 conservative internal reservation. Daily, monthly and lifetime provider budgets remain the
 authoritative fail-closed boundary.
 
+## Observed staging sample — 12 August 2026
+
+The first owner-driven full chat used 413 input and 33 output tokens and completed in 7.08 seconds.
+The runtime finalized exactly one 20,221-micro (`$0.020221`) conservative user/provider accounting
+entry. This figure is dominated by the deliberately conservative fixed per-request reserve and is
+not a BotHub invoice or a representative long-conversation average. The owner grant was $1,000;
+after this one generation the internal balance is $999.979779. Capacity planning therefore
+continues to use the 8,000-input/600-output active-use envelope above rather than extrapolating from
+this short greeting.
+
 Official references: [selected BotHub model](https://bothub.ru/deepseek-chat-v3.1),
 [model catalogue](https://bothub.ru/models), and
 [text-generation API](https://bothub.ru/api/documentation/ru/generation/text-generation).

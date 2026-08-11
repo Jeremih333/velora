@@ -9,3 +9,7 @@ by their protocol fixtures. E2E: mobile/desktop critical flows. Security: replay
 IDOR, injection, XSS, uploads, rate/budget exhaustion. Automated load smoke targets a fresh local
 Worker/D1 only; staging gets single-request smoke checks and production never receives synthetic
 load.
+
+The human-gated real payment procedure and its exact evidence requirements are defined in
+[LIVE_STARS_CHECKPOINT.md](LIVE_STARS_CHECKPOINT.md). No mocked flow may be reported as that live
+checkpoint.

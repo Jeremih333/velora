@@ -294,6 +294,9 @@
       payments; prove RBAC, CSRF, idempotency, effective access, revocation and retained credits,
       restore the pre-0026 staging export, migrate to 26/65 and deploy staging Worker
       `c5a53c7e-baa0-4923-ad45-facddae9fdfc` after CI `31541638382`.
+- [x] Complete an owner-driven end-to-end Russian roleplay generation through the real Telegram
+      Mini App; verify the request, generation and persisted message all completed with exactly one
+      accounting charge, without reading or recording private conversation text.
 
 ## Next
 

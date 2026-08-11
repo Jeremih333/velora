@@ -1,6 +1,6 @@
 # Roleplay quality verification
 
-Updated: 2026-08-11.
+Updated: 2026-08-12.
 
 ## Structural corpus
 
@@ -20,6 +20,22 @@ request and spends no BotHub CAPS.
 Every case also asserts the reserved output budget, inspector/token equality and absence of
 unknown template variables. A dedicated regression proves recursive templates terminate safely,
 preserve escaped literals and do not evaluate arbitrary tokens.
+
+## Live staging conversation
+
+After the immutable provider checkpoint and explicit staging enablement, the owner completed a
+real conversation through the Telegram Mini App and confirmed that the assistant response rendered
+in the chat. The corresponding private conversation text was not read or copied into operational
+evidence. Read-only D1 verification established the following non-content facts:
+
+- model `deepseek-chat-v3.1`, request/generation/message state `COMPLETED`;
+- 413 input tokens, 33 output tokens, 84-character persisted output and 7,080 ms latency;
+- one and only one linked `GENERATION_USAGE` charge;
+- user and provider accounting both finalized at 20,221 conservative USD micros.
+
+This proves the production request path from Telegram-authenticated UI through streaming,
+persistence and single-charge accounting on staging. It is one real Russian roleplay sample, not a
+statistically broad prose-quality evaluation.
 
 ## Honest boundary
 

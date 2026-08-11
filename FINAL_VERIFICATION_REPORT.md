@@ -228,7 +228,14 @@ verified; the full product from the master brief is still in progress.
   `velora-staging-pre-0026-2026-08-12T012235Z.sql` restored independently to 26 migrations and 65
   tables before the remote migration. Staging Worker `c5a53c7e-baa0-4923-ad45-facddae9fdfc`
   serves 102 OpenAPI paths, rejects unauthenticated grant reads with 401, retains one and only one
-  V3 run, and keeps `PAYMENTS_ENABLED=false`. No real owner grant was invented or applied.
+  V3 run, and keeps `PAYMENTS_ENABLED=false`. No owner grant was invented or applied by the
+  deployment process; the owner subsequently created one deliberate grant through the new UI.
+- after the owner deliberately granted credits and completed a real Russian chat in Telegram, a
+  content-free D1 audit found the request, generation and persisted assistant message all
+  `COMPLETED`: 413 input / 33 output tokens, 84 output characters, 7,080 ms latency and exactly one
+  20,221-micro usage charge. The owner confirmed the rendered response; private message text was
+  neither queried nor copied into this report. This closes the single live-chat transport and
+  accounting checkpoint, but does not claim broad A-F live prose-quality coverage.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.

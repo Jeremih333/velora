@@ -7,10 +7,10 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | Workspace isolation                  | boundary scripts and independent Git | boundary command       | path/account audit     | VERIFIED          | RoleMate untouched                |
 | GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
-| Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 100-path smoke | VERIFIED          | Assets bypass is explicit         |
+| Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 102-path smoke | VERIFIED          | Assets bypass is explicit         |
 | D1                                   | 65 application tables, 26 migrations | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
-| AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | V3 HTTP 200            | VERIFIED_STAGING  | production remains disabled       |
+| AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | full live chat         | VERIFIED_STAGING  | production remains disabled       |
 | Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
 | First-run onboarding                 | 4-step idempotent Worker/UI flow     | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | policy required; rest optional    |
 | Likes/bookmarks/reviews              | D1 constraints and MiniApp           | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | no viewer identities              |
@@ -26,7 +26,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 117 PASS; API contract: 4 PASS; integration/schema/cost-model: 26 PASS;
+- unit/regression: 118 PASS; API contract: 4 PASS; integration/schema/cost-model: 27 PASS;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
@@ -104,6 +104,9 @@ Velora is **not production-ready yet**. This report is updated only with factual
   fresh pre-0026 export restored to 26 migrations/65 tables; CI `31541638382`, staging Worker
   `c5a53c7e-baa0-4923-ad45-facddae9fdfc`, 102 OpenAPI paths, unauthenticated grant 401, empty
   foreign-key check and unchanged single V3 run: PASS;
+- owner-confirmed Telegram Mini App live chat: request/generation/message `COMPLETED`, 413 input / 33
+  output tokens, 7,080 ms latency, persisted 84-character output and exactly one linked charge;
+  private message text was not inspected or recorded: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

@@ -10,7 +10,7 @@ Updated: 2026-08-12.
 | Knowledge base               | IMPLEMENTED       | required hierarchy created; evolves with code                                            |
 | Owner documentation          | VERIFIED          | root zero-to-production README with guarded commands and links                           |
 | Monorepo                     | IMPLEMENTED       | strict TS packages, Worker API, Mini App shell, CI                                       |
-| API contract                 | VERIFIED          | generated OpenAPI 3.1, 100 staging paths, contract + real Worker smoke                   |
+| API contract                 | VERIFIED          | generated OpenAPI 3.1, 102 staging paths, contract + real Worker smoke                   |
 | GitHub                       | VERIFIED          | private `Jeremih333/velora`; clean-clone CI covers full quality gate                     |
 | Personas                     | VERIFIED_MVP      | owned CRUD/default, validation, moderation gates, local Worker test                      |
 | Characters/discovery         | VERIFIED_MVP      | versioned section editor, draft autosave, Mature review before feed                      |
@@ -20,7 +20,7 @@ Updated: 2026-08-12.
 | Telegram image media         | VERIFIED_MVP      | magic-byte validation, owner isolation, proxy/delete integration                         |
 | Conversations/chat           | VERIFIED_MVP      | branches/actions, private draft tests, streaming, memory inspector                       |
 | Advanced roleplay            | VERIFIED_MVP      | exact prompt order/settings plus creator/admin inspector with IDOR deny                  |
-| Roleplay quality corpus      | VERIFIED_STAGING  | A-F assembly plus one owner-approved V3 response; full live chat pending                 |
+| Roleplay quality corpus      | VERIFIED_STAGING  | A-F assembly, V3 checkpoint and owner-confirmed persisted live chat                      |
 | AI provider adapter          | VERIFIED_MVP      | allowlisted key capability READY; selected `deepseek-chat-v3.1`                          |
 | Lorebooks                    | VERIFIED_MVP      | CRUD, safe v1 transfer, deterministic keys/budgets, prompt integration                   |
 | Moderation                   | VERIFIED_MVP      | reports, RBAC, appeals, audit and non-sanctioning risk signals                           |
@@ -46,8 +46,8 @@ Updated: 2026-08-12.
 RoleMate resources have not been changed or bound to Velora.
 
 Reviewed advanced classifiers and live Stars payment remain incomplete and are not represented as
-production-ready. Paid inference has only passed its bounded staging checkpoint and still requires
-the full live-chat verification. The Stars implementation is intentionally inert: no configured
+production-ready. Paid inference has passed its bounded checkpoint and one owner-confirmed full
+staging chat, but not a broad live A-F quality trial. The Stars implementation is intentionally inert: no configured
 staging packs and `PAYMENTS_ENABLED=false`. Paid roleplay is enabled only in staging after the
 owner-authorized V3 checkpoint completed with `deepseek-chat-v3.1`; production remains gated by
 `PAID_AI_ENABLED=false`.
