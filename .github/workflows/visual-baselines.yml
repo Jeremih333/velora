@@ -1,0 +1,35 @@
+name: Visual baselines
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.0.10
+        with:
+          version: 11.20.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Capture Linux baselines
+        run: >-
+          pnpm exec playwright test tests/e2e/foundation.spec.ts
+          --grep "authenticated MiniApp navigation"
+          --update-snapshots
+          --retries=0
+      - uses: actions/upload-artifact@v7.0.0
+        with:
+          name: visual-baselines
+          path: tests/e2e/foundation.spec.ts-snapshots/
+          if-no-files-found: error
+          retention-days: 7
