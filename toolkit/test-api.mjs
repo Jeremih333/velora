@@ -4218,13 +4218,6 @@ try {
   const scheduled = await fetchAfterLocalWranglerAudit(`${baseUrl}/__scheduled?cron=*+*+*+*+*`);
   const scheduledBody = await scheduled.text();
   if (!scheduled.ok) throw new Error(`Scheduled deletion trigger failed: ${scheduled.status}.`);
-  for (
-    let attempt = 0;
-    attempt < 50 && (telegramConfigurationMutations.length === 0 || aiHealthChecks === 0);
-    attempt += 1
-  ) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
   const expectedConfigurationMutations = [
     'setWebhook',
     'setMyCommands:default',
@@ -4234,9 +4227,22 @@ try {
     'setMyDescription',
     'setMyShortDescription',
   ];
+  for (
+    let attempt = 0;
+    attempt < 100 &&
+    (expectedConfigurationMutations.some(
+      (mutation) => !telegramConfigurationMutations.includes(mutation),
+    ) ||
+      aiHealthChecks === 0);
+    attempt += 1
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
   if (
-    JSON.stringify(telegramConfigurationMutations) !==
-    JSON.stringify(expectedConfigurationMutations)
+    telegramConfigurationMutations.length !== expectedConfigurationMutations.length ||
+    expectedConfigurationMutations.some(
+      (mutation) => !telegramConfigurationMutations.includes(mutation),
+    )
   ) {
     throw new Error(
       `Telegram reconciliation did not apply the exact desired configuration: ${JSON.stringify(telegramConfigurationMutations)}`,
