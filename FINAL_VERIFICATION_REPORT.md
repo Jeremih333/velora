@@ -274,6 +274,11 @@ verified; the full product from the master brief is still in progress.
   foreign-key violations and no pending migrations. The test Worker dry-run resolves only that D1
   and keeps both paid feature flags `false`; deployment remains blocked on a separate test-server
   account and bot token.
+- the guarded Test Server installer now performs a non-mutating dry-run and `/test/getMe` identity
+  check before writing Cloudflare secrets, refuses the normal/placeholder bot identities, creates
+  independent webhook and session secrets, deploys only the selected isolated Worker and applies
+  webhook/menu configuration only after deployment succeeds. A regression locks this operation
+  order; no secret, Worker deployment or Bot API mutation was performed while testing it.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -296,4 +301,4 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 129 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 28 integration tests, both builds and 9/9 E2E cases without retries.
+tests, 29 integration tests, both builds and 9/9 E2E cases without retries.

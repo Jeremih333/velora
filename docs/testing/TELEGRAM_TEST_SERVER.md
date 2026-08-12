@@ -50,20 +50,20 @@ The ordinary `@aivel0ra_bot` token cannot be used: production and test Telegram 
 
 ## Prepared activation after the test bot exists
 
-Before any deployment, replace only the placeholder test username in `apps/api/wrangler.jsonc`,
-then install independent `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` and
-`SESSION_SIGNING_KEY` secrets for `--env telegram-test`. Do not reuse staging secrets.
-
-Run reconciliation with the test transport:
+Before any deployment, replace only the placeholder test username in `apps/api/wrangler.jsonc`.
+Then run the guarded setup window below. It performs a dry-run and verifies `getMe` through the
+Test Server before changing Cloudflare, generates independent webhook/session secrets, deploys
+only `telegram-test`, and applies the webhook only after a successful deployment. It refuses the
+normal or placeholder bot username. Do not reuse staging secrets.
 
 ```powershell
-$env:TELEGRAM_API_ENVIRONMENT='test'
-node toolkit/configure-telegram.mjs
-node toolkit/configure-telegram.mjs --apply
+powershell -ExecutionPolicy Bypass -File toolkit/configure-telegram-secure.ps1 `
+  -Environment telegram-test `
+  -BotUsername NEW_TEST_BOT_USERNAME `
+  -PublicAppUrl https://velora-telegram-test.carreljeremih.workers.dev
 ```
 
-The first command is mandatory dry-run. The second is allowed only after verifying that the shown
-bot username is the newly created test-server bot.
+The token is entered in a hidden prompt and must never be pasted into chat, source files or logs.
 
 ## Free Stars verification
 

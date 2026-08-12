@@ -59,4 +59,29 @@ describe('deployment paid-feature boundaries', () => {
     expect(stagingVars['PAYMENTS_ENABLED']).toBe('false');
     expect(localVars['PAYMENTS_ENABLED']).toBe('false');
   });
+
+  it('keeps the secure test-bot setup ordered and isolated', async () => {
+    const source = await readFile(
+      new URL('../../toolkit/configure-telegram-secure.ps1', import.meta.url),
+      'utf8',
+    );
+    const identityCheck = source.indexOf('& node $configureScript --check-identity');
+    const firstSecretWrite = source.indexOf('secret put TELEGRAM_WEBHOOK_SECRET');
+    const sessionSecretWrite = source.indexOf('secret put SESSION_SIGNING_KEY');
+    const tokenSecretWrite = source.indexOf('secret put TELEGRAM_BOT_TOKEN');
+    const deploy = source.indexOf('& node $wrangler deploy --env $Environment');
+    const apply = source.indexOf('& node $configureScript --apply');
+
+    expect(source).toContain('[ValidateSet("staging", "telegram-test")]');
+    expect(source).toContain('$apiEnvironment = if ($Environment -eq "telegram-test")');
+    expect(source).toContain('$BotUsername -eq "aivel0ra_bot"');
+    expect(source).toContain('$BotUsername -eq "velora_test_pending_bot"');
+    expect(source).toContain('$env:TELEGRAM_API_ENVIRONMENT = $apiEnvironment');
+    expect(identityCheck).toBeGreaterThan(-1);
+    expect(firstSecretWrite).toBeGreaterThan(identityCheck);
+    expect(sessionSecretWrite).toBeGreaterThan(firstSecretWrite);
+    expect(tokenSecretWrite).toBeGreaterThan(sessionSecretWrite);
+    expect(deploy).toBeGreaterThan(tokenSecretWrite);
+    expect(apply).toBeGreaterThan(deploy);
+  });
 });

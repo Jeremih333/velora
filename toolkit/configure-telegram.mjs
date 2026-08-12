@@ -1,4 +1,8 @@
 const apply = process.argv.includes('--apply');
+const checkIdentity = process.argv.includes('--check-identity');
+if (apply && checkIdentity) {
+  throw new Error('Choose either --apply or --check-identity.');
+}
 const apiEnvironment = process.env.TELEGRAM_API_ENVIRONMENT ?? 'production';
 if (apiEnvironment !== 'production' && apiEnvironment !== 'test') {
   throw new Error('TELEGRAM_API_ENVIRONMENT must be production or test.');
@@ -74,7 +78,7 @@ const operations = [
   ],
 ];
 
-if (!apply) {
+if (!apply && !checkIdentity) {
   console.log(
     JSON.stringify(
       {
@@ -107,8 +111,17 @@ async function call(method, body = {}) {
 }
 
 const identity = await call('getMe');
-if (!identity || typeof identity !== 'object' || identity.username !== botUsername) {
+if (
+  !identity ||
+  typeof identity !== 'object' ||
+  typeof identity.username !== 'string' ||
+  identity.username.toLowerCase() !== botUsername.toLowerCase()
+) {
   throw new Error('The token owner does not match TELEGRAM_BOT_USERNAME.');
+}
+if (checkIdentity) {
+  console.log(JSON.stringify({ identityVerified: true, apiEnvironment, botUsername }, null, 2));
+  process.exit(0);
 }
 for (const [method, body] of operations) await call(method, body);
 const webhook = await call('getWebhookInfo');
