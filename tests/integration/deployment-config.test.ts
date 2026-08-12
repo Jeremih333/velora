@@ -204,10 +204,27 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('--marker $smokeMarker');
     expect(source).toContain('$attempt -le 12');
     expect(source).toContain('"$productionUrl/openapi.json"');
+    expect(source).toContain('Write-CutoverStatus "AWAITING_TOKEN"');
+    expect(source).toContain('Write-CutoverStatus "AWAITING_OWNER_SMOKE"');
+    expect(source).toContain('Write-CutoverStatus "COMPLETED"');
+    expect(source).toContain('Write-CutoverStatus "FAILED" $originalFailure');
+    expect(source).toContain('StatusFile must stay inside the Velora project.');
     expect(source).not.toContain('SESSION_SIGNING_KEY');
     expect(source).not.toContain('BOTHUB_API_KEY');
     expect(source).not.toContain('PAID_AI_ENABLED');
     expect(source).not.toContain('PAYMENTS_ENABLED');
+  });
+
+  it('launches the production Telegram cutover through a boundary-checked status wrapper', async () => {
+    const source = await readFile(
+      new URL('../../toolkit/run-production-telegram-cutover.ps1', import.meta.url),
+      'utf8',
+    );
+    expect(source).toContain('assert-boundary.ps1');
+    expect(source).toContain('cutover-production-telegram.ps1');
+    expect(source).toContain('-ConfirmProductionWebhookCutover');
+    expect(source).toContain('-StatusFile $statusFile');
+    expect(source).not.toContain('TELEGRAM_BOT_TOKEN');
   });
 
   it('serializes the full quality gate to prevent shared-output races', async () => {

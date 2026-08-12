@@ -4655,7 +4655,18 @@ async function request(pathname, init, expectedStatus) {
   } catch (error) {
     throw new Error(`Transport failure while requesting ${pathname}.`, { cause: error });
   }
-  const body = response.status === 204 ? null : await response.json();
+  const rawBody = response.status === 204 ? '' : await response.text();
+  let body = null;
+  if (response.status !== 204) {
+    try {
+      body = JSON.parse(rawBody);
+    } catch (error) {
+      throw new Error(
+        `Expected JSON from ${pathname}, received HTTP ${response.status} with body: ${rawBody.slice(0, 500)}`,
+        { cause: error },
+      );
+    }
+  }
   if (response.status !== expectedStatus) {
     throw new Error(
       `Expected ${expectedStatus} from ${pathname}, received ${response.status}: ${JSON.stringify(body)}\n${workerOutput}`,

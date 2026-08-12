@@ -1,5 +1,6 @@
 param(
-  [switch]$ConfirmProductionWebhookCutover
+  [switch]$ConfirmProductionWebhookCutover,
+  [string]$StatusFile
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +25,21 @@ $stagingWebhookSecret = $null
 $applyStarted = $false
 $cutoverStartedAt = 0
 $smokeMarker = $null
+
+function Write-CutoverStatus([string]$Stage, [string]$Message) {
+  if ([string]::IsNullOrWhiteSpace($StatusFile)) { return }
+  $statusPath = [IO.Path]::GetFullPath($StatusFile)
+  $allowedRoot = [IO.Path]::GetFullPath($projectRoot) + [IO.Path]::DirectorySeparatorChar
+  if (-not $statusPath.StartsWith($allowedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "StatusFile must stay inside the Velora project."
+  }
+  $payload = [ordered]@{
+    stage = $Stage
+    message = $Message
+    updatedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  } | ConvertTo-Json -Compress
+  [IO.File]::WriteAllText($statusPath, $payload, [Text.UTF8Encoding]::new($false))
+}
 
 function New-UrlSafeSecret([int]$ByteCount) {
   $bytes = New-Object byte[] $ByteCount
@@ -96,6 +112,7 @@ if (-not $ConfirmProductionWebhookCutover) {
 }
 
 try {
+  Write-CutoverStatus "PREFLIGHT" "Checking production and the complete local quality gate."
   Set-Location -LiteralPath $projectRoot
   $env:CLOUDFLARE_API_TOKEN = $null
   $env:CLOUDFLARE_ACCOUNT_ID = $accountId
@@ -116,6 +133,7 @@ try {
   Invoke-Checked { & (Join-Path $PSScriptRoot "verify.ps1") } "The local quality gate failed. Telegram was not changed."
   Assert-ProductionEndpoints "pre-deploy"
 
+  Write-CutoverStatus "AWAITING_TOKEN" "Waiting for the hidden @aivel0ra_bot token input."
   $secureTelegramToken = Read-Host "Paste the @aivel0ra_bot BotFather token (hidden)" -AsSecureString
   $telegramPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureTelegramToken)
   $telegramToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($telegramPointer)
@@ -128,6 +146,7 @@ try {
   Set-TelegramEnvironment $productionUrl $productionWebhookSecret
   Invoke-Checked { & node $telegramConfigurator } "Telegram configuration dry-run failed. Telegram was not changed."
   Invoke-Checked { & node $telegramConfigurator --check-identity } "Telegram did not confirm @aivel0ra_bot. Telegram was not changed."
+  Write-CutoverStatus "DEPLOYING" "Token identity confirmed; deploying the verified production Worker."
   Invoke-Checked {
     & node $wrangler deploy '--env=' --config $wranglerConfig
   } "The verified production Worker could not be deployed. Telegram was not changed."
@@ -141,6 +160,7 @@ try {
   Write-SecretFile $stagingSecretFile $stagingWebhookSecret
 
   Write-Host "Updating the production Telegram secrets as one Cloudflare operation..." -ForegroundColor Yellow
+  Write-CutoverStatus "UPDATING_SECRETS" "Post-deploy health passed; updating only production Telegram secrets."
   Invoke-Checked {
     & node $wrangler secret bulk $productionSecretFile '--env=' --config $wranglerConfig
   } "Production Telegram secrets were not updated. The webhook remains on staging."
@@ -148,6 +168,7 @@ try {
   $cutoverStartedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
   $smokeMarker = "velora_smoke_$(New-UrlSafeSecret 24)"
   $applyStarted = $true
+  Write-CutoverStatus "APPLYING_TELEGRAM" "Applying and verifying the production Telegram configuration."
   $configurationOutput = & node $telegramConfigurator --apply | Out-String
   if ($LASTEXITCODE -ne 0) { throw "Telegram rejected the production configuration." }
   $configuration = $configurationOutput | ConvertFrom-Json
@@ -168,10 +189,12 @@ try {
 
   Write-Host "Telegram cutover completed and verified for @$botUsername." -ForegroundColor Green
   Write-Host "Complete the real /start and Mini App smoke in Telegram now." -ForegroundColor Yellow
+  Write-CutoverStatus "AWAITING_OWNER_SMOKE" "Send the displayed one-time /start command and open the Mini App within five minutes."
   Invoke-Checked {
     & node $telegramSmoke --started-at $cutoverStartedAt --timeout-seconds 300 --marker $smokeMarker
   } "Production /start or Mini App authentication smoke failed."
   $applyStarted = $false
+  Write-CutoverStatus "COMPLETED" "Production Telegram cutover and exact owner smoke passed."
 }
 catch {
   $originalFailure = $_.Exception.Message
@@ -186,6 +209,7 @@ catch {
       Write-Host "Run the documented manual rollback immediately." -ForegroundColor Red
     }
   }
+  Write-CutoverStatus "FAILED" $originalFailure
   Write-Host "Telegram cutover stopped: $originalFailure" -ForegroundColor Red
   exit 1
 }

@@ -93,6 +93,38 @@ describe('Telegram production configurator', () => {
       process.argv.splice(process.argv.lastIndexOf('--apply'), 1);
     }
   });
+
+  it('distinguishes a rejected token from a token owned by another bot', async () => {
+    installEnvironment();
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('{"ok":false}', { status: 401 })));
+    process.argv.push('--check-identity');
+    try {
+      vi.resetModules();
+      await expect(import('../../toolkit/configure-telegram.mjs')).rejects.toThrow(
+        'Telegram rejected the bot token (HTTP 401).',
+      );
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--check-identity'), 1);
+    }
+
+    installEnvironment();
+    vi.stubGlobal('fetch', async () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ok: true, result: { username: 'another_bot' } }), {
+          status: 200,
+        }),
+      ),
+    );
+    process.argv.push('--check-identity');
+    try {
+      vi.resetModules();
+      await expect(import('../../toolkit/configure-telegram.mjs')).rejects.toThrow(
+        'The token belongs to @another_bot, not @aivel0ra_bot.',
+      );
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--check-identity'), 1);
+    }
+  });
 });
 
 function installEnvironment(): void {

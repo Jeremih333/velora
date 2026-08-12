@@ -17,3 +17,4 @@ toolkit/backups/
 toolkit/reports/private/
 *.local
 .velora-verify.lock
+.phase2-status.json

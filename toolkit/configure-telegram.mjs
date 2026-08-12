@@ -101,7 +101,10 @@ async function call(method, body = {}) {
   });
   const result = await response.json();
   if (!response.ok || !result || typeof result !== 'object' || result.ok !== true) {
-    throw new Error(`Telegram operation ${method} failed.`);
+    if (method === 'getMe' && response.status === 401) {
+      throw new Error('Telegram rejected the bot token (HTTP 401).');
+    }
+    throw new Error(`Telegram operation ${method} failed with HTTP ${response.status}.`);
   }
   return result.result;
 }
@@ -113,7 +116,11 @@ if (
   typeof identity.username !== 'string' ||
   identity.username.toLowerCase() !== botUsername.toLowerCase()
 ) {
-  throw new Error('The token owner does not match TELEGRAM_BOT_USERNAME.');
+  const actualUsername =
+    identity && typeof identity === 'object' && typeof identity.username === 'string'
+      ? `@${identity.username}`
+      : 'a bot without a public username';
+  throw new Error(`The token belongs to ${actualUsername}, not @${botUsername}.`);
 }
 if (checkIdentity) {
   console.log(JSON.stringify({ identityVerified: true, apiEnvironment, botUsername }, null, 2));
