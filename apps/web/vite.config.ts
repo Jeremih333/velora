@@ -10,5 +10,10 @@ export default defineConfig({
       '/ready': 'http://127.0.0.1:8787',
     },
   },
-  build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 600 },
+  build: {
+    target: 'es2022',
+    sourcemap: true,
+    manifest: true,
+    chunkSizeWarningLimit: 500,
+  },
 });

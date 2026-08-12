@@ -1700,6 +1700,94 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll');
 });
 
+test('authenticated shell and heavy workspaces load from separate chunks', async ({ page }) => {
+  const loadedScripts = new Set<string>();
+  page.on('response', (response) => {
+    const url = new URL(response.url());
+    if (url.pathname.endsWith('.js')) loadedScripts.add(url.pathname);
+  });
+  await page.route('https://telegram.org/js/telegram-web-app.js?61', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/javascript',
+      body: `window.Telegram={WebApp:{initData:'signed-init-data',colorScheme:'dark',ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){}}};`,
+    }),
+  );
+  await page.route('**/health', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{"status":"ok"}' }),
+  );
+  await page.route('**/api/v1/auth/telegram', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ csrfToken: 'csrf-token' }),
+    }),
+  );
+  await page.route('**/api/v1/me', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'bundle-user',
+        username: null,
+        displayName: 'Bundle user',
+        avatarFileId: null,
+        locale: 'en',
+        role: 'USER',
+        moderationState: 'ACTIVE',
+        ageGateAccepted: true,
+        creditBalanceMicros: 0,
+        onboardingCompleted: true,
+        plan: 'FREE',
+        planDisplayName: 'Free',
+        planAccessUntil: null,
+        planEntitlements: {
+          rateLimitMultiplier: 1,
+          characterLimit: 3,
+          personaLimit: 1,
+          memoryTokenBudget: 1000,
+          loreTokenBudget: 500,
+          advancedOperationsDaily: 1,
+          modelProfiles: ['BALANCED'],
+        },
+      }),
+    }),
+  );
+  await page.route('**/api/v1/feature-flags/public', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ flags: { public_reviews: false } }),
+    }),
+  );
+  await page.route('**/api/v1/feature-flags', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ flags: { public_reviews: false } }),
+    }),
+  );
+  await page.route('**/api/v1/discovery**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], nextCursor: null }),
+    }),
+  );
+  await page.route('**/api/v1/conversations', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' }),
+  );
+
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: /Chats/u })).toBeVisible();
+  expect([...loadedScripts].some((file) => file.includes('AuthenticatedApp-'))).toBe(true);
+  expect([...loadedScripts].some((file) => file.includes('ChatsView-'))).toBe(false);
+
+  await page.getByRole('button', { name: /Chats/u }).click();
+  await expect(page.getByRole('heading', { name: 'Chats', exact: true })).toBeVisible();
+  expect([...loadedScripts].some((file) => file.includes('ChatsView-'))).toBe(true);
+});
+
 test('owner manages moderator appointments without exposing the control to staff', async ({
   page,
 }) => {

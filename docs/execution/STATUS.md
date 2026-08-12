@@ -30,6 +30,7 @@ Updated: 2026-08-12.
 | Owner user grants             | VERIFIED_STAGING  | ID lookup, audited/idempotent plan+credit grants, revocation; no fake payments            |
 | Reliability controls          | VERIFIED_MVP      | limits, private events, live deduped alert/recovery, admin metrics                        |
 | Local capacity                | VERIFIED_SLICE    | 40 user/D1/search requests, 4 AI streams; budget is first boundary                        |
+| Web bundle performance        | VERIFIED_LOCAL    | initial JS 650,138→306,635 B; lazy workspace and 350 KB build/E2E guards                  |
 | Fixtures and staging seed     | VERIFIED          | idempotent 4 users/12 chars/4 personas/2 lore/240 chat/3 cases                            |
 | Resilient/accessibility UX    | VERIFIED_SLICE    | offline draft, focus, labels, reduced motion, 200% font E2E                               |
 | Visual regression             | VERIFIED_SLICE    | 24 Linux baselines; 8 states across Android/iPhone/Desktop                                |

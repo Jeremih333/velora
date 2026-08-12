@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { apiRequest, setCsrfToken } from './api';
-import { AuthenticatedApp } from './AuthenticatedApp';
 import { detectWebLocale, I18nProvider, useI18n, type Locale } from './i18n';
 import { OfflineBanner, useOnlineStatus } from './online-status';
 import { initializeTelegram } from './telegram';
@@ -10,6 +9,11 @@ import type { AuthResponse, MeResponse } from './types';
 interface HealthResponse {
   readonly status: string;
 }
+
+const AuthenticatedApp = lazy(async () => {
+  const module = await import('./AuthenticatedApp');
+  return { default: module.AuthenticatedApp };
+});
 
 type AuthState =
   | { readonly status: 'checking' }
@@ -114,7 +118,9 @@ function AppContent({ onLocaleResolved }: { readonly onLocaleResolved: (locale: 
     return (
       <>
         <OfflineBanner online={online} />
-        <AuthenticatedApp initialUser={authState.user} onLocaleChange={onLocaleResolved} />
+        <Suspense fallback={<AuthenticatedShellFallback />}>
+          <AuthenticatedApp initialUser={authState.user} onLocaleChange={onLocaleResolved} />
+        </Suspense>
       </>
     );
   }
@@ -190,6 +196,18 @@ function AppContent({ onLocaleResolved }: { readonly onLocaleResolved: (locale: 
         <span>⌁</span>
         <p>{messages.shell.secure}</p>
       </aside>
+    </main>
+  );
+}
+
+function AuthenticatedShellFallback() {
+  const { messages } = useI18n();
+  return (
+    <main className="app-shell product-shell" aria-busy="true">
+      <section className="workspace loading-workspace" role="status">
+        <span className="loading-orbit" aria-hidden="true" />
+        <p>{messages.shell.preparing}</p>
+      </section>
     </main>
   );
 }

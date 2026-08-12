@@ -2366,3 +2366,33 @@ h1 {
     transition: none !important;
   }
 }
+.loading-workspace {
+  min-height: 16rem;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.9rem;
+  color: var(--muted);
+}
+
+.loading-orbit {
+  width: 2.25rem;
+  aspect-ratio: 1;
+  border: 0.2rem solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loading-orbit 0.8s linear infinite;
+}
+
+@keyframes loading-orbit {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-orbit {
+    animation: none;
+    border-color: var(--accent);
+  }
+}

@@ -1,12 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { renderTemplate } from '@velora/prompts';
 import { ru } from '@velora/shared';
 import { apiRequest } from './api';
 import { allowsCharacterAutosave, pendingAutosaveState } from './character-autosave';
-import { ChatsView } from './ChatsView';
 import { localizedErrorMessage } from './error-localization';
-import { LorebooksView } from './LorebooksView';
 import { getWebMessages, useI18n, type Locale, type WebMessages } from './i18n';
 import { openTelegramInvoice, type InvoiceStatus } from './telegram';
 import type {
@@ -41,6 +39,16 @@ import type {
   SupportState,
   UserProfile,
 } from './types';
+
+const ChatsView = lazy(async () => {
+  const module = await import('./ChatsView');
+  return { default: module.ChatsView };
+});
+
+const LorebooksView = lazy(async () => {
+  const module = await import('./LorebooksView');
+  return { default: module.LorebooksView };
+});
 
 type Tab =
   | 'discover'
@@ -166,11 +174,13 @@ export function AuthenticatedApp({
           />
         ) : null}
         {tab === 'chats' ? (
-          <ChatsView
-            initialConversationId={conversationId}
-            allowedModelProfiles={me.data.planEntitlements.modelProfiles}
-            onConversationOpened={setConversationId}
-          />
+          <Suspense fallback={<WorkspaceFallback label={messages.navigation.chats} />}>
+            <ChatsView
+              initialConversationId={conversationId}
+              allowedModelProfiles={me.data.planEntitlements.modelProfiles}
+              onConversationOpened={setConversationId}
+            />
+          </Suspense>
         ) : null}
         {tab === 'characters' ? (
           <CharactersView
@@ -185,11 +195,13 @@ export function AuthenticatedApp({
           />
         ) : null}
         {tab === 'lorebooks' ? (
-          <LorebooksView
-            onBack={() => {
-              setTab('characters');
-            }}
-          />
+          <Suspense fallback={<WorkspaceFallback label={messages.lorebooks.title} />}>
+            <LorebooksView
+              onBack={() => {
+                setTab('characters');
+              }}
+            />
+          </Suspense>
         ) : null}
         {tab === 'personas' ? <PersonasView notify={setNotice} /> : null}
         {tab === 'billing' ? <BillingView account={me.data} notify={setNotice} /> : null}
@@ -251,6 +263,15 @@ export function AuthenticatedApp({
         />
       </nav>
     </main>
+  );
+}
+
+function WorkspaceFallback({ label }: { readonly label: string }) {
+  return (
+    <div className="view-stack loading-workspace" role="status" aria-busy="true">
+      <span className="loading-orbit" aria-hidden="true" />
+      <p>{label}</p>
+    </div>
   );
 }
 

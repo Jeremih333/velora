@@ -293,6 +293,12 @@ verified; the full product from the master brief is still in progress.
   Analytics/D1 read token and a human Billing dashboard comparison because Cloudflare explicitly
   describes GraphQL analytics as operational rather than billing-authoritative. The guard cannot
   buy, enable or upgrade a Cloudflare plan; no account mutation was made during verification.
+- The web performance audit replaced the 650,138-byte monolithic entry with measured lazy product
+  boundaries: 306,635-byte initial entry, 148,982-byte authenticated shell, 183,811-byte chat and
+  13,225-byte lorebook editor. A Vite-manifest build gate rejects any JavaScript artifact above
+  350,000 bytes or loss of the required lazy entries; Android, iPhone and desktop E2E prove Chats
+  is not fetched before navigation and remains usable after its on-demand load. This is local/CI
+  evidence only until the exact build is deployed and smoke-tested in staging.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -315,4 +321,4 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 129 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 35 integration tests, both builds and 9/9 E2E cases without retries.
+tests, 37 integration tests, both builds and 12/12 E2E cases without retries.

@@ -37,6 +37,19 @@
 
 ## Next
 
+## Milestone 10 — PERFORMANCE HARDENING — VERIFIED_LOCAL
+
+- [x] Split the authenticated shell, chat/Markdown runtime and lorebook editor into explicit lazy
+      chunks without removing product behavior.
+- [x] Reduce the initial uncompressed JavaScript entry from 650,138 to 306,635 bytes and cap every
+      JavaScript artifact at 350,000 bytes through a manifest-based build gate.
+- [x] Prove in browser E2E that authentication loads the authenticated chunk, Chats stays unloaded
+      until requested and the requested workspace remains usable.
+- [ ] Deploy the performance build to staging and repeat health/readiness/static shell smoke after
+      clean-clone CI passes.
+
+## Next
+
 ## Milestone 8 — NON-RENEWING PLAN ACCESS — VERIFIED_MVP
 
 - [x] Add typed Free, Plus and Pro entitlements for rate limits, resource counts, memory/lore

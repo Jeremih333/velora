@@ -58,3 +58,13 @@ used for generation. It exposes the rendered character sections, memory, activat
 branch messages and token estimates only to the character creator or an administrator/owner who
 owns the inspected conversation. A normal reader's conversation with another creator's character
 fails with 403, so creator instructions are not converted into a public character field.
+
+## 2026-08-12 — Measured lazy boundaries with a hard bundle budget
+
+Context: the production web build emitted one 650,138-byte entry even though chats, Markdown and
+the lorebook editor are not required on first paint. Options: silence the warning, raise the limit,
+manually configure vendor chunks, or split at product navigation boundaries. Chosen: lazy-load the
+authenticated app after verified Telegram auth, then lazy-load Chats and Lorebooks on demand; use
+the generated manifest to cap both the entry and every JavaScript chunk at 350,000 uncompressed
+bytes. Consequences: the initial artifact is 306,635 bytes; loading states are required and tested;
+build, integration and browser gates fail if the split silently regresses.
