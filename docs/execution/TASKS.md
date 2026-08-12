@@ -16,7 +16,7 @@
 - [x] Create isolated `velora-staging` and `velora-production` D1 resources.
 - [x] Deploy staging and prove smoke; production remains gated by real bot/AI secrets.
 
-## Milestone 1 — IN_PROGRESS
+## Milestone 1 — VERIFIED_MVP
 
 - [x] Secure Telegram initData verification, persisted sessions and CSRF protection.
 - [x] Idempotent webhook command handlers and safe Telegram image ingestion.

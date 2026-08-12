@@ -52,10 +52,12 @@ the forecast cheaper.
 
 ## Accounting caveat
 
-The successful minimal V3 checkpoint must be reconciled against the BotHub usage/balance display
-before paid roleplay is enabled. Provider-reported usage is never allowed to reduce the
-conservative internal reservation. Daily, monthly and lifetime provider budgets remain the
-authoritative fail-closed boundary.
+The minimal V3 checkpoint completed and was reconciled through immutable run/accounting evidence
+before paid roleplay was enabled on staging. The subsequent owner-confirmed live chat produced one
+and only one linked charge. Provider-reported usage is never allowed to reduce the conservative
+internal reservation. Daily, monthly and lifetime provider budgets remain the authoritative
+fail-closed boundary. The current external BotHub balance is intentionally not asserted here
+without a fresh authenticated provider reading.
 
 ## Observed staging sample — 12 August 2026
 
