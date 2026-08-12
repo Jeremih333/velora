@@ -25,6 +25,10 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    files: ['**/*.d.mts'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node, ...globals.worker },

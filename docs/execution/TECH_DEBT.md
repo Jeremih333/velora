@@ -11,7 +11,9 @@ No hidden shortcuts are accepted. Current explicit gaps:
   no unverified model is enabled merely to close this gap.
 - Free-plan scale is intentionally bounded. Privacy-safe alerts already cover AI budget/error
   thresholds, dead jobs, erasure failures and repeated Telegram failures, with confirmed owner
-  delivery and an admin view. Direct near-quota telemetry for the external Workers/D1 Free
-  allowances is not yet available inside the runtime; before public growth it needs either a
-  reviewed Cloudflare analytics integration or a documented manual dashboard check. Hard quota
-  exhaustion must continue to degrade explicitly and must never trigger a paid Cloudflare upgrade.
+  delivery and an admin view. The read-only `toolkit/cloudflare-free-usage.mjs` guard checks
+  account-wide Workers requests plus D1 rows, storage and database count at 70%/85% boundaries.
+  Cloudflare documents GraphQL analytics as operational rather than billing-authoritative and it
+  may be adaptively sampled, so public growth still requires a human review of Billing > Billable
+  Usage whenever the guard warns or fails closed. Hard quota exhaustion must continue to degrade
+  explicitly and must never trigger a paid Cloudflare upgrade.

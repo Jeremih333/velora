@@ -286,6 +286,13 @@ verified; the full product from the master brief is still in progress.
   8,000-input/600-output envelope, 100 replies/day plus 15% reserve is 61,026 ₽, rounded to twelve
   manually purchased Elite packs; this is a planning envelope, not a price or availability
   guarantee, and no purchase/renewal was performed.
+- Cloudflare Free allowance observability now has a read-only, account-wide local guard for daily
+  Worker requests, daily D1 rows read/written, total D1 storage and D1 database count. Regression
+  tests lock the reviewed 70% warning and 85% critical boundaries, token non-disclosure and
+  fail-closed behavior for incomplete analytics. The operator runbook requires a narrowly scoped
+  Analytics/D1 read token and a human Billing dashboard comparison because Cloudflare explicitly
+  describes GraphQL analytics as operational rather than billing-authoritative. The guard cannot
+  buy, enable or upgrade a Cloudflare plan; no account mutation was made during verification.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -308,4 +315,4 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 129 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 30 integration tests, both builds and 9/9 E2E cases without retries.
+tests, 35 integration tests, both builds and 9/9 E2E cases without retries.
