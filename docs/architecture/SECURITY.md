@@ -5,7 +5,8 @@
 - CSRF protection for cookie mutations; strict origin allowlist and CSP.
 - Zod validation at every boundary and prepared D1 statements only.
 - RBAC and ownership checks are backend policies, never UI conditions alone.
-- Uploads validate declared/actual type, size and safe generated keys.
+- Uploads validate declared/actual type, byte size, parsed dimensions, bounded pixel geometry and
+  safe generated keys; Telegram dimension mismatches fail closed before persistence.
 - Markdown allows a sanitised subset; arbitrary HTML, event handlers and JavaScript URLs fail.
 - Logs contain request IDs and internal/hashed identity, not private message bodies or secrets.
 - AI/prompt content cannot invoke privileged tools or alter authorization.

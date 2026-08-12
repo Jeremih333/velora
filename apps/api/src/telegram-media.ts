@@ -35,6 +35,14 @@ const getFileResponseSchema = z.object({
 });
 
 const maxImageBytes = 10_000_000;
+const maxImageDimension = 8_192;
+const maxImagePixels = 40_000_000;
+
+export interface InspectedImage {
+  readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  readonly width: number;
+  readonly height: number;
+}
 
 export function selectTelegramImage(
   photos: readonly TelegramPhoto[] | undefined,
@@ -73,15 +81,23 @@ export async function storeTelegramImage(
   candidate: TelegramImageCandidate,
   token: string,
   fetcher: typeof fetch = fetch,
+  apiBaseUrl?: string,
 ): Promise<{ readonly id: string; readonly mimeType: string; readonly byteSize: number }> {
   if (candidate.declaredSize > maxImageBytes) {
     throw new AppError('MEDIA_TOO_LARGE', 'Изображение превышает лимит 10 МБ.', 413);
   }
-  const downloaded = await downloadTelegramFile(token, candidate.fileId, fetcher, maxImageBytes);
-  const mimeType = detectImageType(new Uint8Array(downloaded.bytes));
-  if (!mimeType) {
+  const downloaded = await downloadTelegramFile(
+    token,
+    candidate.fileId,
+    fetcher,
+    maxImageBytes,
+    apiBaseUrl,
+  );
+  const inspected = inspectImage(new Uint8Array(downloaded.bytes));
+  if (!inspected) {
     throw new AppError('UNSUPPORTED_MEDIA', 'Поддерживаются JPEG, PNG и WebP.', 415);
   }
+  assertSafeImageGeometry(inspected, candidate);
   const id = createId();
   const timestamp = nowMs();
   await database
@@ -101,11 +117,11 @@ export async function storeTelegramImage(
       ownerId,
       candidate.fileId,
       candidate.uniqueId,
-      mimeType,
+      inspected.mimeType,
       candidate.originalName,
       downloaded.bytes.byteLength,
-      candidate.width,
-      candidate.height,
+      inspected.width,
+      inspected.height,
       timestamp,
     )
     .run();
@@ -124,9 +140,12 @@ export async function fetchTelegramFile(
   token: string,
   fileId: string,
   fetcher: typeof fetch = fetch,
+  apiBaseUrl?: string,
 ): Promise<Response> {
-  const file = await getTelegramFile(token, fileId, fetcher);
-  const response = await fetcher(`https://api.telegram.org/file/bot${token}/${file.filePath}`);
+  const file = await getTelegramFile(token, fileId, fetcher, apiBaseUrl);
+  const response = await fetcher(
+    `${apiBaseUrl ?? 'https://api.telegram.org'}/file/bot${token}/${file.filePath}`,
+  );
   if (!response.ok || !response.body) {
     throw new AppError('MEDIA_UNAVAILABLE', 'Telegram временно не отдал медиафайл.', 503);
   }
@@ -138,12 +157,15 @@ async function downloadTelegramFile(
   fileId: string,
   fetcher: typeof fetch,
   maxBytes: number,
+  apiBaseUrl?: string,
 ): Promise<{ readonly bytes: ArrayBuffer }> {
-  const file = await getTelegramFile(token, fileId, fetcher);
+  const file = await getTelegramFile(token, fileId, fetcher, apiBaseUrl);
   if (file.fileSize !== null && file.fileSize > maxBytes) {
     throw new AppError('MEDIA_TOO_LARGE', 'Изображение превышает лимит 10 МБ.', 413);
   }
-  const response = await fetcher(`https://api.telegram.org/file/bot${token}/${file.filePath}`);
+  const response = await fetcher(
+    `${apiBaseUrl ?? 'https://api.telegram.org'}/file/bot${token}/${file.filePath}`,
+  );
   if (!response.ok) throw new AppError('MEDIA_UNAVAILABLE', 'Не удалось скачать медиафайл.', 503);
   const contentLength = Number(response.headers.get('content-length') ?? '0');
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
@@ -156,12 +178,20 @@ async function downloadTelegramFile(
   return { bytes };
 }
 
-async function getTelegramFile(token: string, fileId: string, fetcher: typeof fetch) {
-  const response = await fetcher(`https://api.telegram.org/bot${token}/getFile`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ file_id: fileId }),
-  });
+async function getTelegramFile(
+  token: string,
+  fileId: string,
+  fetcher: typeof fetch,
+  apiBaseUrl?: string,
+) {
+  const response = await fetcher(
+    `${apiBaseUrl ?? 'https://api.telegram.org'}/bot${token}/getFile`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId }),
+    },
+  );
   if (!response.ok) throw new AppError('MEDIA_UNAVAILABLE', 'Telegram не нашёл медиафайл.', 503);
   const parsed = getFileResponseSchema.safeParse(await response.json());
   if (!parsed.success)
@@ -199,4 +229,125 @@ export function detectImageType(
     return 'image/webp';
   }
   return null;
+}
+
+export function inspectImage(bytes: Uint8Array): InspectedImage | null {
+  const mimeType = detectImageType(bytes);
+  if (!mimeType) return null;
+  const dimensions =
+    mimeType === 'image/png'
+      ? inspectPng(bytes)
+      : mimeType === 'image/jpeg'
+        ? inspectJpeg(bytes)
+        : inspectWebp(bytes);
+  return dimensions ? { mimeType, ...dimensions } : null;
+}
+
+export function assertSafeImageGeometry(
+  image: InspectedImage,
+  candidate: TelegramImageCandidate,
+): void {
+  if (
+    image.width > maxImageDimension ||
+    image.height > maxImageDimension ||
+    image.width * image.height > maxImagePixels
+  ) {
+    throw new AppError(
+      'MEDIA_DIMENSIONS_TOO_LARGE',
+      'Размеры изображения превышают безопасный лимит.',
+      413,
+    );
+  }
+  if (
+    (candidate.width !== null && candidate.width !== image.width) ||
+    (candidate.height !== null && candidate.height !== image.height)
+  ) {
+    throw new AppError(
+      'MEDIA_DIMENSIONS_MISMATCH',
+      'Фактические размеры изображения не совпадают с данными Telegram.',
+      415,
+    );
+  }
+}
+
+function inspectPng(bytes: Uint8Array): { readonly width: number; readonly height: number } | null {
+  if (bytes.length < 24 || imageAscii(bytes, 12, 16) !== 'IHDR') return null;
+  return validDimensions(readUint32(bytes, 16), readUint32(bytes, 20));
+}
+
+function inspectJpeg(
+  bytes: Uint8Array,
+): { readonly width: number; readonly height: number } | null {
+  let offset = 2;
+  while (offset + 3 < bytes.length) {
+    if (bytes[offset] !== 0xff) return null;
+    while (bytes[offset] === 0xff) offset += 1;
+    const marker = bytes[offset];
+    offset += 1;
+    if (marker === undefined || marker === 0xd9 || marker === 0xda) return null;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    if (offset + 1 >= bytes.length) return null;
+    const length = (bytes[offset] ?? 0) * 256 + (bytes[offset + 1] ?? 0);
+    if (length < 2 || offset + length > bytes.length) return null;
+    const isStartOfFrame = marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
+    if (isStartOfFrame) {
+      if (length < 7) return null;
+      const height = (bytes[offset + 3] ?? 0) * 256 + (bytes[offset + 4] ?? 0);
+      const width = (bytes[offset + 5] ?? 0) * 256 + (bytes[offset + 6] ?? 0);
+      return validDimensions(width, height);
+    }
+    offset += length;
+  }
+  return null;
+}
+
+function inspectWebp(
+  bytes: Uint8Array,
+): { readonly width: number; readonly height: number } | null {
+  if (bytes.length < 30) return null;
+  const chunk = imageAscii(bytes, 12, 16);
+  if (chunk === 'VP8X') {
+    return validDimensions(
+      1 + readUint24LittleEndian(bytes, 24),
+      1 + readUint24LittleEndian(bytes, 27),
+    );
+  }
+  if (chunk === 'VP8L' && bytes[20] === 0x2f) {
+    const first = bytes[21] ?? 0;
+    const second = bytes[22] ?? 0;
+    const third = bytes[23] ?? 0;
+    const fourth = bytes[24] ?? 0;
+    return validDimensions(
+      1 + first + ((second & 0x3f) << 8),
+      1 + (second >> 6) + (third << 2) + ((fourth & 0x0f) << 10),
+    );
+  }
+  if (chunk === 'VP8 ' && bytes[23] === 0x9d && bytes[24] === 0x01 && bytes[25] === 0x2a) {
+    return validDimensions(
+      ((bytes[26] ?? 0) + ((bytes[27] ?? 0) << 8)) & 0x3fff,
+      ((bytes[28] ?? 0) + ((bytes[29] ?? 0) << 8)) & 0x3fff,
+    );
+  }
+  return null;
+}
+
+function validDimensions(
+  width: number,
+  height: number,
+): { readonly width: number; readonly height: number } | null {
+  return Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0
+    ? { width, height }
+    : null;
+}
+
+function readUint32(bytes: Uint8Array, offset: number): number {
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(offset, false);
+}
+
+function readUint24LittleEndian(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset] ?? 0) + ((bytes[offset + 1] ?? 0) << 8) + ((bytes[offset + 2] ?? 0) << 16);
+}
+
+function imageAscii(bytes: Uint8Array, start: number, end: number): string {
+  return String.fromCharCode(...bytes.slice(start, end));
 }

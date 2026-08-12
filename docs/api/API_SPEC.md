@@ -62,7 +62,8 @@ Base path: `/api/v1`. JSON errors use `ERROR_MODEL.md`; mutating requests accept
   and the allowlisted intersection of the authenticated BotHub model catalogue
 - owner-only `GET /admin/feature-flags` and
   `PATCH /admin/feature-flags/:key`; rollout changes apply without a deploy and are audited
-- `/media/:id` uses access checks and the configured media adapter
+- `/media/:id` uses access checks and the configured media adapter; Telegram ingestion parses
+  actual PNG/JPEG/WebP dimensions, bounds pixel geometry and never trusts declared dimensions
 - owned support requests at `GET/POST /support/requests`; administrator queue and state updates
   under `/admin/support/requests`
 - `/health`, `/ready`, `/openapi.json`

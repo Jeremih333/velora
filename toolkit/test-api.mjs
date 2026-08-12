@@ -234,6 +234,22 @@ const providerServer = createServer(async (request, response) => {
   for await (const chunk of request) chunks.push(chunk);
   const bodyText = Buffer.concat(chunks).toString('utf8');
   const body = bodyText ? JSON.parse(bodyText) : {};
+  if (
+    request.method === 'GET' &&
+    request.url === '/file/botintegration-bot-token/photos/integration.png'
+  ) {
+    const image = Buffer.alloc(24);
+    image.set([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10], 0);
+    image.write('IHDR', 12, 'ascii');
+    image.writeUInt32BE(800, 16);
+    image.writeUInt32BE(600, 20);
+    response.writeHead(200, {
+      'content-type': 'image/png',
+      'content-length': String(image.byteLength),
+    });
+    response.end(image);
+    return;
+  }
   if (request.method === 'GET' && request.url === '/models') {
     if (request.headers.authorization !== 'Bearer integration-ai-key') {
       respondJson(response, { error: 'unauthorized' }, 401);
@@ -301,6 +317,13 @@ const providerServer = createServer(async (request, response) => {
     respondJson(response, {
       ok: true,
       result: { short_description: configuredShortDescription },
+    });
+    return;
+  }
+  if (telegramMethod === 'getFile') {
+    respondJson(response, {
+      ok: true,
+      result: { file_path: 'photos/integration.png', file_size: 24 },
     });
     return;
   }
@@ -629,6 +652,57 @@ try {
   if (settings.theme !== 'amoled' || settings.locale !== 'en') {
     throw new Error('Settings mutation was not persisted.');
   }
+
+  await request(
+    '/telegram/webhook',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': 'integration-webhook-secret',
+      },
+      body: JSON.stringify({
+        update_id: 700_000_000 + Math.floor(Math.random() * 100_000_000),
+        message: {
+          message_id: 700001,
+          from: { id: Number(telegramId), first_name: 'Integration User', language_code: 'en' },
+          chat: { id: Number(telegramId), type: 'private' },
+          photo: [
+            {
+              file_id: 'integration-photo',
+              file_unique_id: 'integration-photo-unique',
+              width: 800,
+              height: 600,
+              file_size: 24,
+            },
+          ],
+        },
+      }),
+    },
+    200,
+  );
+  const uploadedMedia = await request('/api/v1/media', { headers }, 200);
+  const inspectedUpload = uploadedMedia.items.find(
+    (item) => item.width === 800 && item.height === 600 && item.mimeType === 'image/png',
+  );
+  if (!inspectedUpload?.id) {
+    throw new Error('Telegram image ingestion did not persist inspected byte dimensions.');
+  }
+  const uploadedContent = await fetch(`${baseUrl}/api/v1/media/${inspectedUpload.id}/content`, {
+    headers,
+  });
+  if (
+    uploadedContent.status !== 200 ||
+    uploadedContent.headers.get('content-type') !== 'image/png' ||
+    (await uploadedContent.arrayBuffer()).byteLength !== 24
+  ) {
+    throw new Error('Inspected Telegram image could not be proxied through the owned media route.');
+  }
+  await request(
+    `/api/v1/media/${inspectedUpload.id}`,
+    { method: 'DELETE', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
 
   const dataControls = await request('/api/v1/data-controls', { headers }, 200);
   if (

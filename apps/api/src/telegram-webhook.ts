@@ -265,7 +265,14 @@ export async function processTelegramUpdate(
     }
     const image = selectTelegramImage(message.photo, message.document);
     if (image) {
-      await storeTelegramImage(database, user.id, image, options.botToken, fetcher);
+      await storeTelegramImage(
+        database,
+        user.id,
+        image,
+        options.botToken,
+        fetcher,
+        options.telegramApiBaseUrl,
+      );
       reply = telegramMessages(locale).telegram.imageSaved;
     }
     if (reply) {

@@ -59,7 +59,12 @@ mediaRoutes.get('/:mediaId/content', async (context) => {
   if (!owned && (!publiclyReferenced || row.moderationState !== 'APPROVED')) {
     throw new AppError('MEDIA_NOT_FOUND', 'Медиафайл не найден.', 404);
   }
-  const upstream = await fetchTelegramFile(context.env.TELEGRAM_BOT_TOKEN, row.providerFileId);
+  const upstream = await fetchTelegramFile(
+    context.env.TELEGRAM_BOT_TOKEN,
+    row.providerFileId,
+    fetch,
+    context.env.ENVIRONMENT === 'local' ? context.env.TELEGRAM_API_BASE_URL : undefined,
+  );
   const headers = new Headers({
     'content-type': row.mimeType,
     'cache-control': publiclyReferenced ? 'public, max-age=300' : 'private, no-store',

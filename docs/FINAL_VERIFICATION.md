@@ -7,7 +7,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | Workspace isolation                  | boundary scripts and independent Git | boundary command       | path/account audit     | VERIFIED          | RoleMate untouched                |
 | GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
-| Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 102-path smoke | VERIFIED          | Assets bypass is explicit         |
+| Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 104-path smoke | VERIFIED          | Assets bypass is explicit         |
 | D1                                   | 66 schema tables, 27 migrations      | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
 | AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | full live chat         | VERIFIED_STAGING  | production remains disabled       |
@@ -26,14 +26,14 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 120 PASS; API contract: 4 PASS; integration/schema/cost-model: 27 PASS;
+- unit/regression: 122 PASS; API contract: 4 PASS; integration/schema/cost-model: 27 PASS;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
 - production builds: PASS;
 - Playwright Android/iPhone/Desktop: 9 PASS;
 - staging `/health`, `/ready`, `/openapi.json`, static shell and security-header smoke: PASS;
-- OpenAPI 3.1 publishes 100 concrete route paths with cookie/CSRF/webhook security and a stable
+- OpenAPI 3.1 publishes 104 concrete route paths with cookie/CSRF/webhook security and a stable
   error envelope; a real Wrangler integration regression guards its Worker-first Assets route;
 - staging migrations through 0025, 63-table integrity and Worker `e6f640e7` smoke: PASS;
 - prompt quality deployment Worker `19904cde` with health/readiness, 25 migrations, D1
@@ -111,6 +111,11 @@ Velora is **not production-ready yet**. This report is updated only with factual
   idempotency, immediate reversal and duplicate webhook all pass; pre-0027 export restored to
   27 migrations/66 tables; staging Worker `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` serves 104
   OpenAPI paths with `PAYMENTS_ENABLED=false`: PASS;
+- Telegram image hardening: actual PNG/JPEG/WebP geometry parsing, malformed-header rejection,
+  40-megapixel/8192-dimension bounds, declared-geometry mismatch rejection and real local
+  webhook-to-D1-to-owned-proxy regression; staging Worker
+  `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11`, 104 OpenAPI paths, D1 `quick_check=ok`, empty foreign-key
+  check and `PAYMENTS_ENABLED=false`: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

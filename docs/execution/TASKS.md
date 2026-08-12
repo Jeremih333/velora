@@ -301,6 +301,10 @@
       submission per payment, reconcile the entitlement immediately and on webhook replay, expose
       the safe payment/refund state in MiniApp, restore the pre-0027 staging export and deploy
       Worker `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` with payments still disabled.
+- [x] Harden Telegram avatar ingestion by parsing actual PNG, progressive/baseline JPEG and all
+      supported WebP dimension headers; reject malformed, oversized-pixel and Telegram-metadata
+      mismatches, persist only inspected geometry, prove the full webhook-to-media proxy flow and
+      deploy staging Worker `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11` with payments still disabled.
 
 ## Next
 

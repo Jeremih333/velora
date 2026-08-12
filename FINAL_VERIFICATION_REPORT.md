@@ -21,11 +21,11 @@ verified; the full product from the master brief is still in progress.
 - staging D1 migrations 0001-0027 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` is live with a five-minute
+- staging Worker version `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - the public OpenAPI 3.1 route contract is generated from the concrete Hono route table, exposes
-  all 100 current paths, models cookie/CSRF/webhook-secret boundaries, path parameters, the SSE
+  all 104 current paths, models cookie/CSRF/webhook-secret boundaries, path parameters, the SSE
   generation media type and the stable safe error envelope; four contract regressions and a real
   Wrangler route smoke prevent Cloudflare Assets from silently replacing it with the SPA;
 - persona CRUD/default and character immutable-version CRUD/publish/discovery pass against a real
@@ -43,7 +43,10 @@ verified; the full product from the master brief is still in progress.
   re-review and invalid-action denial pass the real Worker+D1 flow;
 - literal discovery search no longer relies on SQLite `LIKE` for Cyrillic input; the `instr`-based
   regression prevents the observed `LIKE or GLOB pattern too complex` D1 failure;
-- Telegram image storage validates actual bytes, isolates ownership and passes list/delete tests;
+- Telegram image storage validates actual bytes and parses real PNG, baseline/progressive JPEG and
+  VP8/VP8L/VP8X WebP dimensions; malformed headers, decompression-bomb geometry and mismatched
+  Telegram declarations are rejected before D1 persistence, while owner isolation and proxy/delete
+  pass a real webhook-to-media integration flow;
 - immutable message branches, idempotent writes, manual memory versions and restore are exercised
   against a real local Worker and D1;
 - memory jobs have conditional leases, bounded exponential retry/dead-letter handling and
@@ -244,6 +247,11 @@ verified; the full product from the master brief is still in progress.
   reviewed 27-migration/66-table schema before staging migration; Worker
   `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` is healthy with `PAYMENTS_ENABLED=false`. No real Stars
   invoice or refund was sent during this preflight.
+- Telegram image ingestion now verifies actual PNG/JPEG/WebP geometry, rejects malformed,
+  oversized-pixel and Telegram-metadata-mismatched files, and persists only inspected dimensions.
+  The real local webhook-to-D1-to-owned-proxy path and all quality gates passed; staging Worker
+  `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11` is healthy with 104 OpenAPI paths, 27 migrations,
+  `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.

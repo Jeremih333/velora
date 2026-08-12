@@ -3,7 +3,7 @@
 Status: `BLOCKED_HUMAN`. No live invoice is enabled or priced until the owner completes the legal
 and payment checkpoint below.
 
-The refund preflight is complete in staging Worker `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea`:
+The refund preflight remains live in staging Worker `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11`:
 owner-only initiation, payment-level idempotency, Telegram transport, entitlement reversal and
 duplicate webhook reconciliation pass automated tests. `PAYMENTS_ENABLED=false`; no real Stars
 were spent or refunded by this preflight.

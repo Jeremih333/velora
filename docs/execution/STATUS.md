@@ -17,7 +17,7 @@ Updated: 2026-08-12.
 | Character interactions       | VERIFIED_MVP      | D1-unique likes/bookmarks/reviews, creator aggregates and 3-device E2E                   |
 | Authenticated Mini App       | VERIFIED_MVP      | catalog/editors/settings and 3-device authenticated E2E                                  |
 | First-run onboarding         | VERIFIED_MVP      | 4 steps, optional persona, safe recommendations, idempotent completion                   |
-| Telegram image media         | VERIFIED_MVP      | magic-byte validation, owner isolation, proxy/delete integration                         |
+| Telegram image media         | VERIFIED_MVP      | byte type + real geometry validation, owner isolation, proxy/delete integration          |
 | Conversations/chat           | VERIFIED_MVP      | branches/actions, private draft tests, streaming, memory inspector                       |
 | Advanced roleplay            | VERIFIED_MVP      | exact prompt order/settings plus creator/admin inspector with IDOR deny                  |
 | Roleplay quality corpus      | VERIFIED_STAGING  | A-F assembly, V3 checkpoint and owner-confirmed persisted live chat                      |
@@ -40,7 +40,7 @@ Updated: 2026-08-12.
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                        |
 | Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                        |
 | Paid AI                      | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                    |
-| Staging                      | VERIFIED          | Worker `48b3c4cf`; D1 27/66 healthy; paid roleplay on, payments off                      |
+| Staging                      | VERIFIED          | Worker `a9d6eb18`; D1 27/66 healthy; paid roleplay on, payments off                      |
 | Production                   | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                  |
 
 RoleMate resources have not been changed or bound to Velora.
