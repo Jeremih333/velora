@@ -62,7 +62,7 @@ describe('Telegram production configurator', () => {
       commandCount: 10,
       russianCommandCount: 10,
       englishCommandCount: 10,
-      allowedUpdates: ['message', 'callback_query', 'pre_checkout_query'],
+      allowedUpdates: ['pre_checkout_query', 'message', 'callback_query'],
     });
     expect(methods).toEqual([
       'getMe',
@@ -173,7 +173,8 @@ function createTelegramFetch(methods: string[], wrongMenu = false): typeof fetch
     if (method === 'getWebhookInfo') {
       result = {
         url: `${productionUrl}telegram/webhook`,
-        allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
+        // Telegram does not guarantee that set-like values preserve request order.
+        allowed_updates: ['pre_checkout_query', 'message', 'callback_query'],
       };
     }
     if (method === 'getChatMenuButton') {

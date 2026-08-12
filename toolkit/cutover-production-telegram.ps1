@@ -184,7 +184,7 @@ try {
     [int]$configuration.commandCount -ne 10 -or
     [int]$configuration.russianCommandCount -ne 10 -or
     [int]$configuration.englishCommandCount -ne 10 -or
-    (@($configuration.allowedUpdates) -join ',') -ne 'message,callback_query,pre_checkout_query'
+    (@($configuration.allowedUpdates | Sort-Object) -join ',') -ne 'callback_query,message,pre_checkout_query'
   ) {
     throw "Telegram production configuration verification failed."
   }

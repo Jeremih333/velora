@@ -199,7 +199,8 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('$configuration.menuUrl -ne "$productionUrl/"');
     expect(source).toContain('[int]$configuration.russianCommandCount -ne 10');
     expect(source).toContain('[int]$configuration.englishCommandCount -ne 10');
-    expect(source).toContain("'message,callback_query,pre_checkout_query'");
+    expect(source).toContain('$configuration.allowedUpdates | Sort-Object');
+    expect(source).toContain("'callback_query,message,pre_checkout_query'");
     expect(source).toContain('Production /start or Mini App authentication smoke failed.');
     expect(source).toContain('--marker $smokeMarker');
     expect(source).toContain('$attempt -le 12');
