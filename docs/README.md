@@ -8,7 +8,7 @@
 - `api/` — HTTP/webhook contracts и единая модель ошибок.
 - `design/` — самостоятельная visual language и mobile-first UX.
 - `operations/` — deploy, backup/restore, incidents, стоимость и owner runbook.
-- `testing/` — план, матрица и критерии приёмки.
+- `testing/` — план, матрица, трассировка всех требований и критерии приёмки.
 - `decisions/` — проверяемые архитектурные решения.
 - `execution/` — план, задачи, статус, решения и технический долг.
 

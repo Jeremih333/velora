@@ -2,6 +2,10 @@
 
 Velora is **not production-ready yet**. This report is updated only with factual evidence.
 
+The section-by-section audit of every master-brief section `0`–`178` is maintained in
+[Requirement traceability](testing/REQUIREMENT_TRACEABILITY.md). The compact table below is an
+operational summary and must not be read as a substitute for that audit.
+
 | Feature                              | Implementation                       | Automated test          | Manual test            | Status            | Notes                             |
 | ------------------------------------ | ------------------------------------ | ----------------------- | ---------------------- | ----------------- | --------------------------------- |
 | Workspace isolation                  | boundary scripts and independent Git | boundary command        | path/account audit     | VERIFIED          | RoleMate untouched                |
@@ -28,7 +32,8 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
 - latest complete gate: 131 unit/regression PASS; roleplay-quality: 6 PASS; API contract: 4 PASS;
-  integration/schema/cost/bundle: 60 PASS; Android/iPhone/Desktop E2E: 12 PASS without retries;
+  integration/schema/cost/bundle/traceability: 62 PASS; Android/iPhone/Desktop E2E: 12 PASS
+  without retries;
   an earlier desktop startup timeout passed 3/3 in an exact no-retry rerun before this clean gate;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;

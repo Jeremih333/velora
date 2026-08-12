@@ -390,9 +390,12 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 - the Telegram webhook cutover remains separately gated by explicit owner authorization; until
   then staging keeps receiving bot updates and production Telegram reconciliation remains off.
 
-No missing feature is reported as complete. The latest complete local gate passed secret scan,
-formatting, lint, strict typecheck, 131 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 60 integration tests, both builds and 12/12 E2E without retries. The gate now holds an
+No missing feature is reported as complete. A new mechanically checked traceability matrix now has
+exactly one row for every numbered master-brief section `0`–`178` and explicitly retains the
+production Telegram, live Stars, R2/full-media and post-launch evidence gaps. The latest complete
+local gate passed secret scan, formatting, lint, strict typecheck, 131 unit/regression tests, 6
+roleplay-quality tests, 4 contract tests, 62 integration tests, both builds and 12/12 E2E without
+retries. The gate now holds an
 exclusive local lock, preventing concurrent reruns from racing over integration and browser output
 directories. An earlier desktop startup timeout passed 3/3 in an exact no-retry rerun before the
 latest clean full gate.
