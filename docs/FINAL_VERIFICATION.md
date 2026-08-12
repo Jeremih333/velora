@@ -105,6 +105,9 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - concurrent authentication regression sends the same valid signed `initData` twice in parallel;
   exactly one response is 201 with a complete session and exactly one is stable 409
   `INIT_DATA_REPLAYED`, with no 500 or second winning session: PASS.
+- concurrent-login hardening clean-clone CI `31563647374` and staging Worker
+  `eeab29c5-600b-4df8-a652-17ad773e8055`: PASS; post-deploy health/readiness, root/OpenAPI 200,
+  protected `/me` 401, D1 `quick_check=ok`, 28 migrations/66 tables and zero FK violations: PASS.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

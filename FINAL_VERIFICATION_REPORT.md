@@ -313,6 +313,10 @@ verified; the full product from the master brief is still in progress.
 - The first-run suite also reproduces simultaneous reuse of one valid signed `initData`. The D1
   nonce uniqueness is the serialization point: one request wins with 201 and one maps the race to
   `409 INIT_DATA_REPLAYED`; no 500 and no second successful session are allowed.
+- Concurrent-login hardening passed the complete local gate and clean-clone CI `31563647374`, then
+  shipped only to staging Worker `eeab29c5-600b-4df8-a652-17ad773e8055`. Health/readiness,
+  root/OpenAPI, protected-session rejection and 28-migration/66-table D1 integrity passed; no
+  migration, production resource, payment flag or provider request changed.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease

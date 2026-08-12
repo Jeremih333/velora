@@ -50,6 +50,8 @@
 - [x] Pass the full quality gate, clean-clone CI `31562407535`, deploy staging Worker
       `e928ec7f-610f-47c5-85c2-b78ec18294fd` and verify health/readiness, unauthenticated 401,
       static assets and D1 integrity without a migration or paid-gate change.
+- [x] Pass the complete gate and clean-clone CI `31563647374` for concurrent-login hardening,
+      deploy staging Worker `eeab29c5-600b-4df8-a652-17ad773e8055`, and repeat HTTP/D1 smoke.
 
 ## Next
 
