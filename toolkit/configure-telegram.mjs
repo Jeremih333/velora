@@ -50,29 +50,25 @@ const englishCommands = [
   { command: 'terms', description: 'Terms of use' },
   { command: 'privacy', description: 'Privacy policy' },
 ];
+const description =
+  'Velora — пространство для AI roleplay: персонажи, personas, память, ветвление историй и полный контроль над контекстом.';
+const shortDescription = 'AI roleplay с персонажами и живой памятью.';
+const menuButton = { type: 'web_app', text: 'Открыть', web_app: { url: appUrl.href } };
+const allowedUpdates = ['message', 'callback_query', 'pre_checkout_query'];
 
 const operations = [
   ['setMyCommands', { commands }],
   ['setMyCommands', { commands, language_code: 'ru' }],
   ['setMyCommands', { commands: englishCommands, language_code: 'en' }],
-  [
-    'setChatMenuButton',
-    { menu_button: { type: 'web_app', text: 'Открыть', web_app: { url: appUrl.href } } },
-  ],
-  [
-    'setMyDescription',
-    {
-      description:
-        'Velora — пространство для AI roleplay: персонажи, personas, память, ветвление историй и полный контроль над контекстом.',
-    },
-  ],
-  ['setMyShortDescription', { short_description: 'AI roleplay с персонажами и живой памятью.' }],
+  ['setChatMenuButton', { menu_button: menuButton }],
+  ['setMyDescription', { description }],
+  ['setMyShortDescription', { short_description: shortDescription }],
   [
     'setWebhook',
     {
       url: new URL('/telegram/webhook', appUrl).href,
       secret_token: webhookSecret,
-      allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
+      allowed_updates: allowedUpdates,
       drop_pending_updates: false,
     },
   ],
@@ -127,21 +123,85 @@ for (const [method, body] of operations) await call(method, body);
 const webhook = await call('getWebhookInfo');
 const menu = await call('getChatMenuButton');
 const configuredCommands = await call('getMyCommands');
+const configuredRussianCommands = await call('getMyCommands', { language_code: 'ru' });
+const configuredEnglishCommands = await call('getMyCommands', { language_code: 'en' });
+const configuredDescription = await call('getMyDescription');
+const configuredShortDescription = await call('getMyShortDescription');
+const webhookUrl =
+  webhook && typeof webhook === 'object' && typeof webhook.url === 'string' ? webhook.url : null;
+const webhookAllowedUpdates =
+  webhook && typeof webhook === 'object' && Array.isArray(webhook.allowed_updates)
+    ? webhook.allowed_updates
+    : [];
+const expectedWebhookUrl = new URL('/telegram/webhook', appUrl).href;
+const exactConfigurationVerified =
+  webhookUrl === expectedWebhookUrl &&
+  sameStrings(webhookAllowedUpdates, allowedUpdates) &&
+  menu &&
+  typeof menu === 'object' &&
+  menu.type === menuButton.type &&
+  menu.text === menuButton.text &&
+  menu.web_app &&
+  typeof menu.web_app === 'object' &&
+  menu.web_app.url === menuButton.web_app.url &&
+  sameCommands(configuredCommands, commands) &&
+  sameCommands(configuredRussianCommands, commands) &&
+  sameCommands(configuredEnglishCommands, englishCommands) &&
+  configuredDescription &&
+  typeof configuredDescription === 'object' &&
+  configuredDescription.description === description &&
+  configuredShortDescription &&
+  typeof configuredShortDescription === 'object' &&
+  configuredShortDescription.short_description === shortDescription;
+if (!exactConfigurationVerified) {
+  throw new Error('Telegram configuration verification failed.');
+}
 console.log(
   JSON.stringify(
     {
       configured: true,
+      exactConfigurationVerified,
       apiEnvironment,
       botUsername,
-      webhookUrl:
-        webhook && typeof webhook === 'object' && typeof webhook.url === 'string'
-          ? webhook.url
-          : null,
+      webhookUrl,
       menuType:
         menu && typeof menu === 'object' && typeof menu.type === 'string' ? menu.type : null,
+      menuText:
+        menu && typeof menu === 'object' && typeof menu.text === 'string' ? menu.text : null,
+      menuUrl:
+        menu &&
+        typeof menu === 'object' &&
+        menu.web_app &&
+        typeof menu.web_app === 'object' &&
+        typeof menu.web_app.url === 'string'
+          ? menu.web_app.url
+          : null,
       commandCount: Array.isArray(configuredCommands) ? configuredCommands.length : 0,
+      russianCommandCount: Array.isArray(configuredRussianCommands)
+        ? configuredRussianCommands.length
+        : 0,
+      englishCommandCount: Array.isArray(configuredEnglishCommands)
+        ? configuredEnglishCommands.length
+        : 0,
+      allowedUpdates: webhookAllowedUpdates,
     },
     null,
     2,
   ),
 );
+
+function sameCommands(actual, expected) {
+  if (!Array.isArray(actual) || actual.length !== expected.length) return false;
+  return expected.every(
+    (command, index) =>
+      actual[index] &&
+      typeof actual[index] === 'object' &&
+      actual[index].command === command.command &&
+      actual[index].description === command.description,
+  );
+}
+
+function sameStrings(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false;
+  return [...left].sort().join('\n') === [...right].sort().join('\n');
+}

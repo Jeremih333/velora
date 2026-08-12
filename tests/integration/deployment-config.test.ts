@@ -184,9 +184,28 @@ describe('deployment paid-feature boundaries', () => {
     expect(rollback).toBeGreaterThan(-1);
     expect(source).toContain('secret bulk $stagingSecretFile');
     expect(source).toContain('"$productionUrl/telegram/webhook"');
+    expect(source).toContain('$configuration.exactConfigurationVerified -ne $true');
+    expect(source).toContain('$configuration.menuText -ne "Открыть"');
+    expect(source).toContain('$configuration.menuUrl -ne "$productionUrl/"');
+    expect(source).toContain('[int]$configuration.russianCommandCount -ne 10');
+    expect(source).toContain('[int]$configuration.englishCommandCount -ne 10');
+    expect(source).toContain("'message,callback_query,pre_checkout_query'");
     expect(source).not.toContain('SESSION_SIGNING_KEY');
     expect(source).not.toContain('BOTHUB_API_KEY');
     expect(source).not.toContain('PAID_AI_ENABLED');
     expect(source).not.toContain('PAYMENTS_ENABLED');
+  });
+
+  it('serializes the full quality gate to prevent shared-output races', async () => {
+    const source = await readFile(new URL('../../toolkit/verify.ps1', import.meta.url), 'utf8');
+    const scanner = await readFile(
+      new URL('../../toolkit/secret-scan.mjs', import.meta.url),
+      'utf8',
+    );
+    expect(source).toContain('[IO.FileShare]::None');
+    expect(source).toContain('Another Velora quality gate is already running.');
+    expect(source).toContain('$lockStream.Dispose()');
+    expect(source).toContain('Remove-Item -LiteralPath $lockPath -Force');
+    expect(scanner).toContain("'.velora-verify.lock'");
   });
 });

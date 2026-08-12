@@ -16,3 +16,4 @@ test-results/
 toolkit/backups/
 toolkit/reports/private/
 *.local
+.velora-verify.lock

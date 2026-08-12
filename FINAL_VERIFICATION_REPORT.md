@@ -350,6 +350,12 @@ verified; the full product from the master brief is still in progress.
   is READY; Telegram has no production reconciliation row. Paid AI and payments remain disabled.
   Clean-clone CI `31616327482` independently passed the complete gate for commit `e1079ab` after
   the phase-1 evidence, propagation retry and fail-closed Telegram reconciliation guard were added.
+- The phase-2 configurator now verifies the exact default, Russian and English command lists, UTF-8
+  descriptions, Mini App button text/URL, webhook URL and allowed update set returned by Telegram.
+  A mocked Bot API regression covers both exact success and fail-closed configuration drift. The
+  cutover still preserves automatic staging rollback and cannot touch session/BotHub secrets,
+  paid gates or migrations. The full quality gate passed 130 unit/regression, 6 roleplay-quality,
+  4 contract, 57 integration and 12/12 E2E checks without retries.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -373,5 +379,7 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 130 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 54 integration tests, both builds and 12/12 E2E without retries. An earlier desktop startup
-timeout passed 3/3 in an exact no-retry rerun before the latest clean full gate.
+tests, 57 integration tests, both builds and 12/12 E2E without retries. The gate now holds an
+exclusive local lock, preventing concurrent reruns from racing over integration and browser output
+directories. An earlier desktop startup timeout passed 3/3 in an exact no-retry rerun before the
+latest clean full gate.

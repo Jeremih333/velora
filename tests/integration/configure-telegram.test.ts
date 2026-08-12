@@ -1,0 +1,146 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const productionUrl = 'https://velora-app.carreljeremih.workers.dev/';
+const commands = [
+  ['start', 'Начать работу с Velora'],
+  ['app', 'Открыть приложение'],
+  ['help', 'Помощь'],
+  ['settings', 'Настройки'],
+  ['support', 'Связаться с поддержкой'],
+  ['premium', 'Разовые пополнения'],
+  ['report', 'Сообщить о нарушении'],
+  ['paysupport', 'Поддержка по платежам'],
+  ['terms', 'Условия использования'],
+  ['privacy', 'Конфиденциальность'],
+].map(([command, description]) => ({ command, description }));
+const englishCommands = [
+  ['start', 'Start using Velora'],
+  ['app', 'Open the app'],
+  ['help', 'Help'],
+  ['settings', 'Settings'],
+  ['support', 'Contact support'],
+  ['premium', 'One-time top-ups'],
+  ['report', 'Report a violation'],
+  ['paysupport', 'Payment support'],
+  ['terms', 'Terms of use'],
+  ['privacy', 'Privacy policy'],
+].map(([command, description]) => ({ command, description }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
+
+describe('Telegram production configurator', () => {
+  it('applies and verifies the exact UTF-8 production configuration', async () => {
+    const output: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((value: unknown) => output.push(String(value)));
+    installEnvironment();
+    const methods: string[] = [];
+    vi.stubGlobal('fetch', createTelegramFetch(methods));
+    process.argv.push('--apply');
+    try {
+      vi.resetModules();
+      await import('../../toolkit/configure-telegram.mjs');
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--apply'), 1);
+    }
+
+    const result = JSON.parse(output.at(-1) ?? '{}') as Record<string, unknown>;
+    expect(result).toMatchObject({
+      configured: true,
+      exactConfigurationVerified: true,
+      botUsername: 'aivel0ra_bot',
+      webhookUrl: `${productionUrl}telegram/webhook`,
+      menuType: 'web_app',
+      menuText: 'Открыть',
+      menuUrl: productionUrl,
+      commandCount: 10,
+      russianCommandCount: 10,
+      englishCommandCount: 10,
+      allowedUpdates: ['message', 'callback_query', 'pre_checkout_query'],
+    });
+    expect(methods).toEqual([
+      'getMe',
+      'setMyCommands',
+      'setMyCommands',
+      'setMyCommands',
+      'setChatMenuButton',
+      'setMyDescription',
+      'setMyShortDescription',
+      'setWebhook',
+      'getWebhookInfo',
+      'getChatMenuButton',
+      'getMyCommands',
+      'getMyCommands',
+      'getMyCommands',
+      'getMyDescription',
+      'getMyShortDescription',
+    ]);
+  });
+
+  it('fails closed when Telegram reports a different menu target', async () => {
+    installEnvironment();
+    vi.stubGlobal('fetch', createTelegramFetch([], true));
+    process.argv.push('--apply');
+    try {
+      vi.resetModules();
+      await expect(import('../../toolkit/configure-telegram.mjs')).rejects.toThrow(
+        'Telegram configuration verification failed.',
+      );
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--apply'), 1);
+    }
+  });
+});
+
+function installEnvironment(): void {
+  vi.stubEnv('TELEGRAM_BOT_TOKEN', ['123456789', 'abcdefghijklmnopqrstuvwxyzABCDEFGH'].join(':'));
+  vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', 'abcdefghijklmnopqrstuvwxyz_0123456789-ABCDE');
+  vi.stubEnv('TELEGRAM_BOT_USERNAME', 'aivel0ra_bot');
+  vi.stubEnv('TELEGRAM_API_ENVIRONMENT', 'production');
+  vi.stubEnv('PUBLIC_APP_URL', productionUrl);
+}
+
+function createTelegramFetch(methods: string[], wrongMenu = false): typeof fetch {
+  return async (input: string | URL | Request, init?: RequestInit) => {
+    await Promise.resolve();
+    const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
+    const method = url.pathname.split('/').at(-1) ?? '';
+    methods.push(method);
+    const bodyText = typeof init?.body === 'string' ? init.body : '{}';
+    const body = JSON.parse(bodyText) as { language_code?: string };
+    let result: unknown = true;
+    if (method === 'getMe') result = { username: 'aivel0ra_bot' };
+    if (method === 'getWebhookInfo') {
+      result = {
+        url: `${productionUrl}telegram/webhook`,
+        allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
+      };
+    }
+    if (method === 'getChatMenuButton') {
+      result = {
+        type: 'web_app',
+        text: 'Открыть',
+        web_app: { url: wrongMenu ? 'https://wrong.example/' : productionUrl },
+      };
+    }
+    if (method === 'getMyCommands') {
+      result = body.language_code === 'en' ? englishCommands : commands;
+    }
+    if (method === 'getMyDescription') {
+      result = {
+        description:
+          'Velora — пространство для AI roleplay: персонажи, personas, память, ветвление историй и полный контроль над контекстом.',
+      };
+    }
+    if (method === 'getMyShortDescription') {
+      result = { short_description: 'AI roleplay с персонажами и живой памятью.' };
+    }
+    return new Response(JSON.stringify({ ok: true, result }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+}

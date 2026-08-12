@@ -20,7 +20,7 @@ const excludedDirectories = new Set([
   'playwright-report',
   'test-results',
 ]);
-const excludedFiles = new Set(['.env.example']);
+const excludedFiles = new Set(['.env.example', '.velora-verify.lock']);
 const patterns = [
   { name: 'private key', expression: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/u },
   { name: 'generic provider key', expression: /sk-[A-Za-z0-9_-]{20,}/u },

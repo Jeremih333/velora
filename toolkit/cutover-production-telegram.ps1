@@ -119,9 +119,15 @@ try {
   $configuration = $configurationOutput | ConvertFrom-Json
   if (
     $configuration.configured -ne $true -or
+    $configuration.exactConfigurationVerified -ne $true -or
     $configuration.webhookUrl -ne "$productionUrl/telegram/webhook" -or
     $configuration.menuType -ne "web_app" -or
-    [int]$configuration.commandCount -lt 10
+    $configuration.menuText -ne "Открыть" -or
+    $configuration.menuUrl -ne "$productionUrl/" -or
+    [int]$configuration.commandCount -ne 10 -or
+    [int]$configuration.russianCommandCount -ne 10 -or
+    [int]$configuration.englishCommandCount -ne 10 -or
+    (@($configuration.allowedUpdates) -join ',') -ne 'message,callback_query,pre_checkout_query'
   ) {
     throw "Telegram production configuration verification failed."
   }
