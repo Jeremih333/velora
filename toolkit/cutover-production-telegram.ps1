@@ -38,6 +38,35 @@ function Invoke-Checked([scriptblock]$Command, [string]$FailureMessage) {
   if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
 }
 
+function Assert-ProductionEndpoints([string]$Stage) {
+  $checks = @(
+    @{ Url = "$productionUrl/health"; Property = "status"; Expected = "ok" },
+    @{ Url = "$productionUrl/ready"; Property = "status"; Expected = "ready" },
+    @{ Url = "$productionUrl/openapi.json"; Property = "openapi"; Expected = "3.1.0" }
+  )
+  foreach ($check in $checks) {
+    $lastError = "no response"
+    $verified = $false
+    for ($attempt = 1; $attempt -le 12; $attempt++) {
+      try {
+        $response = Invoke-RestMethod -Uri $check.Url -Method Get -TimeoutSec 15
+        if ($response.($check.Property) -eq $check.Expected) {
+          $verified = $true
+          break
+        }
+        $lastError = "unexpected $($check.Property) value"
+      }
+      catch {
+        $lastError = $_.Exception.Message
+      }
+      if ($attempt -lt 12) { Start-Sleep -Seconds 5 }
+    }
+    if (-not $verified) {
+      throw "Production $Stage verification failed for $($check.Url): $lastError. Telegram was not changed."
+    }
+  }
+}
+
 function Set-TelegramEnvironment([string]$PublicUrl, [string]$WebhookSecret) {
   $env:TELEGRAM_BOT_TOKEN = $telegramToken
   $env:TELEGRAM_WEBHOOK_SECRET = $WebhookSecret
@@ -85,11 +114,7 @@ try {
   }
 
   Invoke-Checked { & (Join-Path $PSScriptRoot "verify.ps1") } "The local quality gate failed. Telegram was not changed."
-  $health = Invoke-RestMethod -Uri "$productionUrl/health" -Method Get -TimeoutSec 15
-  $readiness = Invoke-RestMethod -Uri "$productionUrl/ready" -Method Get -TimeoutSec 15
-  if ($health.status -ne "ok" -or $readiness.status -ne "ready") {
-    throw "Production health/readiness failed. Telegram was not changed."
-  }
+  Assert-ProductionEndpoints "pre-deploy"
 
   $secureTelegramToken = Read-Host "Paste the @aivel0ra_bot BotFather token (hidden)" -AsSecureString
   $telegramPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureTelegramToken)
@@ -106,6 +131,7 @@ try {
   Invoke-Checked {
     & node $wrangler deploy '--env=' --config $wranglerConfig
   } "The verified production Worker could not be deployed. Telegram was not changed."
+  Assert-ProductionEndpoints "post-deploy"
 
   $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("velora-cutover-" + [Guid]::NewGuid().ToString('N'))
   [IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null

@@ -362,6 +362,13 @@ verified; the full product from the master brief is still in progress.
   regression proves a normal user cannot forge the evidence and that the raw marker is not stored.
   Missing either proof within five minutes invokes the existing staging rollback. This path has
   not been deployed or executed because phase 2 still requires separate owner authorization.
+- The phase-2 runner now also rechecks production `/health`, `/ready` and OpenAPI after deploying
+  the exact locally verified Worker and before writing Telegram secrets or moving the webhook.
+  Propagation gets bounded retries, and any unhealthy replacement stops fail-closed while staging
+  continues receiving updates. The complete local gate passed 131 unit/regression, 6
+  roleplay-quality, 4 contract, 60 integration and 12/12 E2E checks without retries; a remote
+  read-only preflight again found 28/28 migrations, all four secret names and only the explicitly
+  gated Telegram cutover outstanding.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease

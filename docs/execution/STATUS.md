@@ -48,7 +48,7 @@ Updated: 2026-08-12.
 | Staging                       | VERIFIED          | Worker `eeab29c5`; D1 28/66 healthy; paid roleplay on, payments off                        |
 | Production                    | PHASE_1_VERIFIED  | Worker `9fd2e014`; D1 28/28 healthy/empty; Telegram cutover still blocked                  |
 | Production phase-1 runner     | VERIFIED          | backup/migrate/atomic secrets; propagation retry added after observed transient 404        |
-| Telegram phase-2 runner       | VERIFIED_LOCAL    | exact Bot API state + owner `/start`/MiniApp proof + staging rollback; not executed        |
+| Telegram phase-2 runner       | VERIFIED_LOCAL    | post-deploy health gate + exact Bot API state + owner `/start`/MiniApp proof + rollback    |
 
 RoleMate resources have not been changed or bound to Velora.
 

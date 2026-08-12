@@ -169,6 +169,8 @@ describe('deployment paid-feature boundaries', () => {
     const preflight = source.indexOf('& node $preflight --remote');
     const qualityGate = source.indexOf('"verify.ps1"');
     const productionDeploy = source.indexOf("& node $wrangler deploy '--env='");
+    const preDeployHealth = source.indexOf('Assert-ProductionEndpoints "pre-deploy"');
+    const postDeployHealth = source.indexOf('Assert-ProductionEndpoints "post-deploy"');
     const identity = source.indexOf('& node $telegramConfigurator --check-identity');
     const productionSecrets = source.indexOf('secret bulk $productionSecretFile');
     const apply = source.indexOf('& node $telegramConfigurator --apply', productionSecrets);
@@ -180,7 +182,11 @@ describe('deployment paid-feature boundaries', () => {
     expect(preflight).toBeGreaterThan(confirmation);
     expect(qualityGate).toBeGreaterThan(preflight);
     expect(identity).toBeGreaterThan(qualityGate);
+    expect(preDeployHealth).toBeGreaterThan(qualityGate);
+    expect(preDeployHealth).toBeLessThan(identity);
     expect(productionDeploy).toBeGreaterThan(identity);
+    expect(postDeployHealth).toBeGreaterThan(productionDeploy);
+    expect(productionSecrets).toBeGreaterThan(postDeployHealth);
     expect(productionSecrets).toBeGreaterThan(productionDeploy);
     expect(apply).toBeGreaterThan(productionSecrets);
     expect(verifyWebhook).toBeGreaterThan(apply);
@@ -196,6 +202,8 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain("'message,callback_query,pre_checkout_query'");
     expect(source).toContain('Production /start or Mini App authentication smoke failed.');
     expect(source).toContain('--marker $smokeMarker');
+    expect(source).toContain('$attempt -le 12');
+    expect(source).toContain('"$productionUrl/openapi.json"');
     expect(source).not.toContain('SESSION_SIGNING_KEY');
     expect(source).not.toContain('BOTHUB_API_KEY');
     expect(source).not.toContain('PAID_AI_ENABLED');

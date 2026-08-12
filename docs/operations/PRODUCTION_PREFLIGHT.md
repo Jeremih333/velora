@@ -83,12 +83,14 @@ moving the single `@aivel0ra_bot` webhook from staging to production is intended
 ```
 
 It does not rotate `SESSION_SIGNING_KEY`, touch BotHub, migrate D1 or enable either paid gate. It
-updates the production Telegram token/webhook secret together, applies commands/menu/webhook and
-verifies the exact webhook URL and update types, all default/Russian/English commands, both
-descriptions, and the Mini App button text and production URL. If verification fails after applying
-begins, it creates a new staging webhook secret and restores the staging webhook. Scheduled
-production Telegram reconciliation stays disabled; enabling it is deliberately outside this
-cutover.
+checks production health, readiness and OpenAPI before and after deploying the locally verified
+Worker, and will not touch Telegram if the new deployment does not become healthy after propagation
+retries. Only then does it update the production Telegram token/webhook secret together, apply
+commands/menu/webhook and verify the exact webhook URL and update types, all
+default/Russian/English commands, both descriptions, and the Mini App button text and production
+URL. If verification fails after applying begins, it creates a new staging webhook secret and
+restores the staging webhook. Scheduled production Telegram reconciliation stays disabled;
+enabling it is deliberately outside this cutover.
 
 The runner then prints a random, one-time `/start velora_smoke_…` command. The confirmed owner must
 send that exact command and open the Mini App from the new bot reply within five minutes. The
