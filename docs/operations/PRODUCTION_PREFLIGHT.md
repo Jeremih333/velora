@@ -49,6 +49,18 @@ Before phase 1 the owner must explicitly authorize the production migration/depl
 Velora BotFather token and BotHub key through hidden prompts. Before phase 2 the owner must confirm
 that moving the single bot webhook from staging to production is intended.
 
+After that first authorization, run the guarded phase exactly once from a visible PowerShell:
+
+```powershell
+.\toolkit\deploy-production-phase1.ps1 -ConfirmProductionDeployment
+```
+
+The script completes the full local gate, Telegram identity check and non-generative BotHub key
+check before its first mutation. It exports production D1, applies the reviewed migrations and
+supplies all four secrets atomically with the initial Worker version. It then smoke-tests health,
+readiness, OpenAPI and D1 integrity. It never calls `setWebhook`; staging continues receiving bot
+updates until the separate phase-2 checkpoint.
+
 The absence of Stars is not a blocker for the Free product: payments stay disabled, no packs are
 created and no payment claim is made. Paid AI also remains disabled in production until a separate
 bounded production-provider checkpoint is authorized after the non-AI rollout.

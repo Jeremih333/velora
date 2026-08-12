@@ -20,6 +20,9 @@
   public config и OpenAPI; production origin жёстко запрещён.
 - `production-preflight.mjs` — fail-closed проверяет production binding, миграции, выключенные
   платные флаги и обязательный Telegram webhook cutover; `--remote` выполняет только чтение.
+- `deploy-production-phase1.ps1` — после явного подтверждения проверяет полный gate и identity,
+  делает резервный экспорт, мигрирует изолированную production D1 и впервые разворачивает Worker
+  со всеми секретами одной версией; Telegram webhook намеренно не переключает.
 - `seed-staging.mjs` — создаёт только явно синтетические staging-данные.
 
 Секреты не помещаются в этот каталог. Production-секреты добавляются только через Cloudflare

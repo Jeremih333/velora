@@ -47,6 +47,7 @@ Updated: 2026-08-12.
 | Paid AI                       | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                      |
 | Staging                       | VERIFIED          | Worker `eeab29c5`; D1 28/66 healthy; paid roleplay on, payments off                        |
 | Production                    | BLOCKED_HUMAN     | read-only preflight: no Worker/secrets, 28 pending migrations, webhook cutover required    |
+| Production phase-1 runner     | VERIFIED_LOCAL    | guarded backup/migrate/atomic-secret deploy/smoke; no webhook mutation                     |
 
 RoleMate resources have not been changed or bound to Velora.
 

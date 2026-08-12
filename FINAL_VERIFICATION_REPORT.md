@@ -335,7 +335,11 @@ verified; the full product from the master brief is still in progress.
 - Documentation links now fail the local and CI gates when a relative target is missing, escapes
   the Velora repository, or has invalid URL encoding. The deterministic Windows/Linux regression
   found and repaired the stale security-review target; the latest complete local gate included
-  this check and passed 51 integration tests.
+  this check and passed 52 integration tests.
+- The production phase-1 runner is locally guarded and regression-tested: it requires the named
+  confirmation, completes the full gate plus Telegram/BotHub identity checks before mutation,
+  exports the isolated D1, applies migrations, deploys all four secrets with the initial Worker
+  version and smoke-tests without calling Telegram `setWebhook`. It has not been executed.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -358,4 +362,5 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 129 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 51 integration tests, both builds and 12/12 E2E cases without retries.
+tests, 52 integration tests, both builds and 12/12 E2E without retries. An earlier desktop startup
+timeout passed 3/3 in an exact no-retry rerun before the latest clean full gate.

@@ -50,6 +50,9 @@
       named environment; pass the full local gate and clean-clone CI `31607394871`.
 - [x] Add a deterministic cross-platform Markdown link checker to the local and clean-clone gates,
       repair the stale security-document link, and reconcile production/test evidence counters.
+- [x] Add a guarded phase-1 production runner that completes verification and identity checks
+      before mutation, exports D1, migrates, atomically deploys all secrets and smoke-tests without
+      moving the Telegram webhook or enabling paid gates.
 
 ## Next
 

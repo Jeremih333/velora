@@ -9,6 +9,8 @@
    secrets through hidden prompts only after owner authorization.
 7. Apply backward-compatible production migrations, deploy `velora-app`, smoke `/health`,
    `/ready`, static assets and critical API authorization while both paid gates stay disabled.
+   The guarded implementation is `toolkit/deploy-production-phase1.ps1`; its first deploy uploads
+   all production secrets with the Worker version and deliberately does not change Telegram.
 8. At a separate final checkpoint, move the single `@aivel0ra_bot` webhook from staging to
    production and verify `/start` plus real Mini App authentication.
 9. Record Worker version, migration list and hashes in `docs/FINAL_VERIFICATION.md`.

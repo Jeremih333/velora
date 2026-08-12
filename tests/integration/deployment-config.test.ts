@@ -117,4 +117,42 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('secret put BOTHUB_API_KEY $wranglerEnvironmentArgument');
     expect(source).not.toContain('--env $Environment');
   });
+
+  it('keeps production phase 1 gated, atomic and separate from Telegram cutover', async () => {
+    const source = await readFile(
+      new URL('../../toolkit/deploy-production-phase1.ps1', import.meta.url),
+      'utf8',
+    );
+    const confirmation = source.indexOf('if (-not $ConfirmProductionDeployment)');
+    const preflight = source.indexOf('& node $preflight --remote');
+    const qualityGate = source.indexOf('"verify.ps1"');
+    const telegramIdentity = source.indexOf('& node $telegramConfigurator --check-identity');
+    const bothubIdentity = source.indexOf('https://openai.bothub.chat/v1/models');
+    const backup = source.indexOf('d1 export velora-production');
+    const migration = source.indexOf('d1 migrations apply velora-production');
+    const secretFile = source.indexOf('--secrets-file $secretFile');
+    const deploy = source.indexOf('& node $wrangler deploy');
+    const smoke = source.indexOf('Assert-HttpJson "$publicAppUrl/health"');
+
+    expect(confirmation).toBeGreaterThan(-1);
+    expect(preflight).toBeGreaterThan(confirmation);
+    expect(qualityGate).toBeGreaterThan(preflight);
+    expect(telegramIdentity).toBeGreaterThan(qualityGate);
+    expect(bothubIdentity).toBeGreaterThan(telegramIdentity);
+    expect(backup).toBeGreaterThan(bothubIdentity);
+    expect(migration).toBeGreaterThan(backup);
+    expect(deploy).toBeGreaterThan(migration);
+    expect(secretFile).toBeGreaterThan(deploy);
+    expect(smoke).toBeGreaterThan(secretFile);
+    expect(source).toContain("& node $wrangler deploy '--env='");
+    expect(source).toContain('$preflightState.remote.productionWorkerExists -ne $false');
+    expect(source).toContain('@($preflightState.remote.pendingMigrationNames).Count -ne 28');
+    expect(source).toContain('@($preflightState.remote.missingSecretNames).Count -ne 4');
+    expect(source).toContain('$integrityOutput -notmatch');
+    expect(source).toContain('"migrations"\\s*:\\s*28');
+    expect(source).not.toContain('$env:PAID_AI_ENABLED');
+    expect(source).not.toContain('$env:PAYMENTS_ENABLED');
+    expect(source).not.toContain('--apply');
+    expect(source).not.toContain('setWebhook');
+  });
 });
