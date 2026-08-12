@@ -681,12 +681,70 @@ try {
     },
     200,
   );
+  await request(
+    '/telegram/webhook',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': 'integration-webhook-secret',
+      },
+      body: JSON.stringify({
+        update_id: 800_000_000 + Math.floor(Math.random() * 100_000_000),
+        message: {
+          message_id: 700002,
+          from: { id: Number(telegramId), first_name: 'Integration User', language_code: 'en' },
+          chat: { id: Number(telegramId), type: 'private' },
+          photo: [
+            {
+              file_id: 'integration-photo',
+              file_unique_id: 'integration-photo-unique',
+              width: 800,
+              height: 600,
+              file_size: 24,
+            },
+          ],
+        },
+      }),
+    },
+    200,
+  );
   const uploadedMedia = await request('/api/v1/media', { headers }, 200);
   const inspectedUpload = uploadedMedia.items.find(
     (item) => item.width === 800 && item.height === 600 && item.mimeType === 'image/png',
   );
   if (!inspectedUpload?.id) {
     throw new Error('Telegram image ingestion did not persist inspected byte dimensions.');
+  }
+  const avatarQueue = await request(
+    '/api/v1/admin/moderation/cases?state=OPEN',
+    { headers: ownerHeaders },
+    200,
+  );
+  const avatarCases = avatarQueue.items.filter(
+    (item) =>
+      item.targetType === 'AVATAR' &&
+      item.targetId === inspectedUpload.id &&
+      item.reportId === null,
+  );
+  const avatarCase = avatarCases[0];
+  if (!avatarCase?.id) {
+    throw new Error('Uploaded Telegram image did not enter the system moderation queue.');
+  }
+  if (avatarCases.length !== 1) {
+    throw new Error('Repeated Telegram image ingestion duplicated an active moderation case.');
+  }
+  await request(`/api/v1/admin/moderation/cases/${avatarCase.id}`, { headers }, 403);
+  const avatarCaseDetail = await request(
+    `/api/v1/admin/moderation/cases/${avatarCase.id}`,
+    { headers: ownerHeaders },
+    200,
+  );
+  if (
+    avatarCaseDetail.evidence?.id !== inspectedUpload.id ||
+    avatarCaseDetail.evidence?.moderationState !== 'PENDING'
+  ) {
+    throw new Error('Avatar moderation evidence did not expose the pending file metadata.');
   }
   const uploadedContent = await fetch(`${baseUrl}/api/v1/media/${inspectedUpload.id}/content`, {
     headers,
@@ -698,11 +756,197 @@ try {
   ) {
     throw new Error('Inspected Telegram image could not be proxied through the owned media route.');
   }
+  const moderatorContent = await fetch(`${baseUrl}/api/v1/media/${inspectedUpload.id}/content`, {
+    headers: ownerHeaders,
+  });
+  if (moderatorContent.status !== 200 || (await moderatorContent.arrayBuffer()).byteLength !== 24) {
+    throw new Error('Authorized moderation could not inspect pending Telegram image bytes.');
+  }
+  await request(
+    `/api/v1/admin/moderation/cases/${avatarCase.id}/assign`,
+    {
+      method: 'POST',
+      headers: { ...ownerHeaders, 'x-csrf-token': ownerCsrfToken },
+    },
+    200,
+  );
+  await request(
+    `/api/v1/admin/moderation/cases/${avatarCase.id}/actions`,
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ action: 'NO_ACTION', reason: 'Safe image regression review.' }),
+    },
+    200,
+  );
+  const approvedMedia = await request('/api/v1/media', { headers }, 200);
+  if (
+    approvedMedia.items.find((item) => item.id === inspectedUpload.id)?.moderationState !==
+    'APPROVED'
+  ) {
+    throw new Error('Approved system avatar review did not update the media state.');
+  }
+  await request(
+    '/api/v1/profiles/me',
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        displayName: 'Integration User',
+        bio: '',
+        avatarFileId: inspectedUpload.id,
+        visibility: 'PUBLIC',
+      }),
+    },
+    200,
+  );
+  const publicApprovedContent = await fetch(
+    `${baseUrl}/api/v1/media/${inspectedUpload.id}/content`,
+    { headers: reporterHeaders },
+  );
+  if (
+    publicApprovedContent.status !== 200 ||
+    (await publicApprovedContent.arrayBuffer()).byteLength !== 24
+  ) {
+    throw new Error('Approved publicly referenced avatar was not available to another user.');
+  }
+  await request(
+    '/telegram/webhook',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': 'integration-webhook-secret',
+      },
+      body: JSON.stringify({
+        update_id: 900_000_000 + Math.floor(Math.random() * 90_000_000),
+        message: {
+          message_id: 700003,
+          from: { id: Number(telegramId), first_name: 'Integration User', language_code: 'en' },
+          chat: { id: Number(telegramId), type: 'private' },
+          photo: [
+            {
+              file_id: 'integration-photo',
+              file_unique_id: 'integration-photo-unique',
+              width: 800,
+              height: 600,
+              file_size: 24,
+            },
+          ],
+        },
+      }),
+    },
+    200,
+  );
+  const repeatedAvatarQueue = await request(
+    '/api/v1/admin/moderation/cases?state=OPEN',
+    { headers: ownerHeaders },
+    200,
+  );
+  const repeatedAvatarCase = repeatedAvatarQueue.items.find(
+    (item) =>
+      item.targetType === 'AVATAR' &&
+      item.targetId === inspectedUpload.id &&
+      item.reportId === null,
+  );
+  if (!repeatedAvatarCase?.id || repeatedAvatarCase.id === avatarCase.id) {
+    throw new Error('Re-upload after approval did not create one fresh system avatar review.');
+  }
+  await request(
+    `/api/v1/admin/moderation/cases/${repeatedAvatarCase.id}/assign`,
+    {
+      method: 'POST',
+      headers: { ...ownerHeaders, 'x-csrf-token': ownerCsrfToken },
+    },
+    200,
+  );
+  await request(
+    `/api/v1/admin/moderation/cases/${repeatedAvatarCase.id}/actions`,
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ action: 'CONTENT_REMOVE', reason: 'Unsafe image regression review.' }),
+    },
+    200,
+  );
+  const rejectedMedia = await request('/api/v1/media', { headers }, 200);
+  if (
+    rejectedMedia.items.find((item) => item.id === inspectedUpload.id)?.moderationState !==
+    'REJECTED'
+  ) {
+    throw new Error('Rejected system avatar review did not update the media state.');
+  }
+  const rejectedPublicContent = await fetch(
+    `${baseUrl}/api/v1/media/${inspectedUpload.id}/content`,
+    { headers: reporterHeaders },
+  );
+  if (rejectedPublicContent.status !== 404) {
+    throw new Error('Rejected avatar remained readable through a public profile reference.');
+  }
+  await request(
+    '/telegram/webhook',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': 'integration-webhook-secret',
+      },
+      body: JSON.stringify({
+        update_id: 990_000_000 + Math.floor(Math.random() * 9_000_000),
+        message: {
+          message_id: 700004,
+          from: { id: Number(telegramId), first_name: 'Integration User', language_code: 'en' },
+          chat: { id: Number(telegramId), type: 'private' },
+          photo: [
+            {
+              file_id: 'integration-photo',
+              file_unique_id: 'integration-photo-unique',
+              width: 800,
+              height: 600,
+              file_size: 24,
+            },
+          ],
+        },
+      }),
+    },
+    200,
+  );
+  const deletionQueue = await request(
+    '/api/v1/admin/moderation/cases?state=OPEN',
+    { headers: ownerHeaders },
+    200,
+  );
+  const deletionCase = deletionQueue.items.find(
+    (item) =>
+      item.targetType === 'AVATAR' &&
+      item.targetId === inspectedUpload.id &&
+      item.reportId === null,
+  );
+  if (!deletionCase?.id) {
+    throw new Error('Pending avatar deletion regression did not create a review case.');
+  }
   await request(
     `/api/v1/media/${inspectedUpload.id}`,
     { method: 'DELETE', headers: { ...headers, 'x-csrf-token': csrfToken } },
     200,
   );
+  const closedAvatarQueue = await request(
+    '/api/v1/admin/moderation/cases?state=CLOSED',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (!closedAvatarQueue.items.some((item) => item.id === deletionCase.id)) {
+    throw new Error('Deleting pending media did not close its active system review.');
+  }
+  await request(`/api/v1/admin/moderation/cases/${avatarCase.id}`, { headers: ownerHeaders }, 404);
 
   const dataControls = await request('/api/v1/data-controls', { headers }, 200);
   if (

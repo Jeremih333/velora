@@ -437,6 +437,17 @@ moderationRoutes.post('/admin/moderation/cases/:caseId/actions', async (context)
   ) {
     throw new AppError('MATURE_REVIEW_ACTION_INVALID', ru.character.matureReviewActionInvalid, 409);
   }
+  if (
+    moderationCase.reportId === null &&
+    moderationCase.targetType === 'AVATAR' &&
+    !['NO_ACTION', 'CONTENT_HIDE', 'CONTENT_REMOVE', 'ESCALATE'].includes(input.action)
+  ) {
+    throw new AppError(
+      'AVATAR_REVIEW_ACTION_INVALID',
+      'Для проверки изображения доступны одобрение, отклонение или эскалация.',
+      409,
+    );
+  }
   const target = await resolveTarget(
     context.env.DB,
     moderationCase.targetType,
@@ -729,6 +740,40 @@ async function buildTargetMutation(
   readonly previousState: Readonly<Record<string, unknown>>;
   readonly newState: Readonly<Record<string, unknown>>;
 }> {
+  if (
+    action === 'NO_ACTION' &&
+    moderationCase.reportId === null &&
+    moderationCase.targetType === 'AVATAR'
+  ) {
+    const state = await database
+      .prepare(
+        `SELECT moderation_state AS moderationState, deleted_at AS deletedAt
+         FROM file_objects WHERE id = ?`,
+      )
+      .bind(moderationCase.targetId)
+      .first<{ moderationState: string; deletedAt: number | null }>();
+    if (!state) throw new AppError('REPORT_TARGET_NOT_FOUND', 'Медиафайл не найден.', 404);
+    if (state.moderationState !== 'PENDING' || state.deletedAt !== null) {
+      throw new AppError('AVATAR_REVIEW_NOT_PENDING', 'Изображение уже проверено.', 409);
+    }
+    return {
+      statements: [
+        database
+          .prepare(
+            `UPDATE file_objects SET moderation_state = 'APPROVED'
+             WHERE id = ? AND moderation_state = 'PENDING' AND deleted_at IS NULL`,
+          )
+          .bind(moderationCase.targetId),
+      ],
+      previousState: { kind: 'AVATAR', id: moderationCase.targetId, ...state },
+      newState: {
+        kind: 'AVATAR',
+        id: moderationCase.targetId,
+        moderationState: 'APPROVED',
+        deletedAt: state.deletedAt,
+      },
+    };
+  }
   if (
     action === 'NO_ACTION' &&
     moderationCase.reportId === null &&

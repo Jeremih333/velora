@@ -1499,6 +1499,12 @@ function ModerationView({
       apiRequest<ModerationCaseDetail>(`/api/v1/admin/moderation/cases/${selectedId ?? ''}`),
   });
   const isMatureReview = detail.data?.reportId === null && detail.data.targetType === 'CHARACTER';
+  const isAvatarReview = detail.data?.reportId === null && detail.data.targetType === 'AVATAR';
+  const isSystemReview = isMatureReview || isAvatarReview;
+  const avatarEvidenceId =
+    detail.data?.targetType === 'AVATAR' && typeof detail.data.evidence?.['id'] === 'string'
+      ? detail.data.evidence['id']
+      : null;
   const assign = useMutation({
     mutationFn: (caseId: string) =>
       apiRequest(`/api/v1/admin/moderation/cases/${caseId}/assign`, { method: 'POST' }),
@@ -1569,13 +1575,24 @@ function ModerationView({
               <div>
                 <span className="status-pill">{detail.data.state}</span>
                 <h2>
-                  {isMatureReview ? messages.moderation.matureReviewTitle : detail.data.targetType}
+                  {isMatureReview
+                    ? messages.moderation.matureReviewTitle
+                    : isAvatarReview
+                      ? messages.moderation.avatarReviewTitle
+                      : detail.data.targetType}
                 </h2>
               </div>
               <strong>{messages.moderation.priority(detail.data.priority)}</strong>
             </div>
             <div className="evidence-panel">
               <strong>{messages.moderation.evidence}</strong>
+              {avatarEvidenceId ? (
+                <img
+                  className="moderation-media-preview"
+                  src={`/api/v1/media/${avatarEvidenceId}/content`}
+                  alt={messages.moderation.avatarEvidenceAlt}
+                />
+              ) : null}
               <pre>{JSON.stringify(detail.data.evidence, null, 2)}</pre>
             </div>
             <button
@@ -1606,14 +1623,16 @@ function ModerationView({
                   <option value="NO_ACTION">
                     {isMatureReview
                       ? messages.moderation.approveMature
-                      : messages.moderation.noViolation}
+                      : isAvatarReview
+                        ? messages.moderation.approveAvatar
+                        : messages.moderation.noViolation}
                   </option>
-                  {!isMatureReview ? (
+                  {!isSystemReview ? (
                     <option value="WARNING">{messages.moderation.warning}</option>
                   ) : null}
                   <option value="CONTENT_HIDE">{messages.moderation.hideContent}</option>
                   <option value="CONTENT_REMOVE">{messages.moderation.removeContent}</option>
-                  {!isMatureReview ? (
+                  {!isSystemReview ? (
                     <>
                       <option value="TEMP_RESTRICTION">
                         {messages.moderation.restrictAccount}
@@ -1714,7 +1733,8 @@ function ModerationView({
             key={moderationCase.id}
             onClick={() => {
               setAction(
-                moderationCase.reportId === null && moderationCase.targetType === 'CHARACTER'
+                moderationCase.reportId === null &&
+                  ['CHARACTER', 'AVATAR'].includes(moderationCase.targetType)
                   ? 'NO_ACTION'
                   : 'WARNING',
               );

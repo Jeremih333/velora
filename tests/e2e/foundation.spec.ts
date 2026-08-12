@@ -1707,6 +1707,7 @@ test('owner manages moderator appointments without exposing the control to staff
   let staff: readonly Record<string, unknown>[] = [];
   let smokeRun: Readonly<Record<string, unknown>> | null = null;
   let userGrants: readonly Record<string, unknown>[] = [];
+  let avatarReviewOpen = true;
   let ownerPayments: readonly Record<string, unknown>[] = [
     {
       id: 'payment-1',
@@ -1800,7 +1801,90 @@ test('owner manages moderator appointments without exposing the control to staff
       return;
     }
     if (url.pathname === '/api/v1/admin/moderation/cases') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: avatarReviewOpen
+            ? [
+                {
+                  id: 'case-avatar',
+                  reportId: null,
+                  targetType: 'AVATAR',
+                  targetId: 'avatar-media-1',
+                  priority: 30,
+                  state: 'OPEN',
+                  assignedTo: null,
+                  reason: null,
+                  description: null,
+                  createdAt: 1,
+                },
+              ]
+            : [],
+        }),
+      });
+      return;
+    }
+    if (url.pathname === '/api/v1/admin/moderation/cases/case-avatar') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'case-avatar',
+          reportId: null,
+          targetType: 'AVATAR',
+          targetId: 'avatar-media-1',
+          priority: 30,
+          state: 'OPEN',
+          assignedTo: null,
+          reason: null,
+          description: null,
+          createdAt: 1,
+          report: null,
+          evidence: {
+            id: 'avatar-media-1',
+            mimeType: 'image/png',
+            byteSize: 68,
+            width: 1,
+            height: 1,
+            moderationState: 'PENDING',
+          },
+          actions: [],
+          appeals: [],
+          audit: [],
+        }),
+      });
+      return;
+    }
+    if (url.pathname === '/api/v1/media/avatar-media-1/content') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          'base64',
+        ),
+      });
+      return;
+    }
+    if (url.pathname === '/api/v1/admin/moderation/cases/case-avatar/assign') {
+      expect(request.method()).toBe('POST');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"id":"case-avatar","assignedTo":"owner-1","state":"IN_REVIEW"}',
+      });
+      return;
+    }
+    if (url.pathname === '/api/v1/admin/moderation/cases/case-avatar/actions') {
+      expect(request.method()).toBe('POST');
+      expect(request.postDataJSON()).toMatchObject({ action: 'NO_ACTION' });
+      avatarReviewOpen = false;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{"id":"action-avatar","caseId":"case-avatar","state":"RESOLVED"}',
+      });
       return;
     }
     if (url.pathname === '/api/v1/admin/support/requests') {
@@ -2082,6 +2166,13 @@ test('owner manages moderator appointments without exposing the control to staff
   await page.goto('/');
   await page.getByRole('button', { name: /Moderation/u }).click();
   await expect(page.getByRole('heading', { name: 'Moderation queue' })).toBeVisible();
+  await page.getByRole('button', { name: /AVATAR/u }).click();
+  await expect(page.getByRole('heading', { name: 'Image review' })).toBeVisible();
+  await expect(page.getByAltText('Image awaiting review')).toBeVisible();
+  await expect(page.getByRole('option', { name: 'Warning' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Assign to me' }).click();
+  await page.getByLabel('Rationale').fill('Safe image reviewed by owner.');
+  await page.getByRole('button', { name: 'Apply decision' }).click();
   await expect(page.getByRole('heading', { name: 'Queue is empty' })).toBeVisible();
   await page.getByRole('button', { name: 'Support' }).click();
   await expect(page.getByRole('heading', { name: 'Support requests' })).toBeVisible();

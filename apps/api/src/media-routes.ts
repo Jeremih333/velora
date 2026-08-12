@@ -1,4 +1,5 @@
 import { AppError, nowMs } from '@velora/shared';
+import { canModerateRole, isModeratorRole, type ModerationRole } from '@velora/moderation';
 import { Hono } from 'hono';
 import { fetchTelegramFile } from './telegram-media';
 import type { Env, Variables } from './types';
@@ -21,17 +22,21 @@ interface MediaRow {
   readonly createdAt: number;
 }
 
-const mediaProjection = `id, owner_id AS ownerId, provider_file_id AS providerFileId,
-  mime_type AS mimeType, original_name AS originalName, byte_size AS byteSize,
-  width, height, moderation_state AS moderationState, created_at AS createdAt`;
+interface MediaContentRow extends MediaRow {
+  readonly ownerRole: ModerationRole;
+}
+
+const mediaProjection = `f.id, f.owner_id AS ownerId, f.provider_file_id AS providerFileId,
+  f.mime_type AS mimeType, f.original_name AS originalName, f.byte_size AS byteSize,
+  f.width, f.height, f.moderation_state AS moderationState, f.created_at AS createdAt`;
 
 export const mediaRoutes = new Hono<MediaEnvironment>();
 
 mediaRoutes.get('/', async (context) => {
   const principal = context.get('principal');
   const result = await context.env.DB.prepare(
-    `SELECT ${mediaProjection} FROM file_objects
-     WHERE owner_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 100`,
+    `SELECT ${mediaProjection} FROM file_objects f
+     WHERE f.owner_id = ? AND f.deleted_at IS NULL ORDER BY f.created_at DESC LIMIT 100`,
   )
     .bind(principal.userId)
     .all<MediaRow>();
@@ -49,14 +54,19 @@ mediaRoutes.get('/:mediaId/content', async (context) => {
     throw new AppError('SERVICE_NOT_CONFIGURED', 'Telegram media adapter пока не настроен.', 503);
   }
   const row = await context.env.DB.prepare(
-    `SELECT ${mediaProjection} FROM file_objects WHERE id = ? AND deleted_at IS NULL`,
+    `SELECT ${mediaProjection}, u.role AS ownerRole
+     FROM file_objects f JOIN users u ON u.id = f.owner_id
+     WHERE f.id = ? AND f.deleted_at IS NULL`,
   )
     .bind(context.req.param('mediaId'))
-    .first<MediaRow>();
+    .first<MediaContentRow>();
   if (!row) throw new AppError('MEDIA_NOT_FOUND', 'Медиафайл не найден.', 404);
   const owned = row.ownerId === principal.userId;
-  const publiclyReferenced = owned ? false : await isPubliclyReferenced(context.env.DB, row.id);
-  if (!owned && (!publiclyReferenced || row.moderationState !== 'APPROVED')) {
+  const staffAuthorized =
+    !owned && isModeratorRole(principal.role) && canModerateRole(principal.role, row.ownerRole);
+  const publiclyReferenced =
+    owned || staffAuthorized ? false : await isPubliclyReferenced(context.env.DB, row.id);
+  if (!owned && !staffAuthorized && (!publiclyReferenced || row.moderationState !== 'APPROVED')) {
     throw new AppError('MEDIA_NOT_FOUND', 'Медиафайл не найден.', 404);
   }
   const upstream = await fetchTelegramFile(
@@ -100,6 +110,11 @@ mediaRoutes.delete('/:mediaId', async (context) => {
     context.env.DB.prepare(
       'UPDATE file_objects SET deleted_at = ? WHERE id = ? AND owner_id = ?',
     ).bind(timestamp, id, principal.userId),
+    context.env.DB.prepare(
+      `UPDATE moderation_cases SET state = 'CLOSED', updated_at = ?, resolved_at = ?
+       WHERE target_type = 'AVATAR' AND target_id = ? AND report_id IS NULL
+         AND state IN ('OPEN', 'TRIAGED', 'IN_REVIEW')`,
+    ).bind(timestamp, timestamp, id),
   ]);
   return context.json({ deleted: true });
 });

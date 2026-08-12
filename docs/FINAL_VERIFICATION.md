@@ -8,7 +8,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
 | Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 104-path smoke | VERIFIED          | Assets bypass is explicit         |
-| D1                                   | 66 schema tables, 27 migrations      | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
+| D1                                   | 66 schema tables, 28 migrations      | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
 | AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | full live chat         | VERIFIED_STAGING  | production remains disabled       |
 | Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
@@ -26,7 +26,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- unit/regression: 122 PASS; API contract: 4 PASS; integration/schema/cost-model: 27 PASS;
+- unit/regression: 122 PASS; API contract: 4 PASS; integration/schema/cost-model: 28 PASS;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
@@ -116,6 +116,12 @@ Velora is **not production-ready yet**. This report is updated only with factual
   webhook-to-D1-to-owned-proxy regression; staging Worker
   `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11`, 104 OpenAPI paths, D1 `quick_check=ok`, empty foreign-key
   check, `PAYMENTS_ENABLED=false` and clean-clone CI `31549288372`: PASS;
+- avatar moderation closure: repeated upload creates exactly one active system case; normal users
+  cannot inspect moderation evidence, authorized staff can preview the bytes, `NO_ACTION` approves,
+  remove/hide rejects, deletion closes an active system review, and approved public references are
+  readable. Backup `velora-staging-pre-0028-2026-08-12T0034Z.sql` restored independently; staging
+  Worker `b57438ee-0283-4ccc-b752-69c440c6a6bf` has 28 migrations/66 tables, the unique queue index,
+  `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

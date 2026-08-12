@@ -99,10 +99,12 @@ export async function storeTelegramImage(
   }
   assertSafeImageGeometry(inspected, candidate);
   const id = createId();
+  const moderationCaseId = createId();
   const timestamp = nowMs();
-  await database
-    .prepare(
-      `INSERT INTO file_objects (
+  await database.batch([
+    database
+      .prepare(
+        `INSERT INTO file_objects (
         id, owner_id, storage_provider, provider_file_id, provider_unique_id, mime_type,
         original_name, byte_size, width, height, moderation_state, created_at
       ) VALUES (?, ?, 'TELEGRAM', ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
@@ -111,20 +113,29 @@ export async function storeTelegramImage(
         original_name = excluded.original_name, byte_size = excluded.byte_size,
         width = excluded.width, height = excluded.height, moderation_state = 'PENDING',
         deleted_at = NULL`,
-    )
-    .bind(
-      id,
-      ownerId,
-      candidate.fileId,
-      candidate.uniqueId,
-      inspected.mimeType,
-      candidate.originalName,
-      downloaded.bytes.byteLength,
-      inspected.width,
-      inspected.height,
-      timestamp,
-    )
-    .run();
+      )
+      .bind(
+        id,
+        ownerId,
+        candidate.fileId,
+        candidate.uniqueId,
+        inspected.mimeType,
+        candidate.originalName,
+        downloaded.bytes.byteLength,
+        inspected.width,
+        inspected.height,
+        timestamp,
+      ),
+    database
+      .prepare(
+        `INSERT OR IGNORE INTO moderation_cases
+         (id, report_id, target_type, target_id, priority, state, created_at, updated_at)
+         SELECT ?, NULL, 'AVATAR', id, 30, 'OPEN', ?, ? FROM file_objects
+         WHERE owner_id = ? AND storage_provider = 'TELEGRAM' AND provider_file_id = ?
+           AND deleted_at IS NULL AND moderation_state = 'PENDING'`,
+      )
+      .bind(moderationCaseId, timestamp, timestamp, ownerId, candidate.fileId),
+  ]);
   const stored = await database
     .prepare(
       `SELECT id, mime_type AS mimeType, byte_size AS byteSize FROM file_objects

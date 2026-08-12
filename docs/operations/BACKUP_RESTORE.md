@@ -17,7 +17,7 @@ node toolkit/test-restore.mjs toolkit/backups/velora-staging-pre-0020-20260811.s
 ```
 
 The drill imports into a fresh temporary local D1, applies forward migrations, checks integrity,
-expects the current 58-table/22-migration contract and starts the real Worker against the restored
+expects the current 66-table/28-migration contract and starts the real Worker against the restored
 database. It never writes to staging or production and removes its temporary database afterwards.
 
 D1 Time Travel Free retention is seven days, but it complements rather than replaces exports.

@@ -305,6 +305,10 @@
       supported WebP dimension headers; reject malformed, oversized-pixel and Telegram-metadata
       mismatches, persist only inspected geometry, prove the full webhook-to-media proxy flow and
       deploy staging Worker `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11` with payments still disabled.
+- [x] Close the orphaned `PENDING` avatar path with one deduplicated system review per upload,
+      role-hierarchy-protected byte preview, explicit approve/reject/escalate decisions and case
+      cleanup on deletion; restore the pre-0028 export, migrate staging to 28/66 and deploy Worker
+      `b57438ee-0283-4ccc-b752-69c440c6a6bf` with payments still disabled.
 
 ## Next
 

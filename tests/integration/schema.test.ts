@@ -210,6 +210,18 @@ describe('initial schema contract', () => {
     expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM/iu);
   });
 
+  it('deduplicates only active system-created avatar reviews', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0028_avatar_moderation_queue.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('CREATE UNIQUE INDEX idx_moderation_cases_active_system_avatar');
+    expect(sql).toContain("target_type = 'AVATAR'");
+    expect(sql).toContain('report_id IS NULL');
+    expect(sql).toContain("state IN ('OPEN', 'TRIAGED', 'IN_REVIEW')");
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM/iu);
+  });
+
   it('marks private draft-preview conversations without destructive migration steps', async () => {
     const sql = await readFile(
       new URL('../../migrations/0021_preview_conversations.sql', import.meta.url),

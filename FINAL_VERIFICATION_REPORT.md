@@ -18,10 +18,10 @@ verified; the full product from the master brief is still in progress.
 - Cloudflare Free-only architecture with no card or automatic plan upgrade;
 - separate `velora-staging` and `velora-production` D1 databases;
 - production D1 is intentionally unmigrated; staging currently has 66 schema tables;
-- staging D1 migrations 0001-0027 passed; `quick_check` returned `ok` and
+- staging D1 migrations 0001-0028 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
-- staging Worker version `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11` is live with a five-minute
+- staging Worker version `b57438ee-0283-4ccc-b752-69c440c6a6bf` is live with a five-minute
   recovery schedule for due background jobs;
 - staging `/health`, `/ready`, public config, static shell and CSP smoke passed;
 - the public OpenAPI 3.1 route contract is generated from the concrete Hono route table, exposes
@@ -253,6 +253,11 @@ verified; the full product from the master brief is still in progress.
   `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11` is healthy with 104 OpenAPI paths, 27 migrations,
   `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`; clean-clone GitHub CI
   `31549288372` passed.
+- Every newly stored image now enters one deduplicated system moderation case. Evidence bytes are
+  available only to the owner or staff allowed by the role hierarchy; approval makes a public
+  reference readable, rejection keeps it private and deleting the file closes an active system
+  review. The pre-0028 export restored independently into 28 migrations/66 tables; staging Worker
+  `b57438ee-0283-4ccc-b752-69c440c6a6bf` is healthy with `PAYMENTS_ENABLED=false`.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.

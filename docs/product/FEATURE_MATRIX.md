@@ -13,6 +13,6 @@
 | Moderation           | reports/RBAC/audit                                                                      | appeals, risk signals, Mature queue       | VERIFIED_MVP      |
 | Billing              | append-only credits                                                                     | one-time Stars credits/access/refunds     | IMPLEMENTED_GATED |
 | Plans                | typed Free limits                                                                       | Plus/Pro fixed periods and owner controls | VERIFIED_MVP      |
-| Media                | Telegram image library                                                                  | R2/video/audio/moderation pipeline        | VERIFIED_MVP      |
+| Media                | Telegram image library with review queue and RBAC preview                               | R2/video/audio pipeline                   | VERIFIED_MVP      |
 | Operations           | health/limits/flags/admin metrics                                                       | restore drill/SLO alerts/export-erasure   | VERIFIED_MVP      |
 | Internationalization | typed RU/EN runtime across user, moderation and owner views, including transport errors | add further locales when required         | VERIFIED_MVP      |

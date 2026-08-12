@@ -13,7 +13,7 @@
 The SQL is idempotent and is exercised twice against the same temporary local D1 by
 `toolkit/test-d1.mjs`. It is not a migration and must never enter production. The only supported
 remote runner is allowlisted to database `velora-staging` and its exact database ID, requires the
-22-migration healthy baseline plus the explicit confirmation, exports a backup first, then checks
+28-migration healthy baseline plus the explicit confirmation, exports a backup first, then checks
 counts, `quick_check` and foreign keys:
 
 ```powershell
