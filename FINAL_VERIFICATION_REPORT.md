@@ -325,7 +325,8 @@ verified; the full product from the master brief is still in progress.
 - Its full local gate passed 129 unit/regression, 6 quality, 4 contract and 41 integration checks
   plus builds. One desktop shell startup exceeded 30 seconds and passed Playwright's retry; the
   exact scenario then passed 3/3 with retries disabled, so the flake is disclosed rather than
-  converted into a false clean-run claim.
+  converted into a false clean-run claim. Clean-clone CI `31565278612` then repeated the complete
+  security, quality, integration, build and browser gate successfully.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease

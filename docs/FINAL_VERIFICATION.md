@@ -113,7 +113,8 @@ Velora is **not production-ready yet**. This report is updated only with factual
   48/48 probes: health p95 297.8 ms, D1 ready 134.5 ms, config 102.7 ms and OpenAPI 68.7 ms: PASS.
 - SLO tool full gate: 129 unit, 6 roleplay-quality, 4 contract and 41 integration tests plus builds
   PASS. The 12-case E2E gate retried one desktop shell startup timeout; the exact scenario then
-  passed 3/3 with retries disabled: PASS with one recorded runner flake.
+  passed 3/3 with retries disabled: PASS with one recorded runner flake. Clean-clone CI
+  `31565278612` repeated the complete gate successfully: PASS.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

@@ -47,6 +47,8 @@
       availability from a single CLI success.
 - [x] Define provisional launch SLOs, error-budget actions and explicit evidence boundaries; do not
       claim production SLOs before 30 days of production measurements.
+- [x] Pass the full local gate and clean-clone CI `31565278612`; retain the measured staging result
+      without deploying documentation-only changes or touching production/payment gates.
 
 ## Next
 
