@@ -77,6 +77,10 @@ BOTHUB_API_KEY=optional-for-explicit-live-test-only
 Staging URL: <https://velora-staging.carreljeremih.workers.dev>.
 
 Production нельзя использовать для destructive-тестов или автоматически наполнять seed-данными.
+Перед любым production-действием запускается read-only
+[`production preflight`](docs/operations/PRODUCTION_PREFLIGHT.md). Он отдельно показывает
+отсутствующие secrets, ожидающие миграции и обязательное переключение единственного Telegram
+webhook со staging на production.
 
 ## 5. Cloudflare Workers
 
@@ -286,6 +290,7 @@ corepack pnpm --filter @velora/api exec wrangler deploy
 - [архитектура](docs/architecture/ARCHITECTURE.md);
 - [API](docs/api/API_SPEC.md);
 - [deployment](docs/operations/DEPLOYMENT.md);
+- [production preflight](docs/operations/PRODUCTION_PREFLIGHT.md);
 - [runbook владельца](docs/operations/RUNBOOK.md);
 - [security review](docs/security/SECURITY_REVIEW.md);
 - [актуальный статус](docs/execution/STATUS.md);

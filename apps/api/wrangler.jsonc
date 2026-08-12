@@ -24,6 +24,7 @@
     "ENVIRONMENT": "production",
     "APP_NAME": "Velora",
     "TELEGRAM_BOT_USERNAME": "aivel0ra_bot",
+    "OWNER_TELEGRAM_ID": "1040929628",
     "PUBLIC_APP_URL": "https://velora-app.carreljeremih.workers.dev",
     "MAX_INIT_DATA_AGE_SECONDS": "900",
     "DAILY_AI_BUDGET_USD": "0.80",

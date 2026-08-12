@@ -53,6 +53,7 @@ describe('deployment paid-feature boundaries', () => {
     const localVars = requireRecord(local['vars'], 'local vars');
 
     expect(production['PAID_AI_ENABLED']).toBe('false');
+    expect(production['OWNER_TELEGRAM_ID']).toBe('1040929628');
     expect(stagingVars['PAID_AI_ENABLED']).toBe('true');
     expect(localVars['PAID_AI_ENABLED']).toBe('false');
     expect(production['PAYMENTS_ENABLED']).toBe('false');
@@ -69,19 +70,51 @@ describe('deployment paid-feature boundaries', () => {
     const firstSecretWrite = source.indexOf('secret put TELEGRAM_WEBHOOK_SECRET');
     const sessionSecretWrite = source.indexOf('secret put SESSION_SIGNING_KEY');
     const tokenSecretWrite = source.indexOf('secret put TELEGRAM_BOT_TOKEN');
-    const deploy = source.indexOf('& node $wrangler deploy --env $Environment');
+    const deploy = source.indexOf('& node $wrangler deploy $wranglerEnvironmentArgument');
     const apply = source.indexOf('& node $configureScript --apply');
 
-    expect(source).toContain('[ValidateSet("staging", "telegram-test")]');
+    expect(source).toContain('[ValidateSet("staging", "telegram-test", "production")]');
     expect(source).toContain('$apiEnvironment = if ($Environment -eq "telegram-test")');
     expect(source).toContain('$BotUsername -eq "aivel0ra_bot"');
     expect(source).toContain('$BotUsername -eq "velora_test_pending_bot"');
     expect(source).toContain('$env:TELEGRAM_API_ENVIRONMENT = $apiEnvironment');
+    expect(source).toContain('if (-not $ConfirmProductionCutover)');
+    expect(source).toContain('The bot has one webhook and staging will stop receiving updates.');
+    expect(source).toContain(
+      `$wranglerEnvironmentArgument = if ($Environment -eq "production") { '--env=' }`,
+    );
+    expect(source).not.toContain('--env $Environment');
     expect(identityCheck).toBeGreaterThan(-1);
     expect(firstSecretWrite).toBeGreaterThan(identityCheck);
     expect(sessionSecretWrite).toBeGreaterThan(firstSecretWrite);
     expect(tokenSecretWrite).toBeGreaterThan(sessionSecretWrite);
     expect(deploy).toBeGreaterThan(tokenSecretWrite);
     expect(apply).toBeGreaterThan(deploy);
+  });
+
+  it('requires explicit confirmation before installing a production Telegram token', async () => {
+    const source = await readFile(
+      new URL('../../toolkit/set-telegram-token.ps1', import.meta.url),
+      'utf8',
+    );
+    expect(source).toContain('[ValidateSet("staging", "production")]');
+    expect(source).toContain('if ($Environment -eq "production" -and -not $ConfirmProduction)');
+    expect(source).toContain(
+      `$wranglerEnvironmentArgument = if ($Environment -eq "production") { '--env=' }`,
+    );
+    expect(source).not.toContain('--env $Environment');
+    expect(source.indexOf('throw "Production requires')).toBeLessThan(source.indexOf('Read-Host'));
+  });
+
+  it('routes the production BotHub secret to the root Wrangler environment', async () => {
+    const source = await readFile(
+      new URL('../../toolkit/set-bothub-key.ps1', import.meta.url),
+      'utf8',
+    );
+    expect(source).toContain(
+      `$wranglerEnvironmentArgument = if ($Environment -eq "production") { '--env=' }`,
+    );
+    expect(source).toContain('secret put BOTHUB_API_KEY $wranglerEnvironmentArgument');
+    expect(source).not.toContain('--env $Environment');
   });
 });

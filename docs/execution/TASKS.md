@@ -37,6 +37,18 @@
 
 ## Next
 
+## Milestone 10 — PRODUCTION PREFLIGHT — VERIFIED_READ_ONLY
+
+- [x] Validate the exact production Worker URL, isolated D1 binding, confirmed owner ID, 28-file
+      migration sequence and disabled paid gates before any Cloudflare mutation.
+- [x] Query Cloudflare read-only and prove OAuth/account identity, absent production Worker and
+      secrets, and 28 pending migrations without creating or modifying a resource.
+- [x] Detect that staging and production share one Telegram bot and require an explicit cutover;
+      guard production token installation and Telegram configuration behind named confirmations.
+- [x] Document the two-phase rollout and retain Stars payments and production paid AI as disabled.
+
+## Next
+
 ## Milestone 10 — SLO BASELINE — VERIFIED_STAGING
 
 - [x] Add a bounded read-only baseline tool restricted in code to local and the isolated Velora

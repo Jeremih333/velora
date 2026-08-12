@@ -45,7 +45,7 @@ Updated: 2026-08-12.
 | Telegram bot                  | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                          |
 | Paid AI                       | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                      |
 | Staging                       | VERIFIED          | Worker `eeab29c5`; D1 28/66 healthy; paid roleplay on, payments off                        |
-| Production                    | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                    |
+| Production                    | BLOCKED_HUMAN     | read-only preflight: no Worker/secrets, 28 pending migrations, webhook cutover required    |
 
 RoleMate resources have not been changed or bound to Velora.
 

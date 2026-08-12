@@ -115,6 +115,10 @@ Velora is **not production-ready yet**. This report is updated only with factual
   PASS. The 12-case E2E gate retried one desktop shell startup timeout; the exact scenario then
   passed 3/3 with retries disabled: PASS with one recorded runner flake. Clean-clone CI
   `31565278612` repeated the complete gate successfully: PASS.
+- production preflight validates the isolated Worker/D1, owner ID, disabled paid gates, contiguous
+  28-migration set and mandatory shared-bot webhook cutover before remote work. Its read-only
+  Cloudflare run authenticated the correct account and proved `velora-app`/secrets absent with all
+  28 production migrations pending: VERIFIED_READ_ONLY; no production mutation performed.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

@@ -3,6 +3,9 @@
 - Local: `corepack pnpm install`, `pnpm db:migrate:local`, `pnpm dev`.
 - Verify: `powershell -ExecutionPolicy Bypass -File toolkit/verify.ps1`; then `pnpm test:e2e`.
 - Deploy: follow `DEPLOYMENT.md`; never deploy with a failing gate.
+- Production preflight: run `pnpm production:preflight -- --remote` and review
+  `PRODUCTION_PREFLIGHT.md`. It is read-only. Do not treat a missing Worker or missing secrets as a
+  successful rollout, and do not switch the shared Telegram webhook implicitly.
 - Rollback: `wrangler deployments list` then `wrangler rollback <version>`.
 - Bot health: `/health`, `/ready`, update inbox age and the `telegram_bot` row in
   `integration_reconciliations`. `READY` means the scheduled reconciler verified the bot identity

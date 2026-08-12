@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 $projectRoot = & (Join-Path $PSScriptRoot "assert-boundary.ps1")
 Set-Location -LiteralPath $projectRoot
+$wranglerEnvironmentArgument = if ($Environment -eq "production") { '--env=' } else { "--env=$Environment" }
 
 if ($Environment -eq "production" -and -not $ConfirmProduction) {
   throw "Production requires the explicit -ConfirmProduction checkpoint."
@@ -23,7 +24,7 @@ try {
 
   $env:CLOUDFLARE_API_TOKEN = $null
   $env:CLOUDFLARE_ACCOUNT_ID = "9d1b271d6aec48ab5d8f595d1d3fac61"
-  $plainKey | corepack pnpm --filter @velora/api exec wrangler secret put BOTHUB_API_KEY --env $Environment
+  $plainKey | corepack pnpm --filter @velora/api exec wrangler secret put BOTHUB_API_KEY $wranglerEnvironmentArgument
   if ($LASTEXITCODE -ne 0) {
     throw "Wrangler не смог сохранить BOTHUB_API_KEY для $Environment."
   }

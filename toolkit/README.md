@@ -16,6 +16,8 @@
 - `test-d1.mjs`, `test-api.mjs` и `test-restore.mjs` — проверяют миграции, Worker API и восстановление.
 - `slo-baseline.mjs` — выполняет только bounded read-only пробы local/staging health, readiness,
   public config и OpenAPI; production origin жёстко запрещён.
+- `production-preflight.mjs` — fail-closed проверяет production binding, миграции, выключенные
+  платные флаги и обязательный Telegram webhook cutover; `--remote` выполняет только чтение.
 - `seed-staging.mjs` — создаёт только явно синтетические staging-данные.
 
 Секреты не помещаются в этот каталог. Production-секреты добавляются только через Cloudflare

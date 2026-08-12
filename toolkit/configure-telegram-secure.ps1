@@ -1,8 +1,9 @@
 param(
-  [ValidateSet("staging", "telegram-test")]
+  [ValidateSet("staging", "telegram-test", "production")]
   [string]$Environment = "staging",
   [string]$BotUsername = "aivel0ra_bot",
-  [string]$PublicAppUrl = "https://velora-staging.carreljeremih.workers.dev"
+  [string]$PublicAppUrl = "https://velora-staging.carreljeremih.workers.dev",
+  [switch]$ConfirmProductionCutover
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +13,7 @@ $wranglerConfig = Join-Path $apiRoot "wrangler.jsonc"
 $wrangler = Join-Path $apiRoot "node_modules\wrangler\bin\wrangler.js"
 $configureScript = Join-Path $PSScriptRoot "configure-telegram.mjs"
 $apiEnvironment = if ($Environment -eq "telegram-test") { "test" } else { "production" }
+$wranglerEnvironmentArgument = if ($Environment -eq "production") { '--env=' } else { "--env=$Environment" }
 $pointer = [IntPtr]::Zero
 $plainToken = $null
 $webhookSecret = $null
@@ -32,6 +34,14 @@ try {
 
   if ($BotUsername -notmatch '^[A-Za-z0-9_]{5,32}$') {
     throw "Invalid Telegram bot username."
+  }
+  if ($Environment -eq "production") {
+    if (-not $ConfirmProductionCutover) {
+      throw "Production Telegram cutover requires -ConfirmProductionCutover. The bot has one webhook and staging will stop receiving updates."
+    }
+    if ($PublicAppUrl -ne "https://velora-app.carreljeremih.workers.dev") {
+      throw "Production cutover must use the isolated velora-app URL."
+    }
   }
   if ($Environment -eq "telegram-test") {
     if ($BotUsername -eq "aivel0ra_bot" -or $BotUsername -eq "velora_test_pending_bot") {
@@ -69,14 +79,14 @@ try {
 
   $env:CLOUDFLARE_API_TOKEN = $null
   $env:CLOUDFLARE_ACCOUNT_ID = "9d1b271d6aec48ab5d8f595d1d3fac61"
-  $webhookSecret | & node $wrangler secret put TELEGRAM_WEBHOOK_SECRET --env $Environment --config $wranglerConfig
+  $webhookSecret | & node $wrangler secret put TELEGRAM_WEBHOOK_SECRET $wranglerEnvironmentArgument --config $wranglerConfig
   if ($LASTEXITCODE -ne 0) { throw "Could not install TELEGRAM_WEBHOOK_SECRET." }
-  $sessionSigningKey | & node $wrangler secret put SESSION_SIGNING_KEY --env $Environment --config $wranglerConfig
+  $sessionSigningKey | & node $wrangler secret put SESSION_SIGNING_KEY $wranglerEnvironmentArgument --config $wranglerConfig
   if ($LASTEXITCODE -ne 0) { throw "Could not install SESSION_SIGNING_KEY." }
-  $plainToken | & node $wrangler secret put TELEGRAM_BOT_TOKEN --env $Environment --config $wranglerConfig
+  $plainToken | & node $wrangler secret put TELEGRAM_BOT_TOKEN $wranglerEnvironmentArgument --config $wranglerConfig
   if ($LASTEXITCODE -ne 0) { throw "Could not install TELEGRAM_BOT_TOKEN." }
 
-  & node $wrangler deploy --env $Environment --config $wranglerConfig
+  & node $wrangler deploy $wranglerEnvironmentArgument --config $wranglerConfig
   if ($LASTEXITCODE -ne 0) { throw "The isolated Worker deployment failed." }
   & node $configureScript --apply
   if ($LASTEXITCODE -ne 0) { throw "Telegram rejected webhook/menu configuration." }
