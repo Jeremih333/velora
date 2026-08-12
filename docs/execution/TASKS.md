@@ -48,6 +48,8 @@
 - [x] Document the two-phase rollout and retain Stars payments and production paid AI as disabled.
 - [x] Route production secret/deploy commands to Wrangler's root environment instead of a phantom
       named environment; pass the full local gate and clean-clone CI `31607394871`.
+- [x] Add a deterministic cross-platform Markdown link checker to the local and clean-clone gates,
+      repair the stale security-document link, and reconcile production/test evidence counters.
 
 ## Next
 

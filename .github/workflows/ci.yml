@@ -25,6 +25,7 @@ jobs:
       - name: Secret scan
         run: node toolkit/secret-scan.mjs
       - run: pnpm format:check
+      - run: pnpm docs:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

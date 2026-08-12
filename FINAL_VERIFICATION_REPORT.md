@@ -332,6 +332,10 @@ verified; the full product from the master brief is still in progress.
   path, absent `velora-app` and secrets, all 28 migrations pending, both paid gates disabled and the
   required one-webhook Telegram cutover. The production-root routing regression and complete gate
   passed clean-clone CI `31607394871`. No production resource or webhook was changed.
+- Documentation links now fail the local and CI gates when a relative target is missing, escapes
+  the Velora repository, or has invalid URL encoding. The deterministic Windows/Linux regression
+  found and repaired the stale security-review target; the latest complete local gate included
+  this check and passed 51 integration tests.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -354,4 +358,4 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 129 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 37 integration tests, both builds and 12/12 E2E cases without retries.
+tests, 51 integration tests, both builds and 12/12 E2E cases without retries.

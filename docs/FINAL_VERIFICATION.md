@@ -2,24 +2,24 @@
 
 Velora is **not production-ready yet**. This report is updated only with factual evidence.
 
-| Feature                              | Implementation                       | Automated test         | Manual test            | Status            | Notes                             |
-| ------------------------------------ | ------------------------------------ | ---------------------- | ---------------------- | ----------------- | --------------------------------- |
-| Workspace isolation                  | boundary scripts and independent Git | boundary command       | path/account audit     | VERIFIED          | RoleMate untouched                |
-| GitHub CI                            | private repository and workflow      | clean-clone full gate  | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
-| Knowledge base                       | required docs/ADR hierarchy          | formatting pending     | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
-| Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions | staging 104-path smoke | VERIFIED          | Assets bypass is explicit         |
-| D1                                   | 66 schema tables, 28 migrations      | local/seed integration | staging integrity      | VERIFIED          | production remains empty          |
-| Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression | live initData passed   | VERIFIED_MVP      | owner role persisted              |
-| AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E   | full live chat         | VERIFIED_STAGING  | production remains disabled       |
-| Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
-| First-run onboarding                 | 4-step idempotent Worker/UI flow     | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | policy required; rest optional    |
-| Likes/bookmarks/reviews              | D1 constraints and MiniApp           | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | no viewer identities              |
-| Billing/moderation/admin             | Stars gate, RBAC and owner grants    | unit/integration/E2E   | owner-grant staging UI | IMPLEMENTED_GATED | payments stay disabled            |
-| Reliability/operations               | limits/events/alerts/data controls   | unit/integration/E2E   | live alert/recovery    | VERIFIED_MVP      | owner receipt witnessed           |
-| Web bundle performance               | lazy auth/chat/lore workspace chunks | build/integration/E2E  | live asset smoke       | VERIFIED_STAGING  | initial JS 650,138→306,635 B      |
-| Support/legal                        | private tickets, admin queue, policy | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | contents excluded from audit      |
-| User profiles                        | separate identity, privacy, avatar   | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | Telegram identity stays private   |
-| Production                           | none                                 | none                   | none                   | NOT_STARTED       | cannot claim success              |
+| Feature                              | Implementation                       | Automated test          | Manual test            | Status            | Notes                             |
+| ------------------------------------ | ------------------------------------ | ----------------------- | ---------------------- | ----------------- | --------------------------------- |
+| Workspace isolation                  | boundary scripts and independent Git | boundary command        | path/account audit     | VERIFIED          | RoleMate untouched                |
+| GitHub CI                            | private repository and workflow      | clean-clone full gate   | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
+| Knowledge base                       | required docs/ADR hierarchy          | formatting pending      | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
+| Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions  | staging 104-path smoke | VERIFIED          | Assets bypass is explicit         |
+| D1                                   | 66 schema tables, 28 migrations      | local/seed integration  | staging integrity      | VERIFIED          | production remains empty          |
+| Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression  | live initData passed   | VERIFIED_MVP      | owner role persisted              |
+| AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E    | full live chat         | VERIFIED_STAGING  | production remains disabled       |
+| Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E    | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
+| First-run onboarding                 | 4-step idempotent Worker/UI flow     | unit/integration/E2E    | staging smoke passed   | VERIFIED_MVP      | policy required; rest optional    |
+| Likes/bookmarks/reviews              | D1 constraints and MiniApp           | integration/E2E         | staging smoke passed   | VERIFIED_MVP      | no viewer identities              |
+| Billing/moderation/admin             | Stars gate, RBAC and owner grants    | unit/integration/E2E    | owner-grant staging UI | IMPLEMENTED_GATED | payments stay disabled            |
+| Reliability/operations               | limits/events/alerts/data controls   | unit/integration/E2E    | live alert/recovery    | VERIFIED_MVP      | owner receipt witnessed           |
+| Web bundle performance               | lazy auth/chat/lore workspace chunks | build/integration/E2E   | live asset smoke       | VERIFIED_STAGING  | initial JS 650,138→306,635 B      |
+| Support/legal                        | private tickets, admin queue, policy | unit/integration/E2E    | staging smoke passed   | VERIFIED_MVP      | contents excluded from audit      |
+| User profiles                        | separate identity, privacy, avatar   | integration/E2E         | staging smoke passed   | VERIFIED_MVP      | Telegram identity stays private   |
+| Production                           | isolated D1 + guarded preflight      | config/link regressions | read-only CF preflight | BLOCKED_HUMAN     | no Worker/secrets/migrations yet  |
 
 ## Command report — 2026-08-12
 
@@ -28,12 +28,12 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
 - latest complete gate: 129 unit/regression PASS; roleplay-quality: 6 PASS; API contract: 4 PASS;
-  integration/schema/cost/bundle: 37 PASS; Android/iPhone/Desktop E2E: 12 PASS without retries;
+  integration/schema/cost/bundle: 51 PASS; Android/iPhone/Desktop E2E: 12 PASS without retries;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
 - D1 integration/migration/quick-check/foreign-key check: PASS;
 - production builds: PASS;
-- Playwright Android/iPhone/Desktop: 9 PASS;
+- Playwright Android/iPhone/Desktop: 12 PASS;
 - staging `/health`, `/ready`, `/openapi.json`, static shell and security-header smoke: PASS;
 - OpenAPI 3.1 publishes 104 concrete route paths with cookie/CSRF/webhook security and a stable
   error envelope; a real Wrangler integration regression guards its Worker-first Assets route;

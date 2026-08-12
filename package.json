@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "security:scan": "node toolkit/secret-scan.mjs",
+    "docs:check": "node toolkit/check-doc-links.mjs",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run --exclude apps/api/src/openapi.contract.test.ts --exclude tests/integration/** --exclude tests/e2e/**",

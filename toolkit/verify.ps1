@@ -9,7 +9,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "package.json"))) {
   throw "package.json is not present yet. Complete the project bootstrap first."
 }
 
-$commands = @("format:check", "lint", "typecheck", "test", "test:roleplay-quality", "test:contract", "test:integration", "build", "test:e2e")
+$commands = @("format:check", "docs:check", "lint", "typecheck", "test", "test:roleplay-quality", "test:contract", "test:integration", "build", "test:e2e")
 foreach ($command in $commands) {
   Write-Output "Running pnpm $command"
   corepack pnpm $command

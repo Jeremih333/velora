@@ -10,6 +10,7 @@ Updated: 2026-08-12.
 | Cloudflare Free observability | VERIFIED_TOOLING  | read-only account-wide Worker/D1 guard; 70%/85% fail-closed thresholds                     |
 | Knowledge base                | IMPLEMENTED       | required hierarchy created; evolves with code                                              |
 | Owner documentation           | VERIFIED          | root zero-to-production README with guarded commands and links                             |
+| Documentation integrity       | VERIFIED_LOCAL    | deterministic local-link check in local gate and CI; zero broken links                     |
 | Monorepo                      | IMPLEMENTED       | strict TS packages, Worker API, Mini App shell, CI                                         |
 | API contract                  | VERIFIED          | generated OpenAPI 3.1, 104 staging paths, contract + real Worker smoke                     |
 | GitHub                        | VERIFIED          | private `Jeremih333/velora`; clean-clone CI covers full quality gate                       |

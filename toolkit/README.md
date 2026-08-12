@@ -6,6 +6,8 @@
 - `assert-boundary.ps1` — подтверждает границу Velora и не позволяет затронуть RoleMate.
 - `bootstrap.ps1` — проверяет Node.js, Corepack, pnpm, Git и Wrangler.
 - `secret-scan.ps1` и `secret-scan.mjs` — ищут случайно добавленные токены и приватные ключи.
+- `check-doc-links.mjs` — проверяет существование всех локальных Markdown-ссылок и запрещает
+  выход ссылочного пути за границу проекта.
 - `verify.ps1` — запускает полный локальный quality gate.
 - `cost-estimator.mjs` — воспроизводимо рассчитывает годовой расход AI.
 - `configure-telegram.mjs` — dry-run, проверка identity и применение команд/menu/webhook.

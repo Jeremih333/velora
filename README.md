@@ -292,6 +292,6 @@ corepack pnpm --filter @velora/api exec wrangler deploy
 - [deployment](docs/operations/DEPLOYMENT.md);
 - [production preflight](docs/operations/PRODUCTION_PREFLIGHT.md);
 - [runbook владельца](docs/operations/RUNBOOK.md);
-- [security review](docs/security/SECURITY_REVIEW.md);
+- [security review](docs/architecture/SECURITY.md);
 - [актуальный статус](docs/execution/STATUS.md);
 - [честный verification report](FINAL_VERIFICATION_REPORT.md).
