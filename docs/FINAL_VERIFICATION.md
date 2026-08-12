@@ -115,7 +115,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
   40-megapixel/8192-dimension bounds, declared-geometry mismatch rejection and real local
   webhook-to-D1-to-owned-proxy regression; staging Worker
   `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11`, 104 OpenAPI paths, D1 `quick_check=ok`, empty foreign-key
-  check and `PAYMENTS_ENABLED=false`: PASS;
+  check, `PAYMENTS_ENABLED=false` and clean-clone CI `31549288372`: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

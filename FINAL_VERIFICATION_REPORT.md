@@ -251,7 +251,8 @@ verified; the full product from the master brief is still in progress.
   oversized-pixel and Telegram-metadata-mismatched files, and persists only inspected dimensions.
   The real local webhook-to-D1-to-owned-proxy path and all quality gates passed; staging Worker
   `a9d6eb18-7292-4cef-a5b3-0c6107fa4d11` is healthy with 104 OpenAPI paths, 27 migrations,
-  `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`.
+  `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`; clean-clone GitHub CI
+  `31549288372` passed.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.
