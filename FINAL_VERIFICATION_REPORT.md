@@ -301,6 +301,11 @@ verified; the full product from the master brief is still in progress.
   `31560140067` passed and staging Worker `afd1e97d-1ab8-47cf-b0e5-e63b00e78686` returned HTTP 200
   for the manifest and every exact lazy asset; health/readiness, 104 OpenAPI paths and D1 integrity
   remained healthy without changing paid feature flags.
+- A clean-D1 first-run regression now signs Telegram `initData` for a previously unknown ID and
+  proves server-side user/profile/settings initialization, safe defaults, atomic onboarding,
+  optional persona creation, SAFE discovery, a persona-bound first conversation and its initial
+  assistant message. The Mini App now forwards the returned onboarding `personaId` instead of
+  silently discarding it; Android, iPhone and desktop lock the exact conversation payload.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease

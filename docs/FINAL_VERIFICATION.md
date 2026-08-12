@@ -93,6 +93,10 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - first launch requires explicit policy acceptance, never requires Mature access or a persona,
   atomically creates at most one optional default persona, recommends SAFE published characters
   and can start the selected story immediately: PASS.
+- clean-D1 first-run regression authenticates a previously unknown signed Telegram identity,
+  verifies safe locale/role/onboarding defaults, creates the optional persona, finds a SAFE
+  recommendation and starts a conversation whose immutable persona snapshot retains that exact
+  onboarding persona; Android, iPhone and desktop assert the same Mini App request: PASS.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

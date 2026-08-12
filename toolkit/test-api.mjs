@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -70,6 +70,7 @@ const opaqueCharacterVersionId = 'seed-character-version-integration';
 const characterName = `Элиас ${randomUUID()}`;
 const matureCharacterName = `Ночная история ${randomUUID()}`;
 const telegramId = String(8_000_000_000 + Math.floor(Math.random() * 999_999_999));
+const firstRunTelegramId = String(Number(telegramId) + 10_000);
 const now = Date.now();
 const telegramRequests = [];
 const aiRequests = [];
@@ -86,6 +87,21 @@ let configuredShortDescription = '';
 
 function hash(value) {
   return createHash('sha256').update(value).digest('hex');
+}
+
+function signTelegramInitData(user, token) {
+  const params = new URLSearchParams({
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    query_id: `integration-first-run-${randomUUID()}`,
+    user: JSON.stringify(user),
+  });
+  const checkString = [...params.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+  const secret = createHmac('sha256', 'WebAppData').update(token).digest();
+  params.set('hash', createHmac('sha256', secret).update(checkString).digest('hex'));
+  return params.toString();
 }
 
 function respondJson(response, payload, status = 200) {
@@ -510,6 +526,100 @@ try {
     throw new Error('Public config cache is incomplete or exposes internal budget controls.');
   }
   await waitForPublicCacheHit('/api/v1/config');
+  const firstRunAuthResponse = await fetch(`${baseUrl}/api/v1/auth/telegram`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      initData: signTelegramInitData(
+        {
+          id: firstRunTelegramId,
+          first_name: 'First Run',
+          username: `first_run_${firstRunTelegramId}`,
+          language_code: 'en-US',
+        },
+        'integration-bot-token',
+      ),
+    }),
+  });
+  const firstRunAuth = await firstRunAuthResponse.json();
+  const firstRunCookie = firstRunAuthResponse.headers.get('set-cookie')?.split(';', 1)[0];
+  if (
+    firstRunAuthResponse.status !== 201 ||
+    typeof firstRunAuth.user?.id !== 'string' ||
+    typeof firstRunAuth.csrfToken !== 'string' ||
+    !firstRunCookie
+  ) {
+    throw new Error(`First-run Telegram authentication failed: ${JSON.stringify(firstRunAuth)}.`);
+  }
+  const firstRunHeaders = { cookie: firstRunCookie };
+  const firstRunMe = await request('/api/v1/me', { headers: firstRunHeaders }, 200);
+  if (
+    firstRunMe.onboardingCompleted !== false ||
+    firstRunMe.locale !== 'en' ||
+    firstRunMe.role !== 'USER'
+  ) {
+    throw new Error('A new Telegram user was not initialized with safe first-run defaults.');
+  }
+  const firstRunCompletion = await request(
+    '/api/v1/onboarding/complete',
+    {
+      method: 'POST',
+      headers: {
+        ...firstRunHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': firstRunAuth.csrfToken,
+      },
+      body: JSON.stringify({
+        idempotencyKey: randomUUID(),
+        policyAccepted: true,
+        matureEnabled: false,
+        persona: {
+          name: 'First Persona',
+          shortDescription: 'Created during the first-run integration flow.',
+        },
+      }),
+    },
+    201,
+  );
+  if (typeof firstRunCompletion.personaId !== 'string') {
+    throw new Error('First-run onboarding did not create the selected persona.');
+  }
+  const firstRunDiscovery = await request(
+    '/api/v1/discovery?sort=trending&limit=3&rating=SAFE',
+    { headers: firstRunHeaders },
+    200,
+  );
+  if (!firstRunDiscovery.items.some((item) => item.id === opaqueCharacterId)) {
+    throw new Error('A new user did not receive a safe character recommendation.');
+  }
+  const firstRunConversation = await request(
+    '/api/v1/conversations',
+    {
+      method: 'POST',
+      headers: {
+        ...firstRunHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': firstRunAuth.csrfToken,
+      },
+      body: JSON.stringify({
+        characterId: opaqueCharacterId,
+        personaId: firstRunCompletion.personaId,
+        idempotencyKey: `first-run-story:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  if (firstRunConversation.personaId !== firstRunCompletion.personaId) {
+    throw new Error('The first story did not retain the persona created during onboarding.');
+  }
+  const firstRunMessages = await request(
+    `/api/v1/conversations/${firstRunConversation.id}/messages`,
+    { headers: firstRunHeaders },
+    200,
+  );
+  if (firstRunMessages.items.length !== 1 || firstRunMessages.items[0]?.role !== 'ASSISTANT') {
+    throw new Error('The first story did not expose its initial character message.');
+  }
   const me = await request('/api/v1/me', { headers }, 200);
   if (me.id !== userId || me.plan !== 'FREE' || me.onboardingCompleted !== false) {
     throw new Error('Authenticated /me is inconsistent.');
@@ -2450,7 +2560,7 @@ try {
   }
   await waitForPublicCacheHit('/api/v1/public/tags', headers);
   const firstTrending = await cachedPublicRequest('/api/v1/public/trending', 'MISS', headers);
-  if (firstTrending.body.items[0]?.id !== character.id) {
+  if (!firstTrending.body.items.some((item) => item.id === character.id)) {
     throw new Error('Public trending cache is missing the published character.');
   }
   await waitForPublicCacheHit('/api/v1/public/trending', headers);

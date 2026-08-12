@@ -68,3 +68,14 @@ authenticated app after verified Telegram auth, then lazy-load Chats and Loreboo
 the generated manifest to cap both the entry and every JavaScript chunk at 350,000 uncompressed
 bytes. Consequences: the initial artifact is 306,635 bytes; loading states are required and tested;
 build, integration and browser gates fail if the split silently regresses.
+
+## 2026-08-12 — Preserve the onboarding persona in the first story
+
+Context: onboarding created an optional default persona atomically, but the Mini App discarded the
+returned `personaId` when it immediately opened a recommended character. The UI therefore promised
+the selected identity while the new conversation could start without it. Chosen: treat the
+onboarding completion response as the authority and pass its returned `personaId` into the first
+conversation request. A real clean-D1 Worker regression now authenticates a previously unknown,
+correctly signed Telegram user and proves account defaults, onboarding, optional persona creation,
+SAFE discovery, persona-bound conversation creation and the initial assistant message. The browser
+regression separately locks the exact request on Android, iPhone and desktop.

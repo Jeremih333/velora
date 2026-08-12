@@ -37,6 +37,18 @@
 
 ## Next
 
+## Milestone 10 — FIRST-RUN HARDENING — VERIFIED_LOCAL
+
+- [x] Authenticate a completely unknown Telegram ID through a real signed `initData` request
+      against a clean local Worker and D1 instead of pre-seeding its account or session.
+- [x] Prove safe account defaults, atomic onboarding, optional default-persona creation, SAFE
+      recommendations, initial story creation and the first assistant message in one flow.
+- [x] Fix the Mini App to retain the onboarding response's `personaId` when opening its recommended
+      story, and lock the exact request on Android, iPhone and desktop.
+- [ ] Pass the full quality gate, clean-clone CI and staging smoke for this change.
+
+## Next
+
 ## Milestone 10 — PERFORMANCE HARDENING — VERIFIED_LOCAL
 
 - [x] Split the authenticated shell, chat/Markdown runtime and lorebook editor into explicit lazy

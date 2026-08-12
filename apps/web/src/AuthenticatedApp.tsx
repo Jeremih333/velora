@@ -298,28 +298,32 @@ function OnboardingView({
   });
   const complete = useMutation({
     mutationFn: async (characterId: string | null) => {
-      await apiRequest('/api/v1/onboarding/complete', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          idempotencyKey: completionKey.current,
-          policyAccepted: true,
-          matureEnabled,
-          persona:
-            personaName.trim().length > 0
-              ? {
-                  name: personaName,
-                  shortDescription: personaDescription,
-                }
-              : null,
-        }),
-      });
+      const onboarding = await apiRequest<{ readonly personaId: string | null }>(
+        '/api/v1/onboarding/complete',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            idempotencyKey: completionKey.current,
+            policyAccepted: true,
+            matureEnabled,
+            persona:
+              personaName.trim().length > 0
+                ? {
+                    name: personaName,
+                    shortDescription: personaDescription,
+                  }
+                : null,
+          }),
+        },
+      );
       if (!characterId) return null;
       const conversation = await apiRequest<{ readonly id: string }>('/api/v1/conversations', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           characterId,
+          personaId: onboarding.personaId,
           idempotencyKey: chatKey.current,
         }),
       });

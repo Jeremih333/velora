@@ -42,6 +42,7 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
   let conversationCreated = false;
   let onboardingCompleted = false;
   let onboardingPayload: Record<string, unknown> | null = null;
+  let onboardingConversationPayload: Record<string, unknown> | null = null;
   let conversationPreview = false;
   let previewRequestVerified = false;
   const characterAutosaveBodies: Record<string, unknown>[] = [];
@@ -203,7 +204,7 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
         contentType: 'application/json',
         body: JSON.stringify({
           completed: true,
-          personaId: null,
+          personaId: 'onboarding-persona-1',
           matureEnabled: false,
           policyAcceptedAt: 1,
           completedAt: 1,
@@ -445,7 +446,12 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
       return;
     }
     if (url.pathname === '/api/v1/conversations' && request.method() === 'POST') {
-      const requestBody = request.postDataJSON() as { readonly preview?: boolean };
+      const requestBody = request.postDataJSON() as Record<string, unknown> & {
+        readonly preview?: boolean;
+      };
+      if (!requestBody.preview && onboardingCompleted && !conversationCreated) {
+        onboardingConversationPayload = requestBody;
+      }
       conversationCreated = true;
       conversationPreview = requestBody.preview === true;
       previewRequestVerified ||= conversationPreview;
@@ -1269,6 +1275,10 @@ test('authenticated MiniApp navigation and persona creation remain usable', asyn
     policyAccepted: true,
     matureEnabled: false,
     persona: { name: 'Странница', shortDescription: 'Ищет забытые истории.' },
+  });
+  expect(onboardingConversationPayload).toMatchObject({
+    characterId: 'character-1',
+    personaId: 'onboarding-persona-1',
   });
   await page.getByRole('button', { name: /Каталог/u }).click();
   await expect(page.getByRole('heading', { name: 'Найди свою историю' })).toBeVisible();
