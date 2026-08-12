@@ -121,7 +121,8 @@ Velora is **not production-ready yet**. This report is updated only with factual
   remove/hide rejects, deletion closes an active system review, and approved public references are
   readable. Backup `velora-staging-pre-0028-2026-08-12T0034Z.sql` restored independently; staging
   Worker `b57438ee-0283-4ccc-b752-69c440c6a6bf` has 28 migrations/66 tables, the unique queue index,
-  `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`: PASS;
+  `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`; clean-clone GitHub CI
+  `31552004619`: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

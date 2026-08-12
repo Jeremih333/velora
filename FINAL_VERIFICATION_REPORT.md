@@ -257,7 +257,8 @@ verified; the full product from the master brief is still in progress.
   available only to the owner or staff allowed by the role hierarchy; approval makes a public
   reference readable, rejection keeps it private and deleting the file closes an active system
   review. The pre-0028 export restored independently into 28 migrations/66 tables; staging Worker
-  `b57438ee-0283-4ccc-b752-69c440c6a6bf` is healthy with `PAYMENTS_ENABLED=false`.
+  `b57438ee-0283-4ccc-b752-69c440c6a6bf` is healthy with `PAYMENTS_ENABLED=false`; clean-clone
+  GitHub CI `31552004619` passed the full gate.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.
