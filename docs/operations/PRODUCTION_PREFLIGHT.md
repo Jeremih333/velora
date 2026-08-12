@@ -1,6 +1,6 @@
 # Production preflight
 
-Updated: 2026-08-12. Status: `BLOCKED_HUMAN` before any production mutation.
+Updated: 2026-08-12. Status: `PHASE_1_VERIFIED`; phase 2 is `BLOCKED_HUMAN`.
 
 ## Verified read-only state
 
@@ -15,7 +15,7 @@ The first command validates only repository configuration and the contiguous mig
 The second also performs read-only Wrangler calls. It never migrates D1, deploys a Worker, writes a
 secret or changes Telegram.
 
-The 2026-08-12 remote run proved:
+The initial 2026-08-12 remote run proved:
 
 - Cloudflare OAuth is authenticated to account `9d1b...fac61`;
 - production Worker `velora-app` does not exist;
@@ -28,6 +28,21 @@ The 2026-08-12 remote run proved:
 
 Only resource names, migration names and secret **names** are reported. Secret values are never
 read or printed.
+
+After the owner-authorized phase 1, the same read-only preflight now proves:
+
+- production Worker `velora-app` exists and serves root, health, readiness and OpenAPI with HTTP
+  200;
+- production D1 has no pending migration among 0001-0028, `quick_check=ok`, no foreign-key
+  violations and zero users;
+- all four required production secret names exist without exposing their values;
+- the production BotHub reconciliation is `READY`;
+- production has no Telegram reconciliation row, so phase 1 did not switch the bot;
+- `readyForCutover=true`, while `TELEGRAM_WEBHOOK_CUTOVER_REQUIRED` is the sole remaining blocker.
+
+The first phase-1 smoke received a transient 404 while Cloudflare propagated the newly created
+Worker route. The guarded runner now retries that propagation window. Independent HTTP retries and
+clean-clone CI `31616327482` passed after the fix.
 
 ## Telegram cutover invariant
 
@@ -43,25 +58,25 @@ Production setup is deliberately split into two phases:
 and the URL is exactly `https://velora-app.carreljeremih.workers.dev`. Production and staging use
 independent webhook/session secrets even when the BotFather token is the same.
 
-## Remaining human checkpoint
+## Completed phase 1 and remaining human checkpoint
 
-Before phase 1 the owner must explicitly authorize the production migration/deploy and enter the
-Velora BotFather token and BotHub key through hidden prompts. Before phase 2 the owner must confirm
-that moving the single bot webhook from staging to production is intended.
+Phase 1 was explicitly authorized and completed. The production database backup was exported, all
+28 migrations were applied, four secret names were installed atomically, and Worker safety hotfix
+`9fd2e014-197f-4b30-8c3a-75238201f774` was verified. The hotfix keeps scheduled production Telegram
+reconciliation disabled.
 
-After that first authorization, run the guarded phase exactly once from a visible PowerShell:
+For audit/recovery reference, phase 1 was performed through:
 
 ```powershell
 .\toolkit\deploy-production-phase1.ps1 -ConfirmProductionDeployment
 ```
 
-The script completes the full local gate, Telegram identity check and non-generative BotHub key
-check before its first mutation. It exports production D1, applies the reviewed migrations and
-supplies all four secrets atomically with the initial Worker version. It then smoke-tests health,
-readiness, OpenAPI and D1 integrity. It never calls `setWebhook`; staging continues receiving bot
-updates until the separate phase-2 checkpoint.
+Do not run that phase-1 command again as a normal deployment action. Its exact-state guards reject
+an already deployed production Worker. The script never called `setWebhook`; staging continues
+receiving bot updates until the separate phase-2 checkpoint.
 
-After phase 1 is independently verified, phase 2 remains a separate owner decision:
+Phase 2 remains a separate owner decision. It must not run until the owner explicitly confirms that
+moving the single `@aivel0ra_bot` webhook from staging to production is intended:
 
 ```powershell
 .\toolkit\cutover-production-telegram.ps1 -ConfirmProductionWebhookCutover

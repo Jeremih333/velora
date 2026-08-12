@@ -17,7 +17,8 @@ verified; the full product from the master brief is still in progress.
   backup/restore and the explicit production gates from zero without embedding secrets;
 - Cloudflare Free-only architecture with no card or automatic plan upgrade;
 - separate `velora-staging` and `velora-production` D1 databases;
-- production D1 is intentionally unmigrated; staging currently has 66 schema tables;
+- production D1 has all 28 reviewed migrations, remains empty of users, and passed `quick_check`
+  plus a zero-result `foreign_key_check`; staging currently has 66 schema tables;
 - staging D1 migrations 0001-0028 passed; `quick_check` returned `ok` and
   `foreign_key_check` returned no violations;
 - pre-0003, pre-0004, pre-0005, pre-0006, pre-0007, pre-0008 and pre-0009 staging backups were exported before their migrations;
@@ -347,6 +348,8 @@ verified; the full product from the master brief is still in progress.
   users. Hotfix `9fd2e014-197f-4b30-8c3a-75238201f774` now disables scheduled production Telegram
   reconciliation until phase 2 and the runner retries propagation. Production BotHub reconciliation
   is READY; Telegram has no production reconciliation row. Paid AI and payments remain disabled.
+  Clean-clone CI `31616327482` independently passed the complete gate for commit `e1079ab` after
+  the phase-1 evidence, propagation retry and fail-closed Telegram reconciliation guard were added.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -365,7 +368,8 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 - paid roleplay inference passed the deliberately bounded V3 checkpoint and is enabled only on
   staging; production remains disabled pending separate owner approval and live staging evidence;
 - R2 is not enabled on the account, so the initial free design uses Telegram `file_id` storage;
-- production deploy remains gated until the live integrations and their tests pass.
+- the Telegram webhook cutover remains separately gated by explicit owner authorization; until
+  then staging keeps receiving bot updates and production Telegram reconciliation remains off.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 130 unit/regression tests, 6 roleplay-quality tests, 4 contract
