@@ -46,6 +46,8 @@
 - [x] Detect that staging and production share one Telegram bot and require an explicit cutover;
       guard production token installation and Telegram configuration behind named confirmations.
 - [x] Document the two-phase rollout and retain Stars payments and production paid AI as disabled.
+- [x] Route production secret/deploy commands to Wrangler's root environment instead of a phantom
+      named environment; pass the full local gate and clean-clone CI `31607394871`.
 
 ## Next
 

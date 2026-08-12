@@ -118,7 +118,8 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - production preflight validates the isolated Worker/D1, owner ID, disabled paid gates, contiguous
   28-migration set and mandatory shared-bot webhook cutover before remote work. Its read-only
   Cloudflare run authenticated the correct account and proved `velora-app`/secrets absent with all
-  28 production migrations pending: VERIFIED_READ_ONLY; no production mutation performed.
+  28 production migrations pending: VERIFIED_READ_ONLY; no production mutation performed. The
+  guarded environment routing and preflight passed clean-clone CI `31607394871`.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

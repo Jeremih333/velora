@@ -330,7 +330,8 @@ verified; the full product from the master brief is still in progress.
 - A fail-closed production preflight now verifies repository bindings and performs optional
   read-only Cloudflare inspection. It confirmed the correct account, isolated empty production
   path, absent `velora-app` and secrets, all 28 migrations pending, both paid gates disabled and the
-  required one-webhook Telegram cutover. No production resource or webhook was changed.
+  required one-webhook Telegram cutover. The production-root routing regression and complete gate
+  passed clean-clone CI `31607394871`. No production resource or webhook was changed.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
