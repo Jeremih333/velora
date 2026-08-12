@@ -306,6 +306,10 @@ verified; the full product from the master brief is still in progress.
   optional persona creation, SAFE discovery, a persona-bound first conversation and its initial
   assistant message. The Mini App now forwards the returned onboarding `personaId` instead of
   silently discarding it; Android, iPhone and desktop lock the exact conversation payload.
+- The complete local gate and clean-clone CI `31562407535` passed this first-run change. Staging
+  Worker `e928ec7f-610f-47c5-85c2-b78ec18294fd` serves the fix with health `ok`, readiness `ready`,
+  unauthenticated `/me` 401, 104 OpenAPI paths and 28-migration/66-table D1 integrity. No migration,
+  secret, production resource, payment configuration or paid-AI gate changed; payments remain off.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease

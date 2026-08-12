@@ -97,6 +97,11 @@ Velora is **not production-ready yet**. This report is updated only with factual
   verifies safe locale/role/onboarding defaults, creates the optional persona, finds a SAFE
   recommendation and starts a conversation whose immutable persona snapshot retains that exact
   onboarding persona; Android, iPhone and desktop assert the same Mini App request: PASS.
+- first-run hardening full gate: secret scan, formatting, lint, strict typecheck, 129 unit, 6
+  roleplay-quality, 4 contract, 37 integration, both builds and 12/12 E2E passed locally and in
+  clean-clone CI `31562407535`; staging Worker `e928ec7f-610f-47c5-85c2-b78ec18294fd` is healthy,
+  ready, returns 401 without a session, serves 104 OpenAPI paths and keeps D1 at 28 migrations/66
+  tables with `quick_check=ok` and zero foreign-key violations: PASS.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

@@ -37,7 +37,7 @@
 
 ## Next
 
-## Milestone 10 — FIRST-RUN HARDENING — VERIFIED_LOCAL
+## Milestone 10 — FIRST-RUN HARDENING — VERIFIED_STAGING
 
 - [x] Authenticate a completely unknown Telegram ID through a real signed `initData` request
       against a clean local Worker and D1 instead of pre-seeding its account or session.
@@ -45,7 +45,9 @@
       recommendations, initial story creation and the first assistant message in one flow.
 - [x] Fix the Mini App to retain the onboarding response's `personaId` when opening its recommended
       story, and lock the exact request on Android, iPhone and desktop.
-- [ ] Pass the full quality gate, clean-clone CI and staging smoke for this change.
+- [x] Pass the full quality gate, clean-clone CI `31562407535`, deploy staging Worker
+      `e928ec7f-610f-47c5-85c2-b78ec18294fd` and verify health/readiness, unauthenticated 401,
+      static assets and D1 integrity without a migration or paid-gate change.
 
 ## Next
 

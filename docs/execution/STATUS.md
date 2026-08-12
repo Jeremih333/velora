@@ -17,7 +17,7 @@ Updated: 2026-08-12.
 | Characters/discovery          | VERIFIED_MVP      | versioned section editor, draft autosave, Mature review before feed                        |
 | Character interactions        | VERIFIED_MVP      | D1-unique likes/bookmarks/reviews, creator aggregates and 3-device E2E                     |
 | Authenticated Mini App        | VERIFIED_MVP      | catalog/editors/settings and 3-device authenticated E2E                                    |
-| First-run onboarding          | VERIFIED_LOCAL    | signed unknown Telegram ID → account → persona → SAFE recommendation → persona-bound story |
+| First-run onboarding          | VERIFIED_STAGING  | signed unknown Telegram ID → account → persona → SAFE recommendation → persona-bound story |
 | Telegram image media          | VERIFIED_MVP      | byte/geometry checks, deduped review queue, RBAC preview, approve/reject and public proxy  |
 | Conversations/chat            | VERIFIED_STAGING  | owner-confirmed live continuation/2-of-2 branch UI, tests, streaming, memory inspector     |
 | Advanced roleplay             | VERIFIED_MVP      | exact prompt order/settings plus creator/admin inspector with IDOR deny                    |
@@ -43,7 +43,7 @@ Updated: 2026-08-12.
 | R2                            | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                          |
 | Telegram bot                  | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                          |
 | Paid AI                       | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                      |
-| Staging                       | VERIFIED          | Worker `afd1e97d`; D1 28/66 healthy; paid roleplay on, payments off                        |
+| Staging                       | VERIFIED          | Worker `e928ec7f`; D1 28/66 healthy; paid roleplay on, payments off                        |
 | Production                    | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                    |
 
 RoleMate resources have not been changed or bound to Velora.
