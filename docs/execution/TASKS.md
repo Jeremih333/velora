@@ -45,6 +45,8 @@
       recommendations, initial story creation and the first assistant message in one flow.
 - [x] Fix the Mini App to retain the onboarding response's `personaId` when opening its recommended
       story, and lock the exact request on Android, iPhone and desktop.
+- [x] Serialize concurrent reuse of one valid Telegram `initData`: exactly one request creates the
+      session and the loser receives stable `409 INIT_DATA_REPLAYED` instead of a D1/500 error.
 - [x] Pass the full quality gate, clean-clone CI `31562407535`, deploy staging Worker
       `e928ec7f-610f-47c5-85c2-b78ec18294fd` and verify health/readiness, unauthenticated 401,
       static assets and D1 integrity without a migration or paid-gate change.

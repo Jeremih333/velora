@@ -310,6 +310,9 @@ verified; the full product from the master brief is still in progress.
   Worker `e928ec7f-610f-47c5-85c2-b78ec18294fd` serves the fix with health `ok`, readiness `ready`,
   unauthenticated `/me` 401, 104 OpenAPI paths and 28-migration/66-table D1 integrity. No migration,
   secret, production resource, payment configuration or paid-AI gate changed; payments remain off.
+- The first-run suite also reproduces simultaneous reuse of one valid signed `initData`. The D1
+  nonce uniqueness is the serialization point: one request wins with 201 and one maps the race to
+  `409 INIT_DATA_REPLAYED`; no 500 and no second successful session are allowed.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease

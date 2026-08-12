@@ -620,6 +620,48 @@ try {
   if (firstRunMessages.items.length !== 1 || firstRunMessages.items[0]?.role !== 'ASSISTANT') {
     throw new Error('The first story did not expose its initial character message.');
   }
+  const racedInitData = signTelegramInitData(
+    {
+      id: String(Number(firstRunTelegramId) + 1),
+      first_name: 'Concurrent First Run',
+      language_code: 'ru',
+    },
+    'integration-bot-token',
+  );
+  const racedAuthResponses = await Promise.all(
+    Array.from({ length: 2 }, () =>
+      fetch(`${baseUrl}/api/v1/auth/telegram`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ initData: racedInitData }),
+      }),
+    ),
+  );
+  const racedAuthResults = await Promise.all(
+    racedAuthResponses.map(async (response) => ({
+      status: response.status,
+      body: await response.json(),
+    })),
+  );
+  const racedStatuses = racedAuthResults
+    .map(({ status }) => status)
+    .sort((left, right) => left - right);
+  if (racedStatuses[0] !== 201 || racedStatuses[1] !== 409) {
+    throw new Error(
+      `Concurrent first-run auth was not serialized safely: ${JSON.stringify(racedAuthResults)}.`,
+    );
+  }
+  const replayFailure = racedAuthResults.find(({ status }) => status === 409);
+  if (replayFailure?.body?.error?.code !== 'INIT_DATA_REPLAYED') {
+    throw new Error('Concurrent first-run auth did not return the stable replay error contract.');
+  }
+  const racedAuthWinner = racedAuthResults.find(({ status }) => status === 201);
+  if (
+    typeof racedAuthWinner?.body?.user?.id !== 'string' ||
+    typeof racedAuthWinner.body.csrfToken !== 'string'
+  ) {
+    throw new Error('Concurrent first-run auth did not return one complete winning session.');
+  }
   const me = await request('/api/v1/me', { headers }, 200);
   if (me.id !== userId || me.plan !== 'FREE' || me.onboardingCompleted !== false) {
     throw new Error('Authenticated /me is inconsistent.');

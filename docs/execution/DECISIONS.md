@@ -79,3 +79,8 @@ conversation request. A real clean-D1 Worker regression now authenticates a prev
 correctly signed Telegram user and proves account defaults, onboarding, optional persona creation,
 SAFE discovery, persona-bound conversation creation and the initial assistant message. The browser
 regression separately locks the exact request on Android, iPhone and desktop.
+
+The authentication nonce check and insert cannot be treated as one atomic read. Two Telegram
+WebViews may race after the same launch; the nonce's D1 uniqueness remains the serialization point.
+If the batch loses that race, the Worker re-reads the still-live nonce and maps the constraint to
+the same safe `409 INIT_DATA_REPLAYED` contract. It never retries by creating a second session.

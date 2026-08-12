@@ -191,15 +191,31 @@ app.post('/api/v1/auth/telegram', async (context) => {
   const csrfHash = await sha256(`${context.env.SESSION_SIGNING_KEY}:${csrfToken}`);
   const timestamp = nowMs();
   const expiresAt = timestamp + 7 * 24 * 60 * 60 * 1000;
-  await context.env.DB.batch([
-    context.env.DB.prepare('INSERT INTO auth_nonces (init_hash, expires_at) VALUES (?, ?)').bind(
-      verified.hash,
-      (verified.authDate + maxAgeSeconds) * 1000,
-    ),
-    context.env.DB.prepare(
-      'INSERT INTO sessions (id, user_id, token_hash, csrf_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
-    ).bind(sessionId, userId, sessionHash, csrfHash, timestamp, expiresAt),
-  ]);
+  try {
+    await context.env.DB.batch([
+      context.env.DB.prepare('INSERT INTO auth_nonces (init_hash, expires_at) VALUES (?, ?)').bind(
+        verified.hash,
+        (verified.authDate + maxAgeSeconds) * 1000,
+      ),
+      context.env.DB.prepare(
+        'INSERT INTO sessions (id, user_id, token_hash, csrf_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ).bind(sessionId, userId, sessionHash, csrfHash, timestamp, expiresAt),
+    ]);
+  } catch (error) {
+    const racedReplay = await context.env.DB.prepare(
+      'SELECT 1 AS found FROM auth_nonces WHERE init_hash = ? AND expires_at > ?',
+    )
+      .bind(verified.hash, nowMs())
+      .first<{ found: number }>();
+    if (racedReplay !== null) {
+      throw new AppError(
+        'INIT_DATA_REPLAYED',
+        'Эта ссылка входа уже использована. Откройте приложение заново.',
+        409,
+      );
+    }
+    throw error;
+  }
 
   setCookie(context, 'velora_session', sessionToken, {
     httpOnly: true,
