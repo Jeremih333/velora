@@ -53,9 +53,13 @@ describe('deployment paid-feature boundaries', () => {
     const localVars = requireRecord(local['vars'], 'local vars');
 
     expect(production['PAID_AI_ENABLED']).toBe('false');
+    expect(production['TELEGRAM_RECONCILIATION_ENABLED']).toBe('false');
     expect(production['OWNER_TELEGRAM_ID']).toBe('1040929628');
     expect(stagingVars['PAID_AI_ENABLED']).toBe('true');
+    expect(stagingVars['TELEGRAM_RECONCILIATION_ENABLED']).toBe('true');
     expect(localVars['PAID_AI_ENABLED']).toBe('false');
+    expect(localVars['TELEGRAM_RECONCILIATION_ENABLED']).toBe('false');
+    expect(telegramTestVars['TELEGRAM_RECONCILIATION_ENABLED']).toBe('false');
     expect(production['PAYMENTS_ENABLED']).toBe('false');
     expect(stagingVars['PAYMENTS_ENABLED']).toBe('false');
     expect(localVars['PAYMENTS_ENABLED']).toBe('false');
@@ -154,5 +158,35 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).not.toContain('$env:PAYMENTS_ENABLED');
     expect(source).not.toContain('--apply');
     expect(source).not.toContain('setWebhook');
+  });
+
+  it('keeps production Telegram cutover separate, verified and rollback-capable', async () => {
+    const source = await readFile(
+      new URL('../../toolkit/cutover-production-telegram.ps1', import.meta.url),
+      'utf8',
+    );
+    const confirmation = source.indexOf('if (-not $ConfirmProductionWebhookCutover)');
+    const preflight = source.indexOf('& node $preflight --remote');
+    const qualityGate = source.indexOf('"verify.ps1"');
+    const identity = source.indexOf('& node $telegramConfigurator --check-identity');
+    const productionSecrets = source.indexOf('secret bulk $productionSecretFile');
+    const apply = source.indexOf('& node $telegramConfigurator --apply', productionSecrets);
+    const verifyWebhook = source.indexOf('$configuration.webhookUrl -ne');
+    const rollback = source.indexOf('Restore-StagingWebhook');
+
+    expect(confirmation).toBeGreaterThan(-1);
+    expect(preflight).toBeGreaterThan(confirmation);
+    expect(qualityGate).toBeGreaterThan(preflight);
+    expect(identity).toBeGreaterThan(qualityGate);
+    expect(productionSecrets).toBeGreaterThan(identity);
+    expect(apply).toBeGreaterThan(productionSecrets);
+    expect(verifyWebhook).toBeGreaterThan(apply);
+    expect(rollback).toBeGreaterThan(-1);
+    expect(source).toContain('secret bulk $stagingSecretFile');
+    expect(source).toContain('"$productionUrl/telegram/webhook"');
+    expect(source).not.toContain('SESSION_SIGNING_KEY');
+    expect(source).not.toContain('BOTHUB_API_KEY');
+    expect(source).not.toContain('PAID_AI_ENABLED');
+    expect(source).not.toContain('PAYMENTS_ENABLED');
   });
 });

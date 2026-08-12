@@ -21,8 +21,13 @@ export interface RemotePreflightReport extends RemotePreflightSnapshot {
   readonly requiredSecretNames: readonly string[];
   readonly missingSecretNames: readonly string[];
   readonly readyForMigrationAndDeploy: boolean;
+  readonly readyForCutover: boolean;
 }
 
 export function inspectProductionConfig(source: string): ProductionConfigReport;
 export function listMigrationNames(names: readonly string[]): readonly string[];
 export function evaluateRemoteSnapshot(snapshot: RemotePreflightSnapshot): RemotePreflightReport;
+export function buildProductionBlockers(
+  config: ProductionConfigReport,
+  snapshot: RemotePreflightSnapshot | null,
+): readonly string[];

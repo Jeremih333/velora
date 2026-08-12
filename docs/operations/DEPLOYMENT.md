@@ -13,6 +13,8 @@
    all production secrets with the Worker version and deliberately does not change Telegram.
 8. At a separate final checkpoint, move the single `@aivel0ra_bot` webhook from staging to
    production and verify `/start` plus real Mini App authentication.
+   Use `toolkit/cutover-production-telegram.ps1`; it preserves session/BotHub secrets and contains
+   a staging rollback path.
 9. Record Worker version, migration list and hashes in `docs/FINAL_VERIFICATION.md`.
 
 Rollback uses the previous Worker deployment; database changes must remain compatible. Destructive

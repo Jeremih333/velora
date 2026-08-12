@@ -53,6 +53,10 @@
 - [x] Add a guarded phase-1 production runner that completes verification and identity checks
       before mutation, exports D1, migrates, atomically deploys all secrets and smoke-tests without
       moving the Telegram webhook or enabling paid gates.
+- [x] Execute owner-authorized phase 1: export the empty production D1, apply 28/28 migrations,
+      deploy all four secret names and verify HTTP/D1 integrity. Add propagation retries after the
+      first Worker briefly returned 404 and disable scheduled Telegram reconciliation until the
+      separate phase-2 cutover.
 
 ## Next
 

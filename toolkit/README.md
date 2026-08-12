@@ -23,6 +23,9 @@
 - `deploy-production-phase1.ps1` — после явного подтверждения проверяет полный gate и identity,
   делает резервный экспорт, мигрирует изолированную production D1 и впервые разворачивает Worker
   со всеми секретами одной версией; Telegram webhook намеренно не переключает.
+- `cutover-production-telegram.ps1` — после отдельного подтверждения проверяет готовый production,
+  меняет только Telegram token/webhook secret, применяет и верифицирует Bot API configuration;
+  при ошибке после начала cutover автоматически возвращает webhook на staging.
 - `seed-staging.mjs` — создаёт только явно синтетические staging-данные.
 
 Секреты не помещаются в этот каталог. Production-секреты добавляются только через Cloudflare

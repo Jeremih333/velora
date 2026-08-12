@@ -6,6 +6,7 @@ export interface Env {
   readonly ENVIRONMENT: 'local' | 'telegram-test' | 'staging' | 'production';
   readonly APP_NAME: 'Velora';
   readonly TELEGRAM_BOT_USERNAME: string;
+  readonly TELEGRAM_RECONCILIATION_ENABLED?: string;
   readonly MAX_INIT_DATA_AGE_SECONDS: string;
   readonly DAILY_AI_BUDGET_USD: string;
   readonly MONTHLY_AI_BUDGET_USD: string;

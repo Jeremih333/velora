@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildProductionBlockers,
   evaluateRemoteSnapshot,
   inspectProductionConfig,
   listMigrationNames,
@@ -56,6 +57,7 @@ describe('production preflight', () => {
       pendingMigrationNames: ['0001_initial.sql'],
     });
     expect(unauthenticated.readyForMigrationAndDeploy).toBe(false);
+    expect(unauthenticated.readyForCutover).toBe(false);
     expect(unauthenticated.missingSecretNames).toHaveLength(4);
     expect(
       evaluateRemoteSnapshot({
@@ -69,10 +71,10 @@ describe('production preflight', () => {
         ],
         pendingMigrationNames: ['0001_initial.sql'],
       }).readyForMigrationAndDeploy,
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('does not require a pre-existing Worker but never ignores missing secrets', () => {
+  it('recognizes the reviewed first-deploy state with atomic secret upload', () => {
     const report = evaluateRemoteSnapshot({
       authenticated: true,
       productionWorkerExists: false,
@@ -81,6 +83,30 @@ describe('production preflight', () => {
     });
     expect(report.productionWorkerExists).toBe(false);
     expect(report.missingSecretNames).toHaveLength(4);
-    expect(report.readyForMigrationAndDeploy).toBe(false);
+    expect(report.readyForMigrationAndDeploy).toBe(true);
+    expect(report.readyForCutover).toBe(false);
+  });
+
+  it('recognizes completed phase 1 and removes the obsolete deploy authorization blocker', async () => {
+    const source = await readFile(
+      new URL('../../apps/api/wrangler.jsonc', import.meta.url),
+      'utf8',
+    );
+    const config = inspectProductionConfig(source);
+    const snapshot = {
+      authenticated: true,
+      productionWorkerExists: true,
+      secretNames: [
+        'BOTHUB_API_KEY',
+        'SESSION_SIGNING_KEY',
+        'TELEGRAM_BOT_TOKEN',
+        'TELEGRAM_WEBHOOK_SECRET',
+      ],
+      pendingMigrationNames: [],
+    };
+    expect(evaluateRemoteSnapshot(snapshot).readyForCutover).toBe(true);
+    expect(buildProductionBlockers(config, snapshot)).toEqual([
+      'TELEGRAM_WEBHOOK_CUTOVER_REQUIRED',
+    ]);
   });
 });

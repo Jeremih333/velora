@@ -476,6 +476,8 @@ const worker = spawn(
     '--var',
     'TELEGRAM_WEBHOOK_SECRET:integration-webhook-secret',
     '--var',
+    'TELEGRAM_RECONCILIATION_ENABLED:true',
+    '--var',
     `TELEGRAM_API_BASE_URL:http://127.0.0.1:${providerPort}`,
     '--var',
     'PAYMENTS_ENABLED:true',

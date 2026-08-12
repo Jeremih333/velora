@@ -61,6 +61,18 @@ supplies all four secrets atomically with the initial Worker version. It then sm
 readiness, OpenAPI and D1 integrity. It never calls `setWebhook`; staging continues receiving bot
 updates until the separate phase-2 checkpoint.
 
+After phase 1 is independently verified, phase 2 remains a separate owner decision:
+
+```powershell
+.\toolkit\cutover-production-telegram.ps1 -ConfirmProductionWebhookCutover
+```
+
+It does not rotate `SESSION_SIGNING_KEY`, touch BotHub, migrate D1 or enable either paid gate. It
+updates the production Telegram token/webhook secret together, applies commands/menu/webhook and
+verifies the exact webhook URL. If verification fails after applying begins, it creates a new
+staging webhook secret and restores the staging webhook. Scheduled production Telegram
+reconciliation stays disabled; enabling it is deliberately outside this cutover.
+
 The absence of Stars is not a blocker for the Free product: payments stay disabled, no packs are
 created and no payment claim is made. Paid AI also remains disabled in production until a separate
 bounded production-provider checkpoint is authorized after the non-AI rollout.

@@ -98,8 +98,29 @@ export function evaluateRemoteSnapshot(snapshot) {
     secretNames,
     requiredSecretNames,
     missingSecretNames,
-    readyForMigrationAndDeploy: snapshot.authenticated && missingSecretNames.length === 0,
+    readyForMigrationAndDeploy:
+      snapshot.authenticated &&
+      !snapshot.productionWorkerExists &&
+      snapshot.pendingMigrationNames.length > 0 &&
+      missingSecretNames.length > 0,
+    readyForCutover:
+      snapshot.authenticated &&
+      snapshot.productionWorkerExists &&
+      snapshot.pendingMigrationNames.length === 0 &&
+      missingSecretNames.length === 0,
   };
+}
+
+export function buildProductionBlockers(config, remoteSnapshot) {
+  const remote = remoteSnapshot ? evaluateRemoteSnapshot(remoteSnapshot) : null;
+  return [
+    ...(config.telegramWebhookCutoverRequired ? ['TELEGRAM_WEBHOOK_CUTOVER_REQUIRED'] : []),
+    ...(remoteSnapshot?.remoteError ? [remoteSnapshot.remoteError] : []),
+    ...(remote && remote.missingSecretNames.length > 0 ? ['PRODUCTION_SECRETS_MISSING'] : []),
+    ...(!remoteSnapshot?.productionWorkerExists
+      ? ['PRODUCTION_OWNER_DEPLOY_AUTHORIZATION_REQUIRED']
+      : []),
+  ];
 }
 
 async function runWrangler(argumentsList) {
@@ -189,14 +210,7 @@ async function main() {
     migrationCount: migrationNames.length,
     migrationNames,
     remote: remoteSnapshot ? evaluateRemoteSnapshot(remoteSnapshot) : null,
-    blockers: [
-      ...(config.telegramWebhookCutoverRequired ? ['TELEGRAM_WEBHOOK_CUTOVER_REQUIRED'] : []),
-      ...(remoteSnapshot?.remoteError ? [remoteSnapshot.remoteError] : []),
-      ...(remoteSnapshot && evaluateRemoteSnapshot(remoteSnapshot).missingSecretNames.length > 0
-        ? ['PRODUCTION_SECRETS_MISSING']
-        : []),
-      'PRODUCTION_OWNER_DEPLOY_AUTHORIZATION_REQUIRED',
-    ],
+    blockers: buildProductionBlockers(config, remoteSnapshot),
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (remoteRequested && remoteSnapshot?.remoteError) process.exitCode = 2;

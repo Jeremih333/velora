@@ -8,7 +8,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | GitHub CI                            | private repository and workflow      | clean-clone full gate   | run reviewed           | VERIFIED          | `Jeremih333/velora`               |
 | Knowledge base                       | required docs/ADR hierarchy          | formatting pending      | reviewed against brief | IMPLEMENTED       | evolves with milestones           |
 | Worker/API contract                  | Hono + generated OpenAPI 3.1         | 4 contract regressions  | staging 104-path smoke | VERIFIED          | Assets bypass is explicit         |
-| D1                                   | 66 schema tables, 28 migrations      | local/seed integration  | staging integrity      | VERIFIED          | production remains empty          |
+| D1                                   | 66 schema tables, 28 migrations      | local/seed integration  | prod integrity/empty   | VERIFIED          | production 28/28, zero users      |
 | Telegram bot/auth                    | secrets, reconciliation and auth     | auth/config regression  | live initData passed   | VERIFIED_MVP      | owner role persisted              |
 | AI generation                        | versioned owner-consent checkpoints  | unit/integration/E2E    | full live chat         | VERIFIED_STAGING  | production remains disabled       |
 | Personas/characters/chat/memory/lore | Worker+D1 and MiniApp                | unit/integration/E2E    | staging smoke passed   | VERIFIED_MVP      | sectioned draft autosave included |
@@ -19,7 +19,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | Web bundle performance               | lazy auth/chat/lore workspace chunks | build/integration/E2E   | live asset smoke       | VERIFIED_STAGING  | initial JS 650,138→306,635 B      |
 | Support/legal                        | private tickets, admin queue, policy | unit/integration/E2E    | staging smoke passed   | VERIFIED_MVP      | contents excluded from audit      |
 | User profiles                        | separate identity, privacy, avatar   | integration/E2E         | staging smoke passed   | VERIFIED_MVP      | Telegram identity stays private   |
-| Production                           | isolated D1 + guarded preflight      | config/link regressions | read-only CF preflight | BLOCKED_HUMAN     | no Worker/secrets/migrations yet  |
+| Production                           | Worker + isolated migrated D1        | config/gate regressions | HTTP/D1 smoke          | PHASE_1_VERIFIED  | Telegram cutover still separate   |
 
 ## Command report — 2026-08-12
 
@@ -27,8 +27,8 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- latest complete gate: 129 unit/regression PASS; roleplay-quality: 6 PASS; API contract: 4 PASS;
-  integration/schema/cost/bundle: 52 PASS; Android/iPhone/Desktop E2E: 12 PASS without retries;
+- latest complete gate: 130 unit/regression PASS; roleplay-quality: 6 PASS; API contract: 4 PASS;
+  integration/schema/cost/bundle: 54 PASS; Android/iPhone/Desktop E2E: 12 PASS without retries;
   an earlier desktop startup timeout passed 3/3 in an exact no-retry rerun before this clean gate;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
@@ -116,11 +116,15 @@ Velora is **not production-ready yet**. This report is updated only with factual
   PASS. The 12-case E2E gate retried one desktop shell startup timeout; the exact scenario then
   passed 3/3 with retries disabled: PASS with one recorded runner flake. Clean-clone CI
   `31565278612` repeated the complete gate successfully: PASS.
-- production preflight validates the isolated Worker/D1, owner ID, disabled paid gates, contiguous
-  28-migration set and mandatory shared-bot webhook cutover before remote work. Its read-only
-  Cloudflare run authenticated the correct account and proved `velora-app`/secrets absent with all
-  28 production migrations pending: VERIFIED_READ_ONLY; no production mutation performed. The
-  guarded environment routing and preflight passed clean-clone CI `31607394871`.
+- production preflight validated the isolated Worker/D1, owner ID, disabled paid gates, contiguous
+  28-migration set and mandatory shared-bot webhook cutover. After explicit owner authorization,
+  phase 1 exported the empty D1, applied 28/28 migrations and deployed all four secret names with
+  Worker version `70e5fb5a-73ae-4b03-99b3-39c04fd17b2f`. A transient propagation 404 caused the
+  runner to report failure after the successful deploy; independent smoke then proved root,
+  health, readiness and OpenAPI HTTP 200, D1 `quick_check=ok`, zero foreign-key violations and zero
+  users. Safety hotfix `9fd2e014-197f-4b30-8c3a-75238201f774` disables production Telegram
+  reconciliation until the separate cutover; production records BotHub READY and no Telegram
+  reconciliation row. Paid AI and payments remain disabled.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

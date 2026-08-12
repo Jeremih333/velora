@@ -40,14 +40,14 @@ Updated: 2026-08-12.
 | Account data controls         | VERIFIED_MVP      | export manifest, blocks, 7-day deletion and scheduled erasure tests                        |
 | Support/legal                 | VERIFIED_MVP      | private tickets, admin RBAC, export/erasure and legal UI                                   |
 | User profiles                 | VERIFIED_MVP      | separate identity, avatar IDOR/privacy, blocks, moderation and E2E                         |
-| Cloudflare resources          | IMPLEMENTED       | isolated staging/production D1; production DB still unmigrated                             |
+| Cloudflare resources          | VERIFIED_PHASE_1  | isolated production D1 migrated 28/28; Worker deployed and healthy                         |
 | Telegram test environment     | BLOCKED_HUMAN     | isolated D1 migrated 28/28 and healthy; needs a test-server account and new test bot       |
 | R2                            | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                          |
 | Telegram bot                  | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                          |
 | Paid AI                       | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                      |
 | Staging                       | VERIFIED          | Worker `eeab29c5`; D1 28/66 healthy; paid roleplay on, payments off                        |
-| Production                    | BLOCKED_HUMAN     | read-only preflight: no Worker/secrets, 28 pending migrations, webhook cutover required    |
-| Production phase-1 runner     | VERIFIED_LOCAL    | guarded backup/migrate/atomic-secret deploy/smoke; no webhook mutation                     |
+| Production                    | PHASE_1_VERIFIED  | Worker `9fd2e014`; D1 28/28 healthy/empty; Telegram cutover still blocked                  |
+| Production phase-1 runner     | VERIFIED          | backup/migrate/atomic secrets; propagation retry added after observed transient 404        |
 
 RoleMate resources have not been changed or bound to Velora.
 

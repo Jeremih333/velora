@@ -68,6 +68,7 @@ export async function reconcileTelegramConfiguration(
   timestamp = nowMs(),
   fetcher: typeof fetch = fetch,
 ): Promise<TelegramReconciliationResult> {
+  if (env.TELEGRAM_RECONCILIATION_ENABLED !== 'true') return 'skipped';
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_WEBHOOK_SECRET) return 'not_configured';
   const webhookUrl = new URL('/telegram/webhook', env.PUBLIC_APP_URL).href;
   const apiEnvironment = env.TELEGRAM_API_ENVIRONMENT ?? 'production';

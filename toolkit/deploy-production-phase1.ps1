@@ -35,10 +35,19 @@ function Invoke-Checked([scriptblock]$Command, [string]$FailureMessage) {
 }
 
 function Assert-HttpJson([string]$Url, [string]$ExpectedText) {
-  $response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 15 -UseBasicParsing
-  if ($response.StatusCode -ne 200 -or $response.Content -notmatch $ExpectedText) {
-    throw "Production smoke failed for $Url."
+  $lastError = "no response"
+  for ($attempt = 1; $attempt -le 12; $attempt++) {
+    try {
+      $response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 15 -UseBasicParsing
+      if ($response.StatusCode -eq 200 -and $response.Content -match $ExpectedText) { return }
+      $lastError = "HTTP $($response.StatusCode) or unexpected body"
+    }
+    catch {
+      $lastError = $_.Exception.Message
+    }
+    if ($attempt -lt 12) { Start-Sleep -Seconds 5 }
   }
+  throw "Production smoke failed for $Url after propagation retries: $lastError"
 }
 
 if (-not $ConfirmProductionDeployment) {
