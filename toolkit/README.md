@@ -14,6 +14,8 @@
   применяет конфигурацию Bot API. Test Server разрешён только для `telegram-test`.
 - `set-bothub-key.ps1` — скрыто передаёт ключ BotHub непосредственно в Cloudflare Secret.
 - `test-d1.mjs`, `test-api.mjs` и `test-restore.mjs` — проверяют миграции, Worker API и восстановление.
+- `slo-baseline.mjs` — выполняет только bounded read-only пробы local/staging health, readiness,
+  public config и OpenAPI; production origin жёстко запрещён.
 - `seed-staging.mjs` — создаёт только явно синтетические staging-данные.
 
 Секреты не помещаются в этот каталог. Production-секреты добавляются только через Cloudflare

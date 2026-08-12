@@ -20,6 +20,9 @@
   status/category, hashes and accounting only. Never reset or delete a row to repeat a request.
 - Alerts: inspect `/api/v1/admin/operations/alerts`; verify `OWNER_TELEGRAM_ID` belongs to the new
   Velora owner before enabling outbound Telegram alerts. Never copy an identity from another bot.
+- SLO baseline: run `pnpm slo:staging` after staging deploy and review
+  `../testing/SLO_BASELINE.md`. Any failed contract probe blocks promotion. Do not point the tool at
+  production; its allowlist rejects production deliberately.
 - AI credit: inspect internal usage/runway, show the owner the exact BotHub amount and payment
   method, then let the owner manually fund it; never automate a purchase or recurring payment.
 - Live Stars: follow [LIVE_STARS_CHECKPOINT.md](../testing/LIVE_STARS_CHECKPOINT.md). Do not enable

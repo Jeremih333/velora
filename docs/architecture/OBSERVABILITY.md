@@ -20,5 +20,7 @@ six hours (critical alerts to one hour). AI error-rate alerts require at least 2
 15-minute window; budget alerts open at 80% and become critical at 95%. The owner/admin API can
 inspect the last 100 alerts at `/api/v1/admin/operations/alerts`. Alert delivery is intentionally
 inactive until the new Velora owner Telegram ID is explicitly verified and configured; alert
-records are still retained while that setting is absent. These safety thresholds are not an SLO:
-availability/latency objectives will be fixed only after a measured production baseline.
+records are still retained while that setting is absent. The bounded staging baseline and
+provisional launch objectives are defined in
+[`SLO_BASELINE.md`](../testing/SLO_BASELINE.md). They become production SLOs only after launch and
+30 days of production evidence; until then they are deployment guardrails, not availability claims.

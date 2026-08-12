@@ -29,6 +29,7 @@ Updated: 2026-08-12.
 | Non-renewing plan access      | VERIFIED_MVP      | Free/Plus/Pro rights, stacked periods, expiry/refund and owner controls                    |
 | Owner user grants             | VERIFIED_STAGING  | ID lookup, audited/idempotent plan+credit grants, revocation; no fake payments             |
 | Reliability controls          | VERIFIED_MVP      | limits, private events, live deduped alert/recovery, admin metrics                         |
+| SLO baseline                  | VERIFIED_STAGING  | 48/48 read-only contract probes; provisional objectives and error-budget policy            |
 | Local capacity                | VERIFIED_SLICE    | 40 user/D1/search requests, 4 AI streams; budget is first boundary                         |
 | Web bundle performance        | VERIFIED_STAGING  | initial JS 650,138→306,635 B; build/E2E guard and live lazy assets                         |
 | Fixtures and staging seed     | VERIFIED          | idempotent 4 users/12 chars/4 personas/2 lore/240 chat/3 cases                             |

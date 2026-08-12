@@ -14,6 +14,7 @@
 | Moderation            | transitions          | case/audit                                                               | report/appeal              | least privilege        |
 | Media                 | metadata             | Telegram adapter                                                         | upload/open                | MIME/size/path         |
 | Reliability           | policy/event mapping | real Worker+D1 limits                                                    | admin system view          | RBAC/privacy/flags     |
+| SLO baseline          | target/percentile    | bounded staging probes                                                   | not applicable             | production denied      |
 | Fixtures/staging seed | typed SSE fixtures   | idempotent seed twice                                                    | staging count audit        | no sessions/prod       |
 | API contract          | route/security model | real Worker/Assets                                                       | 100-path staging smoke     | safe error schema      |
 

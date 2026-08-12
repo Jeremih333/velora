@@ -108,6 +108,12 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - concurrent-login hardening clean-clone CI `31563647374` and staging Worker
   `eeab29c5-600b-4df8-a652-17ad773e8055`: PASS; post-deploy health/readiness, root/OpenAPI 200,
   protected `/me` 401, D1 `quick_check=ok`, 28 migrations/66 tables and zero FK violations: PASS.
+- bounded SLO baseline is hard-restricted to local/staging, rejects production/arbitrary origins,
+  validates response bodies and measures full fetch+JSON latency. Staging Worker `eeab29c5` passed
+  48/48 probes: health p95 297.8 ms, D1 ready 134.5 ms, config 102.7 ms and OpenAPI 68.7 ms: PASS.
+- SLO tool full gate: 129 unit, 6 roleplay-quality, 4 contract and 41 integration tests plus builds
+  PASS. The 12-case E2E gate retried one desktop shell startup timeout; the exact scenario then
+  passed 3/3 with retries disabled: PASS with one recorded runner flake.
 - character editor sections match the authoring flow; valid drafts autosave against the newest
   version with visible state, while moderation-pending/published edits remain manual: PASS.
 - deterministic catalogue IDs can start a conversation through the real Worker+D1 path; unsafe

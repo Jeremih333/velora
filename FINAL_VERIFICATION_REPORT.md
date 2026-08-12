@@ -317,6 +317,15 @@ verified; the full product from the master brief is still in progress.
   shipped only to staging Worker `eeab29c5-600b-4df8-a652-17ad773e8055`. Health/readiness,
   root/OpenAPI, protected-session rejection and 28-migration/66-table D1 integrity passed; no
   migration, production resource, payment flag or provider request changed.
+- A reproducible SLO baseline now performs only 3–30 sequential read-only samples against
+  allowlisted local/staging origins; production is rejected in code. The first full-timing staging
+  run made 48 requests with zero failures. Recorded p95 was 297.8 ms health, 134.5 ms D1 readiness,
+  102.7 ms public config and 68.7 ms OpenAPI. Launch objectives remain provisional until 30 days of
+  production evidence and therefore are not presented as guaranteed availability.
+- Its full local gate passed 129 unit/regression, 6 quality, 4 contract and 41 integration checks
+  plus builds. One desktop shell startup exceeded 30 seconds and passed Playwright's retry; the
+  exact scenario then passed 3/3 with retries disabled, so the flake is disclosed rather than
+  converted into a false clean-run claim.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease

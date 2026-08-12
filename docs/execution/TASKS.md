@@ -37,6 +37,19 @@
 
 ## Next
 
+## Milestone 10 — SLO BASELINE — VERIFIED_STAGING
+
+- [x] Add a bounded read-only baseline tool restricted in code to local and the isolated Velora
+      staging origin; production and arbitrary hosts fail closed.
+- [x] Validate health, D1 readiness, public configuration and the 100+ path OpenAPI contract, with
+      full response-body latency, five-second timeouts and malformed responses counted as failures.
+- [x] Measure 48 staging requests with zero failures and record p50/p95/max rather than inferring
+      availability from a single CLI success.
+- [x] Define provisional launch SLOs, error-budget actions and explicit evidence boundaries; do not
+      claim production SLOs before 30 days of production measurements.
+
+## Next
+
 ## Milestone 10 — FIRST-RUN HARDENING — VERIFIED_STAGING
 
 - [x] Authenticate a completely unknown Telegram ID through a real signed `initData` request
