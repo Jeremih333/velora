@@ -1,6 +1,7 @@
 import { asError, nowMs } from '@velora/shared';
 import { z } from 'zod';
 import { sha256 } from './telegram-auth';
+import { telegramApiLocation, telegramBotApiUrl } from './telegram-api';
 import type { Env } from './types';
 
 const INTEGRATION_KEY = 'telegram_bot';
@@ -69,8 +70,9 @@ export async function reconcileTelegramConfiguration(
 ): Promise<TelegramReconciliationResult> {
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_WEBHOOK_SECRET) return 'not_configured';
   const webhookUrl = new URL('/telegram/webhook', env.PUBLIC_APP_URL).href;
+  const apiEnvironment = env.TELEGRAM_API_ENVIRONMENT ?? 'production';
   const desiredHash = await sha256(
-    `telegram-config-v1:${env.TELEGRAM_BOT_USERNAME}:${webhookUrl}:${env.TELEGRAM_WEBHOOK_SECRET}`,
+    `telegram-config-v2:${apiEnvironment}:${env.TELEGRAM_BOT_USERNAME}:${webhookUrl}:${env.TELEGRAM_WEBHOOK_SECRET}`,
   );
   const current = await env.DB.prepare(
     `SELECT desired_hash AS desiredHash, state, attempts, next_attempt_at AS nextAttemptAt
@@ -101,11 +103,7 @@ export async function reconcileTelegramConfiguration(
   if (!lease) return 'skipped';
 
   try {
-    const apiBaseUrl =
-      env.ENVIRONMENT === 'local' && env.TELEGRAM_API_BASE_URL
-        ? env.TELEGRAM_API_BASE_URL
-        : 'https://api.telegram.org';
-    const call = createTelegramCaller(fetcher, apiBaseUrl, env.TELEGRAM_BOT_TOKEN);
+    const call = createTelegramCaller(fetcher, env.TELEGRAM_BOT_TOKEN, telegramApiLocation(env));
     const identity = botSchema.parse(await call('getMe'));
     if (identity.username.toLowerCase() !== env.TELEGRAM_BOT_USERNAME.toLowerCase()) {
       throw new Error('TELEGRAM_BOT_IDENTITY_MISMATCH');
@@ -167,9 +165,13 @@ export async function reconcileTelegramConfiguration(
   }
 }
 
-function createTelegramCaller(fetcher: typeof fetch, apiBaseUrl: string, token: string) {
+function createTelegramCaller(
+  fetcher: typeof fetch,
+  token: string,
+  location: ReturnType<typeof telegramApiLocation>,
+) {
   return async (method: string, body: Readonly<Record<string, unknown>> = {}): Promise<unknown> => {
-    const response = await fetcher(`${apiBaseUrl}/bot${token}/${method}`, {
+    const response = await fetcher(telegramBotApiUrl(token, method, location), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),

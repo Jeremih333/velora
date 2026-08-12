@@ -1,6 +1,11 @@
 import { AppError, asError, en, nowMs, ru } from '@velora/shared';
 import { z } from 'zod';
 import {
+  telegramBotApiUrl,
+  type TelegramApiEnvironment,
+  type TelegramApiLocation,
+} from './telegram-api';
+import {
   selectTelegramImage,
   storeTelegramImage,
   telegramDocumentSchema,
@@ -122,21 +127,25 @@ export async function sendTelegramCommandReply(
   appUrl: string,
   apiBaseUrl = 'https://api.telegram.org',
   locale: SupportedLocale = 'ru',
+  apiEnvironment: TelegramApiEnvironment = 'production',
 ): Promise<void> {
-  const response = await fetcher(`${apiBaseUrl}/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: telegramMessages(locale).telegram.openButton, web_app: { url: appUrl } }],
-        ],
-      },
-    }),
-  });
+  const response = await fetcher(
+    telegramBotApiUrl(token, 'sendMessage', { apiBaseUrl, apiEnvironment }),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: telegramMessages(locale).telegram.openButton, web_app: { url: appUrl } }],
+          ],
+        },
+      }),
+    },
+  );
   const result = telegramApiResponseSchema.parse(await response.json());
   if (!response.ok || !result.ok) {
     throw new AppError('TELEGRAM_DELIVERY_FAILED', 'Telegram не принял ответ бота.', 503);
@@ -151,7 +160,7 @@ export async function processTelegramUpdate(
     readonly botToken: string;
     readonly publicAppUrl: string;
     readonly ownerTelegramId: string | undefined;
-    readonly telegramApiBaseUrl?: string | undefined;
+    readonly telegramApiLocation?: TelegramApiLocation;
     readonly fetcher?: typeof fetch | undefined;
   },
 ): Promise<'processed' | 'duplicate' | 'ignored'> {
@@ -197,7 +206,7 @@ export async function processTelegramUpdate(
         totalAmount: preCheckout.total_amount,
       });
       await answerStarsPreCheckout(fetcher, {
-        ...(options.telegramApiBaseUrl ? { apiBaseUrl: options.telegramApiBaseUrl } : {}),
+        ...(options.telegramApiLocation ?? {}),
         botToken: options.botToken,
         queryId: preCheckout.id,
         ok: accepted,
@@ -271,7 +280,8 @@ export async function processTelegramUpdate(
         image,
         options.botToken,
         fetcher,
-        options.telegramApiBaseUrl,
+        options.telegramApiLocation?.apiBaseUrl,
+        options.telegramApiLocation?.apiEnvironment,
       );
       reply = telegramMessages(locale).telegram.imageSaved;
     }
@@ -282,8 +292,9 @@ export async function processTelegramUpdate(
         message.chat.id,
         reply,
         options.publicAppUrl,
-        options.telegramApiBaseUrl,
+        options.telegramApiLocation?.apiBaseUrl,
         locale,
+        options.telegramApiLocation?.apiEnvironment,
       );
     }
     await markUpdate(database, update.update_id, 'COMPLETED');

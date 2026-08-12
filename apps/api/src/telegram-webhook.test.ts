@@ -109,4 +109,23 @@ describe('Telegram webhook protocol', () => {
       sendTelegramCommandReply(failedFetch, 'token', 42, 'hello', 'https://app.test'),
     ).rejects.toMatchObject({ code: 'TELEGRAM_DELIVERY_FAILED' });
   });
+
+  it('sends test-server replies only through the explicit test segment', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    await sendTelegramCommandReply(
+      fetcher,
+      'test-token',
+      42,
+      'test',
+      'https://app.test',
+      'https://api.telegram.org',
+      'ru',
+      'test',
+    );
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      'https://api.telegram.org/bottest-token/test/sendMessage',
+    );
+  });
 });

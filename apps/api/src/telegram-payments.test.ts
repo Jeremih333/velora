@@ -31,10 +31,38 @@ describe('Telegram Stars transport', () => {
     expect(body['subscription_period']).toBeUndefined();
   });
 
+  it('routes a one-time XTR invoice through Telegram Test Server without changing its body', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, result: 'https://t.me/$test-invoice' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    await createStarsInvoiceLink(fetcher, {
+      apiEnvironment: 'test',
+      botToken: 'test-token',
+      title: 'Test Plus',
+      description: 'One-time test access',
+      payload: 'test-payload',
+      starsAmount: 1,
+    });
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      'https://api.telegram.org/bottest-token/test/createInvoiceLink',
+    );
+    const rawBody = fetcher.mock.calls[0]?.[1]?.body;
+    if (typeof rawBody !== 'string') throw new Error('Test invoice request body is missing.');
+    expect(JSON.parse(rawBody)).toMatchObject({
+      currency: 'XTR',
+      prices: [{ label: 'Test Plus', amount: 1 }],
+    });
+  });
+
   it('answers rejected pre-checkout explicitly', async () => {
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
+      .mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ ok: true, result: true }), { status: 200 })),
+      );
     await answerStarsPreCheckout(fetcher, {
       botToken: 'token',
       queryId: 'query',
@@ -48,6 +76,30 @@ describe('Telegram Stars transport', () => {
       ok: false,
       error_message: 'Счёт недействителен.',
     });
+  });
+
+  it('routes pre-checkout and refund through the same Telegram test segment', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify({ ok: true, result: true }), { status: 200 })),
+      );
+    await answerStarsPreCheckout(fetcher, {
+      apiEnvironment: 'test',
+      botToken: 'test-token',
+      queryId: 'test-query',
+      ok: true,
+    });
+    await requestStarsRefund(fetcher, {
+      apiEnvironment: 'test',
+      botToken: 'test-token',
+      userTelegramId: '42',
+      telegramPaymentChargeId: 'test-charge',
+    });
+    expect(fetcher.mock.calls.map((call) => call[0])).toEqual([
+      'https://api.telegram.org/bottest-token/test/answerPreCheckoutQuery',
+      'https://api.telegram.org/bottest-token/test/refundStarPayment',
+    ]);
   });
 
   it('submits an exact Stars refund without exposing the token in the body', async () => {

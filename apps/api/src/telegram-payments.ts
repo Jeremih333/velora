@@ -1,6 +1,7 @@
 import { starsPaymentMatches, type ReceivedStarsPayment } from '@velora/billing';
 import { AppError, asError, createId, nowMs } from '@velora/shared';
 import { z } from 'zod';
+import { telegramBotApiUrl, type TelegramApiEnvironment } from './telegram-api';
 
 interface PaymentRow {
   readonly id: string;
@@ -56,6 +57,7 @@ export async function requestStarsRefund(
   fetcher: typeof fetch,
   input: {
     readonly apiBaseUrl?: string;
+    readonly apiEnvironment?: TelegramApiEnvironment;
     readonly botToken: string;
     readonly userTelegramId: string;
     readonly telegramPaymentChargeId: string;
@@ -69,17 +71,14 @@ export async function requestStarsRefund(
       409,
     );
   }
-  const response = await fetcher(
-    `${input.apiBaseUrl ?? 'https://api.telegram.org'}/bot${input.botToken}/refundStarPayment`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        user_id: userId,
-        telegram_payment_charge_id: input.telegramPaymentChargeId,
-      }),
-    },
-  );
+  const response = await fetcher(telegramBotApiUrl(input.botToken, 'refundStarPayment', input), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      user_id: userId,
+      telegram_payment_charge_id: input.telegramPaymentChargeId,
+    }),
+  });
   const result = telegramBooleanResponseSchema.parse(await response.json());
   if (response.ok && result.ok && result.result === true) return 'submitted';
   if (result.description?.includes('CHARGE_ALREADY_REFUNDED')) return 'already_refunded';
@@ -94,6 +93,7 @@ export async function createStarsInvoiceLink(
   fetcher: typeof fetch,
   input: {
     readonly apiBaseUrl?: string;
+    readonly apiEnvironment?: TelegramApiEnvironment;
     readonly botToken: string;
     readonly title: string;
     readonly description: string;
@@ -101,20 +101,17 @@ export async function createStarsInvoiceLink(
     readonly starsAmount: number;
   },
 ): Promise<string> {
-  const response = await fetcher(
-    `${input.apiBaseUrl ?? 'https://api.telegram.org'}/bot${input.botToken}/createInvoiceLink`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        title: input.title,
-        description: input.description,
-        payload: input.payload,
-        currency: 'XTR',
-        prices: [{ label: input.title, amount: input.starsAmount }],
-      }),
-    },
-  );
+  const response = await fetcher(telegramBotApiUrl(input.botToken, 'createInvoiceLink', input), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      title: input.title,
+      description: input.description,
+      payload: input.payload,
+      currency: 'XTR',
+      prices: [{ label: input.title, amount: input.starsAmount }],
+    }),
+  });
   const result = telegramInvoiceLinkResponseSchema.parse(await response.json());
   if (!response.ok || !result.ok || !result.result) {
     throw new AppError('TELEGRAM_INVOICE_FAILED', 'Telegram не создал ссылку на счёт.', 503);
@@ -130,6 +127,7 @@ export async function answerStarsPreCheckout(
   fetcher: typeof fetch,
   input: {
     readonly apiBaseUrl?: string;
+    readonly apiEnvironment?: TelegramApiEnvironment;
     readonly botToken: string;
     readonly queryId: string;
     readonly ok: boolean;
@@ -137,7 +135,7 @@ export async function answerStarsPreCheckout(
   },
 ): Promise<void> {
   const response = await fetcher(
-    `${input.apiBaseUrl ?? 'https://api.telegram.org'}/bot${input.botToken}/answerPreCheckoutQuery`,
+    telegramBotApiUrl(input.botToken, 'answerPreCheckoutQuery', input),
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

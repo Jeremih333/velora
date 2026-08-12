@@ -41,6 +41,30 @@
     },
   ],
   "env": {
+    "telegram-test": {
+      "name": "velora-telegram-test",
+      "vars": {
+        "ENVIRONMENT": "telegram-test",
+        "APP_NAME": "Velora",
+        "TELEGRAM_BOT_USERNAME": "velora_test_pending_bot",
+        "TELEGRAM_API_ENVIRONMENT": "test",
+        "PUBLIC_APP_URL": "https://velora-telegram-test.carreljeremih.workers.dev",
+        "MAX_INIT_DATA_AGE_SECONDS": "900",
+        "DAILY_AI_BUDGET_USD": "0.01",
+        "MONTHLY_AI_BUDGET_USD": "0.01",
+        "LIFETIME_AI_BUDGET_USD": "0.01",
+        "PAID_AI_ENABLED": "false",
+        "PAYMENTS_ENABLED": "false",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "velora-telegram-test",
+          "database_id": "4de2d24c-04b5-461c-8853-d161255cd1c7",
+          "migrations_dir": "../../migrations",
+        },
+      ],
+    },
     "staging": {
       "name": "velora-staging",
       "vars": {

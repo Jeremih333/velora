@@ -1,5 +1,6 @@
 import { createId, nowMs } from '@velora/shared';
 import { sendTelegramCommandReply } from './telegram-webhook';
+import { telegramApiLocation } from './telegram-api';
 import type { Env } from './types';
 
 export type OperationalSeverity = 'WARNING' | 'CRITICAL';
@@ -222,13 +223,16 @@ async function upsertAndNotify(
   if (leased.meta.changes !== 1) return;
   try {
     const icon = row.severity === 'CRITICAL' ? '🚨' : '⚠️';
+    const telegramLocation = telegramApiLocation(env);
     await sendTelegramCommandReply(
       fetch,
       env.TELEGRAM_BOT_TOKEN,
       env.OWNER_TELEGRAM_ID,
       `${icon} *Velora: ${row.severity}*\n${row.summary}`,
       env.PUBLIC_APP_URL,
-      env.TELEGRAM_API_BASE_URL,
+      telegramLocation.apiBaseUrl,
+      'ru',
+      telegramLocation.apiEnvironment,
     );
     await env.DB.prepare(
       `UPDATE operational_alerts SET last_notified_at = ?, notification_lease_until = NULL WHERE id = ?`,

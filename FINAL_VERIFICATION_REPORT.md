@@ -266,6 +266,14 @@ verified; the full product from the master brief is still in progress.
 - one uniquely identified synthetic `jobs.dead` signal produced exactly one Telegram warning that
   the owner confirmed receiving; the fixture was removed, its count returned to zero and the next
   cron persisted the alert as `RESOLVED` with no outstanding notification lease.
+- the owner confirmed the non-payment legal/2FA checkpoint but has no real Stars, so no charge was
+  attempted. A strictly isolated Telegram Test Server runtime was added instead: typed Bot API
+  routing uses the documented `/test/` method path, runtime validation prevents production/test
+  identity mixing, and unverified test-server media download fails closed. Its dedicated Free D1
+  `velora-telegram-test` has all 28 migrations, 65 application tables, `quick_check=ok`, no
+  foreign-key violations and no pending migrations. The test Worker dry-run resolves only that D1
+  and keeps both paid feature flags `false`; deployment remains blocked on a separate test-server
+  account and bot token.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -286,4 +294,6 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 - R2 is not enabled on the account, so the initial free design uses Telegram `file_id` storage;
 - production deploy remains gated until the live integrations and their tests pass.
 
-No missing feature is reported as complete.
+No missing feature is reported as complete. The latest complete local gate passed secret scan,
+formatting, lint, strict typecheck, 129 unit/regression tests, 6 roleplay-quality tests, 4 contract
+tests, 28 integration tests, both builds and 9/9 E2E cases without retries.

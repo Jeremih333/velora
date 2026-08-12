@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const publicConfigSchema = z.object({
-  environment: z.enum(['local', 'staging', 'production']),
+  environment: z.enum(['local', 'telegram-test', 'staging', 'production']),
   appName: z.literal('Velora'),
   telegramBotUsername: z.string().regex(/^[A-Za-z0-9_]{5,32}$/u),
   maxInitDataAgeSeconds: z.coerce.number().int().min(60).max(86_400).default(900),

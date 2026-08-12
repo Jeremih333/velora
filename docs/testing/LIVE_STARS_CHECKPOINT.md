@@ -3,6 +3,10 @@
 Status: `BLOCKED_HUMAN`. No live invoice is enabled or priced until the owner completes the legal
 and payment checkpoint below.
 
+The owner confirmed the legal/2FA portion on 2026-08-12 but has no Stars and did not authorize a
+real charge. A separate zero-real-money Telegram Test Server path is prepared in
+[TELEGRAM_TEST_SERVER.md](TELEGRAM_TEST_SERVER.md); it cannot replace the final main-Telegram smoke.
+
 The refund preflight remains live in staging Worker `b57438ee-0283-4ccc-b752-69c440c6a6bf`:
 owner-only initiation, payment-level idempotency, Telegram transport, entitlement reversal and
 duplicate webhook reconciliation pass automated tests. `PAYMENTS_ENABLED=false`; no real Stars

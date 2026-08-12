@@ -1,5 +1,11 @@
 import { AppError, createId, nowMs } from '@velora/shared';
 import { z } from 'zod';
+import {
+  telegramApiLocationFromOptions,
+  telegramBotApiUrl,
+  telegramFileApiUrl,
+  type TelegramApiEnvironment,
+} from './telegram-api';
 
 export const telegramPhotoSchema = z.object({
   file_id: z.string().min(1).max(512),
@@ -82,6 +88,7 @@ export async function storeTelegramImage(
   token: string,
   fetcher: typeof fetch = fetch,
   apiBaseUrl?: string,
+  apiEnvironment?: TelegramApiEnvironment,
 ): Promise<{ readonly id: string; readonly mimeType: string; readonly byteSize: number }> {
   if (candidate.declaredSize > maxImageBytes) {
     throw new AppError('MEDIA_TOO_LARGE', 'Изображение превышает лимит 10 МБ.', 413);
@@ -92,6 +99,7 @@ export async function storeTelegramImage(
     fetcher,
     maxImageBytes,
     apiBaseUrl,
+    apiEnvironment,
   );
   const inspected = inspectImage(new Uint8Array(downloaded.bytes));
   if (!inspected) {
@@ -152,10 +160,15 @@ export async function fetchTelegramFile(
   fileId: string,
   fetcher: typeof fetch = fetch,
   apiBaseUrl?: string,
+  apiEnvironment?: TelegramApiEnvironment,
 ): Promise<Response> {
-  const file = await getTelegramFile(token, fileId, fetcher, apiBaseUrl);
+  const file = await getTelegramFile(token, fileId, fetcher, apiBaseUrl, apiEnvironment);
   const response = await fetcher(
-    `${apiBaseUrl ?? 'https://api.telegram.org'}/file/bot${token}/${file.filePath}`,
+    telegramFileApiUrl(
+      token,
+      file.filePath,
+      telegramApiLocationFromOptions(apiBaseUrl, apiEnvironment),
+    ),
   );
   if (!response.ok || !response.body) {
     throw new AppError('MEDIA_UNAVAILABLE', 'Telegram временно не отдал медиафайл.', 503);
@@ -169,13 +182,18 @@ async function downloadTelegramFile(
   fetcher: typeof fetch,
   maxBytes: number,
   apiBaseUrl?: string,
+  apiEnvironment?: TelegramApiEnvironment,
 ): Promise<{ readonly bytes: ArrayBuffer }> {
-  const file = await getTelegramFile(token, fileId, fetcher, apiBaseUrl);
+  const file = await getTelegramFile(token, fileId, fetcher, apiBaseUrl, apiEnvironment);
   if (file.fileSize !== null && file.fileSize > maxBytes) {
     throw new AppError('MEDIA_TOO_LARGE', 'Изображение превышает лимит 10 МБ.', 413);
   }
   const response = await fetcher(
-    `${apiBaseUrl ?? 'https://api.telegram.org'}/file/bot${token}/${file.filePath}`,
+    telegramFileApiUrl(
+      token,
+      file.filePath,
+      telegramApiLocationFromOptions(apiBaseUrl, apiEnvironment),
+    ),
   );
   if (!response.ok) throw new AppError('MEDIA_UNAVAILABLE', 'Не удалось скачать медиафайл.', 503);
   const contentLength = Number(response.headers.get('content-length') ?? '0');
@@ -194,9 +212,10 @@ async function getTelegramFile(
   fileId: string,
   fetcher: typeof fetch,
   apiBaseUrl?: string,
+  apiEnvironment?: TelegramApiEnvironment,
 ) {
   const response = await fetcher(
-    `${apiBaseUrl ?? 'https://api.telegram.org'}/bot${token}/getFile`,
+    telegramBotApiUrl(token, 'getFile', telegramApiLocationFromOptions(apiBaseUrl, apiEnvironment)),
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

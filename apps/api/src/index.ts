@@ -40,6 +40,7 @@ import { supportRoutes } from './support-routes';
 import { profileRoutes } from './profile-routes';
 import { readEffectivePlan, requireModelProfile as requirePlanModelProfile } from './plans';
 import { createOpenApiDocument } from './openapi';
+import { telegramApiLocation } from './telegram-api';
 
 interface AppEnvironment {
   Bindings: Env;
@@ -237,9 +238,7 @@ app.post('/telegram/webhook', async (context) => {
     botToken: TELEGRAM_BOT_TOKEN,
     publicAppUrl: context.env.PUBLIC_APP_URL,
     ownerTelegramId: context.env.OWNER_TELEGRAM_ID,
-    ...(context.env.ENVIRONMENT === 'local' && context.env.TELEGRAM_API_BASE_URL
-      ? { telegramApiBaseUrl: context.env.TELEGRAM_API_BASE_URL }
-      : {}),
+    telegramApiLocation: telegramApiLocation(context.env),
   });
   return context.json({ ok: true, result });
 });

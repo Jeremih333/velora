@@ -3,7 +3,7 @@ import type { SessionPrincipal } from './session';
 export interface Env {
   readonly DB: D1Database;
   readonly ASSETS: Fetcher;
-  readonly ENVIRONMENT: 'local' | 'staging' | 'production';
+  readonly ENVIRONMENT: 'local' | 'telegram-test' | 'staging' | 'production';
   readonly APP_NAME: 'Velora';
   readonly TELEGRAM_BOT_USERNAME: string;
   readonly MAX_INIT_DATA_AGE_SECONDS: string;
@@ -13,6 +13,7 @@ export interface Env {
   readonly PAID_AI_ENABLED?: string;
   readonly TELEGRAM_BOT_TOKEN?: string;
   readonly TELEGRAM_API_BASE_URL?: string;
+  readonly TELEGRAM_API_ENVIRONMENT?: 'production' | 'test';
   readonly TELEGRAM_WEBHOOK_SECRET?: string;
   readonly PAYMENTS_ENABLED?: string;
   readonly PUBLIC_APP_URL: string;

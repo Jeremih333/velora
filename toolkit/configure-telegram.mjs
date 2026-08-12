@@ -1,4 +1,8 @@
 const apply = process.argv.includes('--apply');
+const apiEnvironment = process.env.TELEGRAM_API_ENVIRONMENT ?? 'production';
+if (apiEnvironment !== 'production' && apiEnvironment !== 'test') {
+  throw new Error('TELEGRAM_API_ENVIRONMENT must be production or test.');
+}
 const required = [
   'TELEGRAM_BOT_TOKEN',
   'TELEGRAM_WEBHOOK_SECRET',
@@ -75,6 +79,7 @@ if (!apply) {
     JSON.stringify(
       {
         mode: 'dry-run',
+        apiEnvironment,
         botUsername,
         appOrigin: appUrl.origin,
         operations: operations.map(([method]) => method),
@@ -88,7 +93,8 @@ if (!apply) {
 }
 
 async function call(method, body = {}) {
-  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+  const environmentPath = apiEnvironment === 'test' ? '/test' : '';
+  const response = await fetch(`https://api.telegram.org/bot${token}${environmentPath}/${method}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -112,6 +118,7 @@ console.log(
   JSON.stringify(
     {
       configured: true,
+      apiEnvironment,
       botUsername,
       webhookUrl:
         webhook && typeof webhook === 'object' && typeof webhook.url === 'string'

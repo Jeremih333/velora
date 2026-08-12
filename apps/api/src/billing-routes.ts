@@ -17,6 +17,7 @@ import {
   reverseRefundedStarsPayment,
 } from './telegram-payments';
 import { readPlanEntitlements, type PlanEntitlements } from './plans';
+import { telegramApiLocation } from './telegram-api';
 import type { Env, Variables } from './types';
 
 interface BillingEnvironment {
@@ -253,9 +254,7 @@ billingRoutes.post('/billing/invoices', async (context) => {
   }
   try {
     const invoiceUrl = await createStarsInvoiceLink((request, init) => fetch(request, init), {
-      ...(context.env.ENVIRONMENT === 'local' && context.env.TELEGRAM_API_BASE_URL
-        ? { apiBaseUrl: context.env.TELEGRAM_API_BASE_URL }
-        : {}),
+      ...telegramApiLocation(context.env),
       botToken: context.env.TELEGRAM_BOT_TOKEN,
       title: pack.displayName,
       description: pack.description,
@@ -344,9 +343,7 @@ billingRoutes.post('/billing/access-invoices', async (context) => {
   }
   try {
     const invoiceUrl = await createStarsInvoiceLink((request, init) => fetch(request, init), {
-      ...(context.env.ENVIRONMENT === 'local' && context.env.TELEGRAM_API_BASE_URL
-        ? { apiBaseUrl: context.env.TELEGRAM_API_BASE_URL }
-        : {}),
+      ...telegramApiLocation(context.env),
       botToken: context.env.TELEGRAM_BOT_TOKEN,
       title: pack.displayName,
       description: pack.description,
@@ -451,9 +448,7 @@ billingRoutes.post('/admin/billing/payments/:paymentId/refund', async (context) 
   }
   try {
     const transportResult = await requestStarsRefund((request, init) => fetch(request, init), {
-      ...(context.env.ENVIRONMENT === 'local' && context.env.TELEGRAM_API_BASE_URL
-        ? { apiBaseUrl: context.env.TELEGRAM_API_BASE_URL }
-        : {}),
+      ...telegramApiLocation(context.env),
       botToken: context.env.TELEGRAM_BOT_TOKEN,
       userTelegramId: payment.telegramId,
       telegramPaymentChargeId: payment.telegramPaymentChargeId,

@@ -2,6 +2,7 @@ import { AppError, nowMs } from '@velora/shared';
 import { canModerateRole, isModeratorRole, type ModerationRole } from '@velora/moderation';
 import { Hono } from 'hono';
 import { fetchTelegramFile } from './telegram-media';
+import { telegramApiLocation } from './telegram-api';
 import type { Env, Variables } from './types';
 
 interface MediaEnvironment {
@@ -69,11 +70,13 @@ mediaRoutes.get('/:mediaId/content', async (context) => {
   if (!owned && !staffAuthorized && (!publiclyReferenced || row.moderationState !== 'APPROVED')) {
     throw new AppError('MEDIA_NOT_FOUND', 'Медиафайл не найден.', 404);
   }
+  const telegramLocation = telegramApiLocation(context.env);
   const upstream = await fetchTelegramFile(
     context.env.TELEGRAM_BOT_TOKEN,
     row.providerFileId,
     fetch,
-    context.env.ENVIRONMENT === 'local' ? context.env.TELEGRAM_API_BASE_URL : undefined,
+    telegramLocation.apiBaseUrl,
+    telegramLocation.apiEnvironment,
   );
   const headers = new Headers({
     'content-type': row.mimeType,

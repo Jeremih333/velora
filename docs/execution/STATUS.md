@@ -37,6 +37,7 @@ Updated: 2026-08-12.
 | Support/legal                | VERIFIED_MVP      | private tickets, admin RBAC, export/erasure and legal UI                                  |
 | User profiles                | VERIFIED_MVP      | separate identity, avatar IDOR/privacy, blocks, moderation and E2E                        |
 | Cloudflare resources         | IMPLEMENTED       | isolated staging/production D1; production DB still unmigrated                            |
+| Telegram test environment    | BLOCKED_HUMAN     | isolated D1 migrated 28/28 and healthy; needs a test-server account and new test bot      |
 | R2                           | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                         |
 | Telegram bot                 | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                         |
 | Paid AI                      | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                     |

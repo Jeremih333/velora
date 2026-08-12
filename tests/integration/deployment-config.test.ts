@@ -8,6 +8,11 @@ function requireRecord(value: unknown, label: string): Readonly<Record<string, u
   return value as Readonly<Record<string, unknown>>;
 }
 
+function requireArray(value: unknown, label: string): readonly unknown[] {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array.`);
+  return value;
+}
+
 describe('deployment paid-feature boundaries', () => {
   it('enables paid roleplay only in staging while payments stay disabled everywhere', async () => {
     const source = await readFile(
@@ -19,8 +24,32 @@ describe('deployment paid-feature boundaries', () => {
     const production = requireRecord(config['vars'], 'production vars');
     const environments = requireRecord(config['env'], 'environments');
     const staging = requireRecord(environments['staging'], 'staging environment');
+    const telegramTest = requireRecord(environments['telegram-test'], 'telegram-test environment');
     const stagingVars = requireRecord(staging['vars'], 'staging vars');
+    const productionD1 = requireRecord(
+      requireArray(config['d1_databases'], 'production D1')[0],
+      'production D1 binding',
+    );
+    const stagingD1 = requireRecord(
+      requireArray(staging['d1_databases'], 'staging D1')[0],
+      'staging D1 binding',
+    );
     const local = requireRecord(environments['local'], 'local environment');
+    const telegramTestVars = requireRecord(telegramTest['vars'], 'telegram-test vars');
+    expect(telegramTestVars['ENVIRONMENT']).toBe('telegram-test');
+    expect(telegramTestVars['TELEGRAM_API_ENVIRONMENT']).toBe('test');
+    expect(telegramTestVars['PAID_AI_ENABLED']).toBe('false');
+    expect(telegramTestVars['PAYMENTS_ENABLED']).toBe('false');
+    expect(telegramTestVars['TELEGRAM_BOT_USERNAME']).not.toBe(
+      stagingVars['TELEGRAM_BOT_USERNAME'],
+    );
+    const telegramTestD1 = requireRecord(
+      requireArray(telegramTest['d1_databases'], 'telegram-test D1')[0],
+      'telegram-test D1 binding',
+    );
+    expect(telegramTestD1['database_name']).toBe('velora-telegram-test');
+    expect(telegramTestD1['database_id']).not.toBe(stagingD1['database_id']);
+    expect(telegramTestD1['database_id']).not.toBe(productionD1['database_id']);
     const localVars = requireRecord(local['vars'], 'local vars');
 
     expect(production['PAID_AI_ENABLED']).toBe('false');
