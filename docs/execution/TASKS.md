@@ -45,8 +45,9 @@
       JavaScript artifact at 350,000 bytes through a manifest-based build gate.
 - [x] Prove in browser E2E that authentication loads the authenticated chunk, Chats stays unloaded
       until requested and the requested workspace remains usable.
-- [ ] Deploy the performance build to staging and repeat health/readiness/static shell smoke after
-      clean-clone CI passes.
+- [x] Pass clean-clone CI `31560140067`, deploy staging Worker
+      `afd1e97d-1ab8-47cf-b0e5-e63b00e78686`, and verify health/readiness, all four production
+      JavaScript assets, 104 OpenAPI paths and D1 integrity without changing a paid gate.
 
 ## Next
 

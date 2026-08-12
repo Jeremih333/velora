@@ -16,7 +16,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 | Likes/bookmarks/reviews              | D1 constraints and MiniApp           | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | no viewer identities              |
 | Billing/moderation/admin             | Stars gate, RBAC and owner grants    | unit/integration/E2E   | owner-grant staging UI | IMPLEMENTED_GATED | payments stay disabled            |
 | Reliability/operations               | limits/events/alerts/data controls   | unit/integration/E2E   | live alert/recovery    | VERIFIED_MVP      | owner receipt witnessed           |
-| Web bundle performance               | lazy auth/chat/lore workspace chunks | build/integration/E2E  | staging pending        | VERIFIED_LOCAL    | initial JS 650,138→306,635 B      |
+| Web bundle performance               | lazy auth/chat/lore workspace chunks | build/integration/E2E  | live asset smoke       | VERIFIED_STAGING  | initial JS 650,138→306,635 B      |
 | Support/legal                        | private tickets, admin queue, policy | unit/integration/E2E   | staging smoke passed   | VERIFIED_MVP      | contents excluded from audit      |
 | User profiles                        | separate identity, privacy, avatar   | integration/E2E        | staging smoke passed   | VERIFIED_MVP      | Telegram identity stays private   |
 | Production                           | none                                 | none                   | none                   | NOT_STARTED       | cannot claim success              |
@@ -129,6 +129,12 @@ Velora is **not production-ready yet**. This report is updated only with factual
   Worker `b57438ee-0283-4ccc-b752-69c440c6a6bf` has 28 migrations/66 tables, the unique queue index,
   `quick_check=ok`, no foreign-key violations and `PAYMENTS_ENABLED=false`; clean-clone GitHub CI
   `31552004619`: PASS;
+- web performance hardening: clean-clone CI `31560140067` passed after catching and correcting a
+  test that had depended on a local `dist`; staging Worker
+  `afd1e97d-1ab8-47cf-b0e5-e63b00e78686` serves the 306,635-byte initial entry and all three lazy
+  chunks with HTTP 200 and exact manifest sizes. Health is `ok`, readiness is `ready`, OpenAPI
+  still exposes 104 paths, D1 has 28 migrations, `quick_check=ok`, no foreign-key violations,
+  `PAID_AI_ENABLED=true` only in staging and `PAYMENTS_ENABLED=false`: PASS;
 - the full E2E gate completed 9 scenarios with one transient iPhone retry; the exact affected
   iPhone scenario then passed independently with retries disabled: PASS with recorded flake.
 

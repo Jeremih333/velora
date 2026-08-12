@@ -30,7 +30,7 @@ Updated: 2026-08-12.
 | Owner user grants             | VERIFIED_STAGING  | ID lookup, audited/idempotent plan+credit grants, revocation; no fake payments            |
 | Reliability controls          | VERIFIED_MVP      | limits, private events, live deduped alert/recovery, admin metrics                        |
 | Local capacity                | VERIFIED_SLICE    | 40 user/D1/search requests, 4 AI streams; budget is first boundary                        |
-| Web bundle performance        | VERIFIED_LOCAL    | initial JS 650,138→306,635 B; lazy workspace and 350 KB build/E2E guards                  |
+| Web bundle performance        | VERIFIED_STAGING  | initial JS 650,138→306,635 B; build/E2E guard and live lazy assets                        |
 | Fixtures and staging seed     | VERIFIED          | idempotent 4 users/12 chars/4 personas/2 lore/240 chat/3 cases                            |
 | Resilient/accessibility UX    | VERIFIED_SLICE    | offline draft, focus, labels, reduced motion, 200% font E2E                               |
 | Visual regression             | VERIFIED_SLICE    | 24 Linux baselines; 8 states across Android/iPhone/Desktop                                |
@@ -43,7 +43,7 @@ Updated: 2026-08-12.
 | R2                            | BLOCKED_HUMAN     | account returns code 10042; initial Telegram media adapter chosen                         |
 | Telegram bot                  | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                         |
 | Paid AI                       | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                     |
-| Staging                       | VERIFIED          | Worker `b57438ee`; D1 28/66 healthy; paid roleplay on, payments off                       |
+| Staging                       | VERIFIED          | Worker `afd1e97d`; D1 28/66 healthy; paid roleplay on, payments off                       |
 | Production                    | BLOCKED_HUMAN     | intentionally gated until live staging checkpoints pass                                   |
 
 RoleMate resources have not been changed or bound to Velora.

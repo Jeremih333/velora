@@ -25,3 +25,8 @@ does not fetch the chat chunk prematurely, and fetches it when the user opens Ch
 fallbacks use a visible status and respect reduced-motion preferences. This is a JavaScript loading
 budget, not a claim about real-device network latency; production telemetry and a human Telegram
 device matrix remain required before production readiness.
+
+The exact build passed clean-clone CI `31560140067` and was deployed only to staging as Worker
+`afd1e97d-1ab8-47cf-b0e5-e63b00e78686`. The manifest plus all four JavaScript files returned HTTP
+200 with the sizes above; `/health` and `/ready` passed, and the unchanged D1 returned
+`quick_check=ok` with no foreign-key violations. This does not authorize production deployment.

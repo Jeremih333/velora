@@ -297,8 +297,10 @@ verified; the full product from the master brief is still in progress.
   boundaries: 306,635-byte initial entry, 148,982-byte authenticated shell, 183,811-byte chat and
   13,225-byte lorebook editor. A Vite-manifest build gate rejects any JavaScript artifact above
   350,000 bytes or loss of the required lazy entries; Android, iPhone and desktop E2E prove Chats
-  is not fetched before navigation and remains usable after its on-demand load. This is local/CI
-  evidence only until the exact build is deployed and smoke-tested in staging.
+  is not fetched before navigation and remains usable after its on-demand load. Clean-clone CI
+  `31560140067` passed and staging Worker `afd1e97d-1ab8-47cf-b0e5-e63b00e78686` returned HTTP 200
+  for the manifest and every exact lazy asset; health/readiness, 104 OpenAPI paths and D1 integrity
+  remained healthy without changing paid feature flags.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
