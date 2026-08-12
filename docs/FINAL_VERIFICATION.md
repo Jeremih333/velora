@@ -107,6 +107,10 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - owner-confirmed Telegram Mini App live chat: request/generation/message `COMPLETED`, 413 input / 33
   output tokens, 7,080 ms latency, persisted 84-character output and exactly one linked charge;
   private message text was not inspected or recorded: PASS;
+- owner-confirmed live continuation and branch navigation: the original assistant answer remained
+  visible, the continuation was persisted separately and the edited user branch exposed a working
+  `2 / 2` variant selector in the Telegram Mini App; no new provider request was made to record the
+  confirmation: PASS;
 - owner Stars refund preflight: exact Telegram method/body, owner RBAC, CSRF, payment-level
   idempotency, immediate reversal and duplicate webhook all pass; pre-0027 export restored to
   27 migrations/66 tables; staging Worker `48b3c4cf-fc4c-4a4c-bbdb-95df8edf22ea` serves 104

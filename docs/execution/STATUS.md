@@ -18,7 +18,7 @@ Updated: 2026-08-12.
 | Authenticated Mini App       | VERIFIED_MVP      | catalog/editors/settings and 3-device authenticated E2E                                   |
 | First-run onboarding         | VERIFIED_MVP      | 4 steps, optional persona, safe recommendations, idempotent completion                    |
 | Telegram image media         | VERIFIED_MVP      | byte/geometry checks, deduped review queue, RBAC preview, approve/reject and public proxy |
-| Conversations/chat           | VERIFIED_MVP      | branches/actions, private draft tests, streaming, memory inspector                        |
+| Conversations/chat           | VERIFIED_STAGING  | owner-confirmed live continuation/2-of-2 branch UI, tests, streaming, memory inspector    |
 | Advanced roleplay            | VERIFIED_MVP      | exact prompt order/settings plus creator/admin inspector with IDOR deny                   |
 | Roleplay quality corpus      | VERIFIED_STAGING  | A-F assembly, V3 checkpoint and owner-confirmed persisted live chat                       |
 | AI provider adapter          | VERIFIED_MVP      | allowlisted key capability READY; selected `deepseek-chat-v3.1`                           |
@@ -53,3 +53,8 @@ owner-authorized V3 checkpoint completed with `deepseek-chat-v3.1`; production r
 `PAID_AI_ENABLED=false`.
 The RU/EN interface is complete for the implemented MVP surface; additional languages and future
 features remain separate work.
+
+The owner manually confirmed the live staging continuation flow in Telegram on 2026-08-12: the
+original assistant answer remained intact, the continuation appeared as a separate assistant
+message, and the edited user branch remained navigable through the visible `2 / 2` variant control.
+No additional provider request was initiated while recording this evidence.

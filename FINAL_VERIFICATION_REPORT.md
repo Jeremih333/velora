@@ -49,6 +49,10 @@ verified; the full product from the master brief is still in progress.
   pass a real webhook-to-media integration flow;
 - immutable message branches, idempotent writes, manual memory versions and restore are exercised
   against a real local Worker and D1;
+- the owner manually confirmed the live Telegram Mini App continuation flow: the original answer
+  remained intact, the continuation was a separate message and the edited branch was selectable
+  through the visible `2 / 2` control; this evidence was recorded without issuing another paid AI
+  request or copying private roleplay text;
 - memory jobs have conditional leases, bounded exponential retry/dead-letter handling and
   duplicate-write protection; the no-cost extractive/hierarchical fallback traverses a tested
   1,201-message branch in pages without spending AI credits or dropping its beginning or end;
