@@ -18,6 +18,7 @@ $botUsername = "aivel0ra_bot"
 $temporaryDirectory = $null
 $productionSecretFile = $null
 $stagingSecretFile = $null
+$configurationFile = $null
 $telegramPointer = [IntPtr]::Zero
 $telegramToken = $null
 $productionWebhookSecret = $null
@@ -156,6 +157,7 @@ try {
   [IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null
   $productionSecretFile = Join-Path $temporaryDirectory "production-secrets.json"
   $stagingSecretFile = Join-Path $temporaryDirectory "staging-rollback-secrets.json"
+  $configurationFile = Join-Path $temporaryDirectory "telegram-configuration.json"
   Write-SecretFile $productionSecretFile $productionWebhookSecret
   Write-SecretFile $stagingSecretFile $stagingWebhookSecret
 
@@ -169,9 +171,9 @@ try {
   $smokeMarker = "velora_smoke_$(New-UrlSafeSecret 24)"
   $applyStarted = $true
   Write-CutoverStatus "APPLYING_TELEGRAM" "Applying and verifying the production Telegram configuration."
-  $configurationOutput = & node $telegramConfigurator --apply | Out-String
+  & node $telegramConfigurator --apply --output-file $configurationFile | Out-Null
   if ($LASTEXITCODE -ne 0) { throw "Telegram rejected the production configuration." }
-  $configuration = $configurationOutput | ConvertFrom-Json
+  $configuration = [IO.File]::ReadAllText($configurationFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
   if (
     $configuration.configured -ne $true -or
     $configuration.exactConfigurationVerified -ne $true -or
@@ -226,7 +228,7 @@ finally {
   if ($telegramPointer -ne [IntPtr]::Zero) {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($telegramPointer)
   }
-  foreach ($path in @($productionSecretFile, $stagingSecretFile)) {
+  foreach ($path in @($productionSecretFile, $stagingSecretFile, $configurationFile)) {
     if ($path -and (Test-Path -LiteralPath $path)) { Remove-Item -LiteralPath $path -Force }
   }
   if ($temporaryDirectory -and (Test-Path -LiteralPath $temporaryDirectory)) {

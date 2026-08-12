@@ -209,6 +209,8 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('Write-CutoverStatus "COMPLETED"');
     expect(source).toContain('Write-CutoverStatus "FAILED" $originalFailure');
     expect(source).toContain('StatusFile must stay inside the Velora project.');
+    expect(source).toContain('--apply --output-file $configurationFile');
+    expect(source).toContain('[IO.File]::ReadAllText($configurationFile, [Text.Encoding]::UTF8)');
     expect(source).not.toContain('SESSION_SIGNING_KEY');
     expect(source).not.toContain('BOTHUB_API_KEY');
     expect(source).not.toContain('PAID_AI_ENABLED');

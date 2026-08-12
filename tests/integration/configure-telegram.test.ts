@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const productionUrl = 'https://velora-app.carreljeremih.workers.dev/';
 const commands = [
@@ -78,6 +81,28 @@ describe('Telegram production configurator', () => {
       'getMyDescription',
       'getMyShortDescription',
     ]);
+  });
+
+  it('writes the verified result directly as UTF-8 for PowerShell cutover', async () => {
+    installEnvironment();
+    vi.stubGlobal('fetch', createTelegramFetch([]));
+    const directory = await mkdtemp(join(tmpdir(), 'velora-telegram-config-'));
+    const outputFile = join(directory, 'result.json');
+    process.argv.push('--apply', '--output-file', outputFile);
+    try {
+      vi.resetModules();
+      await import('../../toolkit/configure-telegram.mjs');
+      const result = JSON.parse(await readFile(outputFile, 'utf8')) as Record<string, unknown>;
+      expect(result).toMatchObject({
+        configured: true,
+        exactConfigurationVerified: true,
+        menuText: 'Открыть',
+        russianCommandCount: 10,
+      });
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--apply'), 3);
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('fails closed when Telegram reports a different menu target', async () => {

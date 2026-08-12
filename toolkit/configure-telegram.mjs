@@ -1,5 +1,12 @@
+import { writeFile } from 'node:fs/promises';
+
 const apply = process.argv.includes('--apply');
 const checkIdentity = process.argv.includes('--check-identity');
+const outputFileIndex = process.argv.indexOf('--output-file');
+const outputFile = outputFileIndex >= 0 ? process.argv[outputFileIndex + 1] : undefined;
+if (outputFileIndex >= 0 && (!outputFile || outputFile.startsWith('--'))) {
+  throw new Error('--output-file requires a path.');
+}
 if (apply && checkIdentity) {
   throw new Error('Choose either --apply or --check-identity.');
 }
@@ -163,39 +170,37 @@ const exactConfigurationVerified =
 if (!exactConfigurationVerified) {
   throw new Error('Telegram configuration verification failed.');
 }
-console.log(
-  JSON.stringify(
-    {
-      configured: true,
-      exactConfigurationVerified,
-      apiEnvironment,
-      botUsername,
-      webhookUrl,
-      menuType:
-        menu && typeof menu === 'object' && typeof menu.type === 'string' ? menu.type : null,
-      menuText:
-        menu && typeof menu === 'object' && typeof menu.text === 'string' ? menu.text : null,
-      menuUrl:
-        menu &&
-        typeof menu === 'object' &&
-        menu.web_app &&
-        typeof menu.web_app === 'object' &&
-        typeof menu.web_app.url === 'string'
-          ? menu.web_app.url
-          : null,
-      commandCount: Array.isArray(configuredCommands) ? configuredCommands.length : 0,
-      russianCommandCount: Array.isArray(configuredRussianCommands)
-        ? configuredRussianCommands.length
-        : 0,
-      englishCommandCount: Array.isArray(configuredEnglishCommands)
-        ? configuredEnglishCommands.length
-        : 0,
-      allowedUpdates: webhookAllowedUpdates,
-    },
-    null,
-    2,
-  ),
+const configurationResult = JSON.stringify(
+  {
+    configured: true,
+    exactConfigurationVerified,
+    apiEnvironment,
+    botUsername,
+    webhookUrl,
+    menuType: menu && typeof menu === 'object' && typeof menu.type === 'string' ? menu.type : null,
+    menuText: menu && typeof menu === 'object' && typeof menu.text === 'string' ? menu.text : null,
+    menuUrl:
+      menu &&
+      typeof menu === 'object' &&
+      menu.web_app &&
+      typeof menu.web_app === 'object' &&
+      typeof menu.web_app.url === 'string'
+        ? menu.web_app.url
+        : null,
+    commandCount: Array.isArray(configuredCommands) ? configuredCommands.length : 0,
+    russianCommandCount: Array.isArray(configuredRussianCommands)
+      ? configuredRussianCommands.length
+      : 0,
+    englishCommandCount: Array.isArray(configuredEnglishCommands)
+      ? configuredEnglishCommands.length
+      : 0,
+    allowedUpdates: webhookAllowedUpdates,
+  },
+  null,
+  2,
 );
+if (outputFile) await writeFile(outputFile, configurationResult, { encoding: 'utf8', flag: 'wx' });
+else console.log(configurationResult);
 
 function sameCommands(actual, expected) {
   if (!Array.isArray(actual) || actual.length !== expected.length) return false;
