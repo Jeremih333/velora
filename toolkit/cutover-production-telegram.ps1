@@ -9,6 +9,7 @@ $wranglerConfig = Join-Path $apiRoot "wrangler.jsonc"
 $wrangler = Join-Path $apiRoot "node_modules\wrangler\bin\wrangler.js"
 $preflight = Join-Path $PSScriptRoot "production-preflight.mjs"
 $telegramConfigurator = Join-Path $PSScriptRoot "configure-telegram.mjs"
+$telegramSmoke = Join-Path $PSScriptRoot "production-telegram-smoke.mjs"
 $productionUrl = "https://velora-app.carreljeremih.workers.dev"
 $stagingUrl = "https://velora-staging.carreljeremih.workers.dev"
 $accountId = "9d1b271d6aec48ab5d8f595d1d3fac61"
@@ -21,6 +22,8 @@ $telegramToken = $null
 $productionWebhookSecret = $null
 $stagingWebhookSecret = $null
 $applyStarted = $false
+$cutoverStartedAt = 0
+$smokeMarker = $null
 
 function New-UrlSafeSecret([int]$ByteCount) {
   $bytes = New-Object byte[] $ByteCount
@@ -100,6 +103,9 @@ try {
   Set-TelegramEnvironment $productionUrl $productionWebhookSecret
   Invoke-Checked { & node $telegramConfigurator } "Telegram configuration dry-run failed. Telegram was not changed."
   Invoke-Checked { & node $telegramConfigurator --check-identity } "Telegram did not confirm @aivel0ra_bot. Telegram was not changed."
+  Invoke-Checked {
+    & node $wrangler deploy '--env=' --config $wranglerConfig
+  } "The verified production Worker could not be deployed. Telegram was not changed."
 
   $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("velora-cutover-" + [Guid]::NewGuid().ToString('N'))
   [IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null
@@ -113,6 +119,8 @@ try {
     & node $wrangler secret bulk $productionSecretFile '--env=' --config $wranglerConfig
   } "Production Telegram secrets were not updated. The webhook remains on staging."
 
+  $cutoverStartedAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  $smokeMarker = "velora_smoke_$(New-UrlSafeSecret 24)"
   $applyStarted = $true
   $configurationOutput = & node $telegramConfigurator --apply | Out-String
   if ($LASTEXITCODE -ne 0) { throw "Telegram rejected the production configuration." }
@@ -133,6 +141,10 @@ try {
   }
 
   Write-Host "Telegram cutover completed and verified for @$botUsername." -ForegroundColor Green
+  Write-Host "Complete the real /start and Mini App smoke in Telegram now." -ForegroundColor Yellow
+  Invoke-Checked {
+    & node $telegramSmoke --started-at $cutoverStartedAt --timeout-seconds 300 --marker $smokeMarker
+  } "Production /start or Mini App authentication smoke failed."
   $applyStarted = $false
 }
 catch {
@@ -160,6 +172,7 @@ finally {
   $telegramToken = $null
   $productionWebhookSecret = $null
   $stagingWebhookSecret = $null
+  $smokeMarker = $null
   if ($telegramPointer -ne [IntPtr]::Zero) {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($telegramPointer)
   }

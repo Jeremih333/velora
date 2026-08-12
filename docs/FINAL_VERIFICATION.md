@@ -27,8 +27,8 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - Prettier check: PASS;
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
-- latest complete gate: 130 unit/regression PASS; roleplay-quality: 6 PASS; API contract: 4 PASS;
-  integration/schema/cost/bundle: 54 PASS; Android/iPhone/Desktop E2E: 12 PASS without retries;
+- latest complete gate: 131 unit/regression PASS; roleplay-quality: 6 PASS; API contract: 4 PASS;
+  integration/schema/cost/bundle: 60 PASS; Android/iPhone/Desktop E2E: 12 PASS without retries;
   an earlier desktop startup timeout passed 3/3 in an exact no-retry rerun before this clean gate;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;

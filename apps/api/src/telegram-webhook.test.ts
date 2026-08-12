@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   commandMessage,
   parseBotCommand,
+  parseProductionSmokeMarker,
   parseTelegramUpdate,
   secretsEqual,
   sendTelegramCommandReply,
@@ -30,6 +31,15 @@ describe('Telegram webhook protocol', () => {
     }
     expect(commandMessage('unknown')).toBeNull();
     expect(commandMessage('start', 'en')).toContain('Welcome to Velora');
+  });
+
+  it('accepts only bounded production smoke markers', () => {
+    const marker = `velora_smoke_${'a'.repeat(32)}`;
+    expect(parseProductionSmokeMarker(`/start ${marker}`)).toBe(marker);
+    expect(parseProductionSmokeMarker(`/start@aivel0ra_bot ${marker}`)).toBe(marker);
+    expect(parseProductionSmokeMarker('/start ordinary-referral')).toBeNull();
+    expect(parseProductionSmokeMarker(`/help ${marker}`)).toBeNull();
+    expect(parseProductionSmokeMarker(`/start velora_smoke_${'a'.repeat(31)}`)).toBeNull();
   });
 
   it('normalizes Telegram language variants for new users', () => {

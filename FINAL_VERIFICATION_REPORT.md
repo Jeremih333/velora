@@ -354,8 +354,14 @@ verified; the full product from the master brief is still in progress.
   descriptions, Mini App button text/URL, webhook URL and allowed update set returned by Telegram.
   A mocked Bot API regression covers both exact success and fail-closed configuration drift. The
   cutover still preserves automatic staging rollback and cannot touch session/BotHub secrets,
-  paid gates or migrations. The full quality gate passed 130 unit/regression, 6 roleplay-quality,
+  paid gates or migrations. The earlier full quality gate passed 130 unit/regression, 6 roleplay-quality,
   4 contract, 57 integration and 12/12 E2E checks without retries.
+- The mandatory post-cutover smoke is now exact rather than aggregate: a random bounded owner-only
+  `/start` marker traverses the real webhook, only its SHA-256 is audited, and success additionally
+  requires a new non-revoked production Mini App session after cutover began. A real Worker+D1
+  regression proves a normal user cannot forge the evidence and that the raw marker is not stored.
+  Missing either proof within five minutes invokes the existing staging rollback. This path has
+  not been deployed or executed because phase 2 still requires separate owner authorization.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -378,8 +384,8 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
   then staging keeps receiving bot updates and production Telegram reconciliation remains off.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
-formatting, lint, strict typecheck, 130 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 57 integration tests, both builds and 12/12 E2E without retries. The gate now holds an
+formatting, lint, strict typecheck, 131 unit/regression tests, 6 roleplay-quality tests, 4 contract
+tests, 60 integration tests, both builds and 12/12 E2E without retries. The gate now holds an
 exclusive local lock, preventing concurrent reruns from racing over integration and browser output
 directories. An earlier desktop startup timeout passed 3/3 in an exact no-retry rerun before the
 latest clean full gate.

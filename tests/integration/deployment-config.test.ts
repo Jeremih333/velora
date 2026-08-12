@@ -168,19 +168,23 @@ describe('deployment paid-feature boundaries', () => {
     const confirmation = source.indexOf('if (-not $ConfirmProductionWebhookCutover)');
     const preflight = source.indexOf('& node $preflight --remote');
     const qualityGate = source.indexOf('"verify.ps1"');
+    const productionDeploy = source.indexOf("& node $wrangler deploy '--env='");
     const identity = source.indexOf('& node $telegramConfigurator --check-identity');
     const productionSecrets = source.indexOf('secret bulk $productionSecretFile');
     const apply = source.indexOf('& node $telegramConfigurator --apply', productionSecrets);
     const verifyWebhook = source.indexOf('$configuration.webhookUrl -ne');
+    const realSmoke = source.indexOf('& node $telegramSmoke --started-at');
     const rollback = source.indexOf('Restore-StagingWebhook');
 
     expect(confirmation).toBeGreaterThan(-1);
     expect(preflight).toBeGreaterThan(confirmation);
     expect(qualityGate).toBeGreaterThan(preflight);
     expect(identity).toBeGreaterThan(qualityGate);
-    expect(productionSecrets).toBeGreaterThan(identity);
+    expect(productionDeploy).toBeGreaterThan(identity);
+    expect(productionSecrets).toBeGreaterThan(productionDeploy);
     expect(apply).toBeGreaterThan(productionSecrets);
     expect(verifyWebhook).toBeGreaterThan(apply);
+    expect(realSmoke).toBeGreaterThan(verifyWebhook);
     expect(rollback).toBeGreaterThan(-1);
     expect(source).toContain('secret bulk $stagingSecretFile');
     expect(source).toContain('"$productionUrl/telegram/webhook"');
@@ -190,6 +194,8 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('[int]$configuration.russianCommandCount -ne 10');
     expect(source).toContain('[int]$configuration.englishCommandCount -ne 10');
     expect(source).toContain("'message,callback_query,pre_checkout_query'");
+    expect(source).toContain('Production /start or Mini App authentication smoke failed.');
+    expect(source).toContain('--marker $smokeMarker');
     expect(source).not.toContain('SESSION_SIGNING_KEY');
     expect(source).not.toContain('BOTHUB_API_KEY');
     expect(source).not.toContain('PAID_AI_ENABLED');

@@ -14,7 +14,9 @@
 8. At a separate final checkpoint, move the single `@aivel0ra_bot` webhook from staging to
    production and verify `/start` plus real Mini App authentication.
    Use `toolkit/cutover-production-telegram.ps1`; it preserves session/BotHub secrets and contains
-   a staging rollback path.
+   a staging rollback path. Follow the displayed one-time owner `/start velora_smoke_…` command and
+   open the Mini App within five minutes; missing either owner marker or the new production session
+   rolls the webhook back to staging.
 9. Record Worker version, migration list and hashes in `docs/FINAL_VERIFICATION.md`.
 
 Rollback uses the previous Worker deployment; database changes must remain compatible. Destructive

@@ -18,6 +18,7 @@ import {
   reverseRefundedStarsPayment,
   validateAndMarkPreCheckout,
 } from './telegram-payments';
+import { sha256 } from './telegram-auth';
 
 const telegramUserSchema = z.object({
   id: z.number().int().positive(),
@@ -87,6 +88,14 @@ export function parseBotCommand(text: string | undefined, botUsername: string): 
     return null;
   }
   return command;
+}
+
+export function parseProductionSmokeMarker(text: string | undefined): string | null {
+  if (!text) return null;
+  const match = /^\/start(?:@[A-Za-z0-9_]{5,32})?\s+(velora_smoke_[A-Za-z0-9_-]{32,96})$/u.exec(
+    text.trim(),
+  );
+  return match?.[1] ?? null;
 }
 
 type SupportedLocale = 'ru' | 'en';
@@ -240,6 +249,18 @@ export async function processTelegramUpdate(
     const command = parseBotCommand(message.text, options.botUsername);
     const locale = user.locale;
     let reply = command ? commandMessage(command, locale) : null;
+    const smokeMarker = parseProductionSmokeMarker(message.text);
+    if (smokeMarker && user.role === 'OWNER') {
+      const markerHash = await sha256(smokeMarker);
+      await database
+        .prepare(
+          `INSERT OR IGNORE INTO audit_logs
+             (id, actor_id, action, target_type, target_id, request_id, metadata_json, created_at)
+           VALUES (?, ?, 'TELEGRAM_PRODUCTION_SMOKE', 'TELEGRAM_WEBHOOK', ?, ?, '{}', ?)`,
+        )
+        .bind(crypto.randomUUID(), user.id, markerHash, markerHash, nowMs())
+        .run();
+    }
     if (message.successful_payment) {
       const result = await grantSuccessfulStarsPayment(database, String(message.from.id), {
         invoicePayload: message.successful_payment.invoice_payload,

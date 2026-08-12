@@ -32,6 +32,7 @@
     "production:preflight": "node toolkit/production-preflight.mjs",
     "production:phase1": "powershell -ExecutionPolicy Bypass -File toolkit/deploy-production-phase1.ps1",
     "production:cutover": "powershell -ExecutionPolicy Bypass -File toolkit/cutover-production-telegram.ps1",
+    "production:telegram-smoke": "node toolkit/production-telegram-smoke.mjs",
     "verify": "powershell -ExecutionPolicy Bypass -File toolkit/verify.ps1"
   },
   "devDependencies": {

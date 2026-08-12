@@ -90,6 +90,14 @@ begins, it creates a new staging webhook secret and restores the staging webhook
 production Telegram reconciliation stays disabled; enabling it is deliberately outside this
 cutover.
 
+The runner then prints a random, one-time `/start velora_smoke_…` command. The confirmed owner must
+send that exact command and open the Mini App from the new bot reply within five minutes. The
+Worker stores only the marker's SHA-256 in `audit_logs`; the command text is not retained. Success
+requires the marker to have been processed under the server-derived `OWNER` role and a new,
+non-revoked production session to have been created after cutover began. A non-owner cannot create
+this evidence. Timeout or either missing proof is treated as a failed cutover and restores the
+staging webhook automatically.
+
 The absence of Stars is not a blocker for the Free product: payments stay disabled, no packs are
 created and no payment claim is made. Paid AI also remains disabled in production until a separate
 bounded production-provider checkpoint is authorized after the non-AI rollout.

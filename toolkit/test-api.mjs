@@ -480,6 +480,8 @@ const worker = spawn(
     '--var',
     `TELEGRAM_API_BASE_URL:http://127.0.0.1:${providerPort}`,
     '--var',
+    'OWNER_TELEGRAM_ID:1040929628',
+    '--var',
     'PAYMENTS_ENABLED:true',
     '--var',
     'PAID_AI_ENABLED:true',
@@ -1911,6 +1913,79 @@ try {
     englishReply?.reply_markup?.inline_keyboard?.[0]?.[0]?.text !== 'Open Velora'
   ) {
     throw new Error('English Telegram locale did not produce a localized command reply.');
+  }
+  const productionSmokeMarker = `velora_smoke_${randomUUID().replaceAll('-', '')}`;
+  const productionSmokeHash = hash(productionSmokeMarker);
+  const forgedSmokeMarker = `velora_smoke_${randomUUID().replaceAll('-', '')}`;
+  const forgedSmokeHash = hash(forgedSmokeMarker);
+  await request(
+    '/telegram/webhook',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': 'integration-webhook-secret',
+      },
+      body: JSON.stringify({
+        update_id: paymentUpdateBase - 3,
+        message: {
+          message_id: 899998,
+          from: { id: englishTelegramUserId, first_name: 'English', language_code: 'en' },
+          chat: { id: englishTelegramUserId, type: 'private' },
+          text: `/start ${forgedSmokeMarker}`,
+        },
+      }),
+    },
+    200,
+  );
+  await request(
+    '/telegram/webhook',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': 'integration-webhook-secret',
+      },
+      body: JSON.stringify({
+        update_id: paymentUpdateBase - 2,
+        message: {
+          message_id: 899999,
+          from: { id: 1040929628, first_name: 'Owner', language_code: 'ru' },
+          chat: { id: 1040929628, type: 'private' },
+          text: `/start ${productionSmokeMarker}`,
+        },
+      }),
+    },
+    200,
+  );
+  const productionSmokeAudit = runWrangler([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `SELECT a.action, a.target_type, a.target_id, u.telegram_id AS telegramId, u.role,
+       instr(a.metadata_json, '${productionSmokeMarker}') AS leaked_marker
+     FROM audit_logs a JOIN users u ON u.id = a.actor_id
+     WHERE a.action = 'TELEGRAM_PRODUCTION_SMOKE'
+       AND a.target_id IN ('${productionSmokeHash}', '${forgedSmokeHash}');`,
+  ]);
+  for (const expected of [
+    '"action": "TELEGRAM_PRODUCTION_SMOKE"',
+    '"target_type": "TELEGRAM_WEBHOOK"',
+    `"target_id": "${productionSmokeHash}"`,
+    '"telegramId": "1040929628"',
+    '"role": "OWNER"',
+    '"leaked_marker": 0',
+  ]) {
+    if (!productionSmokeAudit.includes(expected)) {
+      throw new Error(`Owner production smoke audit is missing ${expected}.`);
+    }
+  }
+  if (productionSmokeAudit.includes(forgedSmokeHash)) {
+    throw new Error('A non-owner created production smoke evidence.');
   }
   await request(
     '/telegram/webhook',
