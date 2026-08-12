@@ -279,6 +279,13 @@ verified; the full product from the master brief is still in progress.
   independent webhook and session secrets, deploys only the selected isolated Worker and applies
   webhook/menu configuration only after deployment succeeds. A regression locks this operation
   order; no secret, Worker deployment or Bot API mutation was performed while testing it.
+- the annual BotHub estimator was reconciled with the current public tariff units: token prices
+  remain RUB-denominated, the documented `$0.01` LLM request surcharge is converted through an
+  explicit conservative USD/RUB input, and Elite is treated as the public 35,000,000 CAPS / 5,500
+  ₽ pack rather than the owner's bonus-inclusive displayed balance. At the default 120 ₽/$ and
+  8,000-input/600-output envelope, 100 replies/day plus 15% reserve is 61,026 ₽, rounded to twelve
+  manually purchased Elite packs; this is a planning envelope, not a price or availability
+  guarantee, and no purchase/renewal was performed.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -301,4 +308,4 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 
 No missing feature is reported as complete. The latest complete local gate passed secret scan,
 formatting, lint, strict typecheck, 129 unit/regression tests, 6 roleplay-quality tests, 4 contract
-tests, 29 integration tests, both builds and 9/9 E2E cases without retries.
+tests, 30 integration tests, both builds and 9/9 E2E cases without retries.

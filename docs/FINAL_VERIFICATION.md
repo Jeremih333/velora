@@ -27,7 +27,7 @@ Velora is **not production-ready yet**. This report is updated only with factual
 - ESLint with zero warnings: PASS;
 - TypeScript project build with `strict: true`: PASS;
 - latest complete gate: 129 unit/regression PASS; roleplay-quality: 6 PASS; API contract: 4 PASS;
-  integration/schema/cost-model: 29 PASS; Android/iPhone/Desktop E2E: 9 PASS without retries;
+  integration/schema/cost-model: 30 PASS; Android/iPhone/Desktop E2E: 9 PASS without retries;
 - dedicated roleplay quality A-F structural corpus: PASS; the exact one-request V3 live checkpoint
   completed with HTTP 200, 42 input / 20 output tokens and $0.000030 provider cost;
 - D1 integration/migration/quick-check/foreign-key check: PASS;

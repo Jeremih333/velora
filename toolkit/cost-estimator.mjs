@@ -15,15 +15,27 @@ const outputTokens = Number(process.argv[4] ?? 600);
 const safetyMargin = 1.15;
 const hardContextTokens = 32_000;
 const elitePackRub = 5_500;
-// BotHub's API catalogue adds this fixed fee to token usage for every LLM request.
-const requestFeeRub = 1;
+const elitePackCaps = 35_000_000;
+// BotHub documents the LLM API request surcharge in USD, while model-token prices are in RUB.
+// The exchange-rate assumption must therefore be explicit and conservative.
+const requestFeeUsd = 0.01;
+const usdRub = Number(process.argv[5] ?? 120);
+const requestFeeRub = requestFeeUsd * usdRub;
 if (
-  ![repliesPerDay, inputTokens, outputTokens].every((value) => Number.isFinite(value) && value >= 0)
+  ![repliesPerDay, inputTokens, outputTokens, usdRub].every(
+    (value) => Number.isFinite(value) && value >= 0,
+  )
 ) {
   throw new Error(
-    'Usage: node toolkit/cost-estimator.mjs [replies/day] [input tokens] [output tokens]',
+    'Usage: node toolkit/cost-estimator.mjs [replies/day] [input tokens] [output tokens] [USD/RUB]',
   );
 }
+
+console.log(
+  `Assumptions: ${requestFeeUsd.toFixed(2)} USD/request at ${usdRub.toFixed(2)} RUB/USD = ` +
+    `${requestFeeRub.toFixed(2)} RUB/request; Elite ${elitePackCaps.toLocaleString('en-US')} CAPS / ` +
+    `${elitePackRub} RUB; prices and FX are not guaranteed.`,
+);
 
 for (const [name, price] of Object.entries(models)) {
   const expectedPerReply =

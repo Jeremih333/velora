@@ -1,4 +1,4 @@
-# Cost model — BotHub capability checkpoint, 11 August 2026
+# Cost model — BotHub annual roleplay envelope, 12 August 2026
 
 ## Fixed constraints
 
@@ -10,29 +10,37 @@
 
 The authenticated key-scoped catalogue contains five reviewed candidates. The current selected
 checkpoint model is `deepseek-chat-v3.1`; the unavailable historical
-`deepseek-v3.2-speciale` is not contacted. BotHub's official model page currently lists a
-131,072-token context, 24.75 ₽ per 1M input tokens and 93.11 ₽ per 1M output tokens.
+`deepseek-v3.2-speciale` is not contacted. BotHub's public model page, checked on 2026-08-12,
+lists a 131,072-token context, 24.75 ₽ per 1M input tokens and 93.11 ₽ per 1M output tokens.
 
 The runtime retains the deliberately higher conservative ceiling of `0.41 USD` input,
 `1.55 USD` output and `0.02 USD` fixed cost per request. This is a spend guard, not an exchange-rate
-quote. The planning formula below uses BotHub's separately documented `1 ₽` fixed API request fee:
+quote. BotHub currently documents the fixed LLM API surcharge as `$0.01` per request, whereas the
+model-token prices are shown in RUB. The estimator therefore requires an explicit USD/RUB reserve;
+its default is a deliberately conservative `120 ₽/$`, making the fee `1.20 ₽` per request:
 
-`1 ₽ + (input tokens × 24.75 ₽ + output tokens × 93.11 ₽) / 1,000,000`.
+`($0.01 × USD/RUB) + (input tokens × 24.75 ₽ + output tokens × 93.11 ₽) / 1,000,000`.
+
+BotHub's public offer currently shows Elite as 35,000,000 CAPS for 5,500 ₽ and says that ordinary
+packages do not expire. The observed 35,300,000 account balance is not treated as a repeatable pack
+size: it may include a bonus or prior balance. There is no auto-renew or automatic purchase.
 
 ## Active-use forecast
 
-Assumption: 8,000 input and 600 output tokens per successful reply. One reply is approximately
-`1.254 ₽` at the current catalogue price.
+Assumption: 8,000 input and 600 output tokens per successful reply. At the conservative `120 ₽/$`
+planning rate, one reply is approximately `1.454 ₽`.
 
-| Replies/day | Replies/year | Base annual cost | With 15% reserve | Elite packs at last seen 5,500 ₽ |
-| ----------: | -----------: | ---------------: | ---------------: | -------------------------------: |
-|         100 |       36,500 |         45,766 ₽ |         52,631 ₽ |                    10 = 55,000 ₽ |
-|         300 |      109,500 |        137,298 ₽ |        157,893 ₽ |                   29 = 159,500 ₽ |
-|       1,000 |      365,000 |        457,661 ₽ |        526,310 ₽ |                   96 = 528,000 ₽ |
+| Replies/day | Replies/year | Base annual cost | With 15% reserve | Elite packs at current 5,500 ₽ |
+| ----------: | -----------: | ---------------: | ---------------: | -----------------------------: |
+|         100 |       36,500 |         53,066 ₽ |         61,026 ₽ |                  12 = 66,000 ₽ |
+|         300 |      109,500 |        159,198 ₽ |        183,078 ₽ |                 34 = 187,000 ₽ |
+|       1,000 |      365,000 |        530,661 ₽ |        610,260 ₽ |                111 = 610,500 ₽ |
 
 The owner's currently activated Elite package and 35,300,000 displayed CAPS are suitable for the
-quality/accounting pilot and initial bounded usage. They are not a one-year guarantee at
-100 replies/day: that scenario currently rounds to ten Elite packages after the reserve.
+quality/accounting pilot and initial bounded usage. They are not a one-year guarantee at even 100
+replies/day: that scenario currently rounds to twelve public Elite packages after the reserve.
+Because packages do not expire but provider pricing and availability can change, the safe policy is
+to fund in owner-approved tranches after measuring real usage, not pre-buy a nominal year.
 
 ## Hard envelopes
 
@@ -42,9 +50,9 @@ below is a planning envelope, not a promise of future provider availability or p
 
 | Starts/day | One attempt + 15% reserve | Two primary attempts + 15% reserve |
 | ---------: | ------------------------: | ---------------------------------: |
-|        100 |       77,515 ₽ / 15 Elite |               155,029 ₽ / 29 Elite |
-|        300 |      232,544 ₽ / 43 Elite |               465,088 ₽ / 85 Elite |
-|      1,000 |     775,147 ₽ / 141 Elite |            1,550,295 ₽ / 282 Elite |
+|        100 |       85,910 ₽ / 16 Elite |               171,819 ₽ / 32 Elite |
+|        300 |      257,729 ₽ / 47 Elite |               515,458 ₽ / 94 Elite |
+|      1,000 |     859,097 ₽ / 157 Elite |            1,718,195 ₽ / 313 Elite |
 
 Creative and Premium routing remain disabled until an available candidate passes its own
 owner-consented quality/accounting checkpoint. No unverified fallback is included merely to make
@@ -71,4 +79,8 @@ this short greeting.
 
 Official references: [selected BotHub model](https://bothub.ru/deepseek-chat-v3.1),
 [model catalogue](https://bothub.ru/models), and
-[text-generation API](https://bothub.ru/api/documentation/ru/generation/text-generation).
+[text-generation API](https://bothub.ru/api/documentation/ru/generation/text-generation). Current
+Cloudflare Free boundaries are documented in the official
+[Workers limits](https://developers.cloudflare.com/workers/platform/limits/),
+[D1 pricing](https://developers.cloudflare.com/workers/platform/pricing/#d1) and
+[D1 limits](https://developers.cloudflare.com/d1/platform/limits/) pages.
