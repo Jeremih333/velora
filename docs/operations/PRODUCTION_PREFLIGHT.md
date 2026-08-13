@@ -58,7 +58,7 @@ Production setup is deliberately split into two phases:
 and the URL is exactly `https://velora-app.carreljeremih.workers.dev`. Production and staging use
 independent webhook/session secrets even when the BotFather token is the same.
 
-## Completed phase 1 and remaining human checkpoint
+## Completed production phases
 
 Phase 1 was explicitly authorized and completed. The production database backup was exported, all
 28 migrations were applied, four secret names were installed atomically, and Worker safety hotfix
@@ -75,8 +75,8 @@ Do not run that phase-1 command again as a normal deployment action. Its exact-s
 an already deployed production Worker. The script never called `setWebhook`; staging continues
 receiving bot updates until the separate phase-2 checkpoint.
 
-Phase 2 remains a separate owner decision. It must not run until the owner explicitly confirms that
-moving the single `@aivel0ra_bot` webhook from staging to production is intended:
+Phase 2 was explicitly authorized and completed on 2026-08-13. For audit/recovery reference it was
+performed through:
 
 ```powershell
 .\toolkit\cutover-production-telegram.ps1 -ConfirmProductionWebhookCutover
@@ -103,3 +103,9 @@ staging webhook automatically.
 The absence of Stars is not a blocker for the Free product: payments stay disabled, no packs are
 created and no payment claim is made. Paid AI also remains disabled in production until a separate
 bounded production-provider checkpoint is authorized after the non-AI rollout.
+
+The final live evidence was one exact owner-only smoke marker plus a fresh production Mini App
+session. An independent read-only check then confirmed the production webhook URL, zero pending
+updates, no Telegram error, the exact allowed update set, healthy/ready Worker state, D1 readiness
+and OpenAPI 3.1. Do not rerun phase 2 as routine deployment: the bot is already routed to
+production, and future changes must use a separately reviewed rollout.

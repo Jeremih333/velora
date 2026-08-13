@@ -3,9 +3,11 @@
 Velora — отдельная Telegram Mini App-платформа для AI roleplay. Проект физически и логически
 изолирован от RoleMate: у него собственный репозиторий, Worker, D1, URL, бот и секреты.
 
-Текущее состояние: staging MVP проверен, production намеренно не развёрнут. Cloudflare остаётся на
-Free-плане; BotHub оплачивается вручную и только для пользовательского roleplay. Карты, подписки,
-автопродление и автоматическое пополнение не используются.
+Текущее состояние: production Worker, D1 и Telegram webhook развёрнуты; точный owner `/start` и
+свежая MiniApp-сессия подтверждены 13 августа 2026 года. Cloudflare остаётся на Free-плане;
+BotHub оплачивается вручную и только для пользовательского roleplay. Карты, подписки,
+автопродление и автоматическое пополнение не используются. Платный AI и платежи в production
+остаются выключены до отдельных контрольных точек.
 
 ## 1. Требования
 
@@ -68,11 +70,11 @@ BOTHUB_API_KEY=optional-for-explicit-live-test-only
 
 ## 4. Среды
 
-| Среда      | Worker           | D1                  | Назначение                        |
-| ---------- | ---------------- | ------------------- | --------------------------------- |
-| local      | Wrangler local   | `velora-local`      | разработка и изолированные тесты  |
-| staging    | `velora-staging` | `velora-staging`    | проверка перед ручным production  |
-| production | `velora-app`     | `velora-production` | пока не мигрирован и не развёрнут |
+| Среда      | Worker           | D1                  | Назначение                                        |
+| ---------- | ---------------- | ------------------- | ------------------------------------------------- |
+| local      | Wrangler local   | `velora-local`      | разработка и изолированные тесты                  |
+| staging    | `velora-staging` | `velora-staging`    | проверка перед ручным production                  |
+| production | `velora-app`     | `velora-production` | 28/28 миграций, Worker и Telegram webhook активны |
 
 Staging URL: <https://velora-staging.carreljeremih.workers.dev>.
 
@@ -128,8 +130,8 @@ corepack pnpm exec wrangler d1 migrations list velora-staging --remote --env sta
 Pop-Location
 ```
 
-Production-команда существует, но сейчас запускать её нельзя: база намеренно имеет все миграции
-0001–0027 в pending. После ручного production gate:
+Production уже содержит все 28 последовательных миграций. Для последующих миграций после backup,
+preview и отдельного production gate используется:
 
 ```powershell
 corepack pnpm --filter @velora/api db:migrate:production

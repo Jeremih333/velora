@@ -356,12 +356,15 @@ verified; the full product from the master brief is still in progress.
   cutover still preserves automatic staging rollback and cannot touch session/BotHub secrets,
   paid gates or migrations. The earlier full quality gate passed 130 unit/regression, 6 roleplay-quality,
   4 contract, 57 integration and 12/12 E2E checks without retries.
-- The mandatory post-cutover smoke is now exact rather than aggregate: a random bounded owner-only
+- The mandatory post-cutover smoke is exact rather than aggregate: a random bounded owner-only
   `/start` marker traverses the real webhook, only its SHA-256 is audited, and success additionally
   requires a new non-revoked production Mini App session after cutover began. A real Worker+D1
   regression proves a normal user cannot forge the evidence and that the raw marker is not stored.
-  Missing either proof within five minutes invokes the existing staging rollback. This path has
-  not been deployed or executed because phase 2 still requires separate owner authorization.
+  Missing either proof within fifteen minutes invokes the existing staging rollback. The first
+  live attempts exercised that rollback without leaving Telegram on a partial configuration. On
+  2026-08-13 the owner then sent the exact one-time marker and opened Mini App from the new bot
+  response; production D1 recorded one marker event and one fresh active session, and the guarded
+  runner reached `COMPLETED`.
 - The phase-2 runner now also rechecks production `/health`, `/ready` and OpenAPI after deploying
   the exact locally verified Worker and before writing Telegram secrets or moving the webhook.
   Propagation gets bounded retries, and any unhealthy replacement stops fail-closed while staging
@@ -369,6 +372,11 @@ verified; the full product from the master brief is still in progress.
   roleplay-quality, 4 contract, 60 integration and 12/12 E2E checks without retries; a remote
   read-only preflight again found 28/28 migrations, all four secret names and only the explicitly
   gated Telegram cutover outstanding.
+- The owner-authorized phase-2 cutover completed on 2026-08-13. An independent post-run check found
+  Telegram webhook `https://velora-app.carreljeremih.workers.dev/telegram/webhook`, zero pending
+  updates, no last error and the exact `message,callback_query,pre_checkout_query` update set.
+  Production returned `health=ok`, `ready=ready`, `d1=true` and OpenAPI `3.1.0`. This proves the
+  Telegram/Cloudflare production path only; paid AI and payments remain independently disabled.
 
 The schedule now records deduplicated operational alerts for dead jobs, failed erasure, repeated
 Telegram failures, stuck payments, sampled AI failure rate and budget thresholds. An atomic lease
@@ -387,8 +395,8 @@ owner role persisted. The synthetic alert/recovery delivery check has passed.
 - paid roleplay inference passed the deliberately bounded V3 checkpoint and is enabled only on
   staging; production remains disabled pending separate owner approval and live staging evidence;
 - R2 is not enabled on the account, so the initial free design uses Telegram `file_id` storage;
-- the Telegram webhook cutover remains separately gated by explicit owner authorization; until
-  then staging keeps receiving bot updates and production Telegram reconciliation remains off.
+- paid AI and real Stars operations remain separately gated; the production Telegram webhook is
+  active, but neither gate was enabled by the cutover.
 
 No missing feature is reported as complete. A new mechanically checked traceability matrix now has
 exactly one row for every numbered master-brief section `0`–`178` and explicitly retains the

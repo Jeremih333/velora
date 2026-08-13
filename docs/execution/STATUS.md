@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-08-12.
+Updated: 2026-08-13.
 
 | Area                          | Status            | Evidence / blocker                                                                         |
 | ----------------------------- | ----------------- | ------------------------------------------------------------------------------------------ |
@@ -46,9 +46,9 @@ Updated: 2026-08-12.
 | Telegram bot                  | VERIFIED_MVP      | RU/EN replies; locale variants tested; reconciliation/OWNER READY                          |
 | Paid AI                       | VERIFIED_STAGING  | V3 completed; staging gate enabled, production/local gates remain off                      |
 | Staging                       | VERIFIED          | Worker `eeab29c5`; D1 28/66 healthy; paid roleplay on, payments off                        |
-| Production                    | PHASE_1_VERIFIED  | Worker `9fd2e014`; D1 28/28 healthy/empty; Telegram cutover still blocked                  |
+| Production                    | PHASE_2_VERIFIED  | Worker/D1 healthy; production webhook + exact owner `/start`/MiniApp smoke passed          |
 | Production phase-1 runner     | VERIFIED          | backup/migrate/atomic secrets; propagation retry added after observed transient 404        |
-| Telegram phase-2 runner       | VERIFIED_LOCAL    | post-deploy health gate + exact Bot API state + owner `/start`/MiniApp proof + rollback    |
+| Telegram phase-2 runner       | VERIFIED_LIVE     | exact Bot API state + owner `/start`/MiniApp proof passed; rollback was exercised safely   |
 
 RoleMate resources have not been changed or bound to Velora.
 

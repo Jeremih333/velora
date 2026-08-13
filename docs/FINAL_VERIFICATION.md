@@ -23,7 +23,7 @@ operational summary and must not be read as a substitute for that audit.
 | Web bundle performance               | lazy auth/chat/lore workspace chunks | build/integration/E2E   | live asset smoke       | VERIFIED_STAGING  | initial JS 650,138→306,635 B      |
 | Support/legal                        | private tickets, admin queue, policy | unit/integration/E2E    | staging smoke passed   | VERIFIED_MVP      | contents excluded from audit      |
 | User profiles                        | separate identity, privacy, avatar   | integration/E2E         | staging smoke passed   | VERIFIED_MVP      | Telegram identity stays private   |
-| Production                           | Worker + isolated migrated D1        | config/gate regressions | HTTP/D1 smoke          | PHASE_1_VERIFIED  | Telegram cutover still separate   |
+| Production                           | Worker + isolated migrated D1        | config/gate regressions | HTTP/D1/owner smoke    | PHASE_2_VERIFIED  | production Telegram webhook live  |
 
 ## Command report — 2026-08-12
 
