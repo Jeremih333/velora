@@ -27,6 +27,7 @@ $stagingWebhookSecret = $null
 $applyStarted = $false
 $cutoverStartedAt = 0
 $smokeMarker = $null
+$expectedMenuText = -join ([char[]](1054,1090,1082,1088,1099,1090,1100))
 
 function Write-CutoverStatus([string]$Stage, [string]$Message) {
   if ([string]::IsNullOrWhiteSpace($StatusFile)) { return }
@@ -203,7 +204,7 @@ try {
     $configuration.exactConfigurationVerified -ne $true -or
     $configuration.webhookUrl -ne "$productionUrl/telegram/webhook" -or
     $configuration.menuType -ne "web_app" -or
-    $configuration.menuText -ne "Открыть" -or
+    $configuration.menuText -ne $expectedMenuText -or
     $configuration.menuUrl -ne "$productionUrl/" -or
     [int]$configuration.commandCount -ne 10 -or
     [int]$configuration.russianCommandCount -ne 10 -or

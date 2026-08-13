@@ -195,7 +195,11 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('secret bulk $stagingSecretFile');
     expect(source).toContain('"$productionUrl/telegram/webhook"');
     expect(source).toContain('$configuration.exactConfigurationVerified -ne $true');
-    expect(source).toContain('$configuration.menuText -ne "Открыть"');
+    expect(source).toContain(
+      '$expectedMenuText = -join ([char[]](1054,1090,1082,1088,1099,1090,1100))',
+    );
+    expect(source).toContain('$configuration.menuText -ne $expectedMenuText');
+    expect(source).not.toContain('$configuration.menuText -ne "Открыть"');
     expect(source).toContain('$configuration.menuUrl -ne "$productionUrl/"');
     expect(source).toContain('[int]$configuration.russianCommandCount -ne 10');
     expect(source).toContain('[int]$configuration.englishCommandCount -ne 10');
