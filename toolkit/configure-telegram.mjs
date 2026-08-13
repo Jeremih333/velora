@@ -111,7 +111,18 @@ async function call(method, body = {}) {
     if (method === 'getMe' && response.status === 401) {
       throw new Error('Telegram rejected the bot token (HTTP 401).');
     }
-    throw new Error(`Telegram operation ${method} failed with HTTP ${response.status}.`);
+    const errorCode =
+      result && typeof result === 'object' && Number.isInteger(result.error_code)
+        ? result.error_code
+        : response.status;
+    const description =
+      result && typeof result === 'object' && typeof result.description === 'string'
+        ? sanitizeTelegramDescription(result.description)
+        : 'no public description';
+    throw new Error(
+      `Telegram operation ${method} failed with HTTP ${response.status} ` +
+        `(error ${errorCode}: ${description}).`,
+    );
   }
   return result.result;
 }
@@ -216,4 +227,15 @@ function sameCommands(actual, expected) {
 function sameStrings(left, right) {
   if (!Array.isArray(left) || !Array.isArray(right)) return false;
   return [...left].sort().join('\n') === [...right].sort().join('\n');
+}
+
+function sanitizeTelegramDescription(value) {
+  return Array.from(value, (character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint < 32 || codePoint === 127 ? ' ' : character;
+  })
+    .join('')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 300);
 }

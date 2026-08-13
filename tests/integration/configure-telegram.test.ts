@@ -150,6 +150,20 @@ describe('Telegram production configurator', () => {
       process.argv.splice(process.argv.lastIndexOf('--check-identity'), 1);
     }
   });
+
+  it('reports a safe Telegram operation diagnostic without exposing request data', async () => {
+    installEnvironment();
+    vi.stubGlobal('fetch', createTelegramFetch([], false, 'setWebhook'));
+    process.argv.push('--apply');
+    try {
+      vi.resetModules();
+      await expect(import('../../toolkit/configure-telegram.mjs')).rejects.toThrow(
+        'Telegram operation setWebhook failed with HTTP 400 (error 400: Bad Request: bad webhook).',
+      );
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--apply'), 1);
+    }
+  });
 });
 
 function installEnvironment(): void {
@@ -160,12 +174,22 @@ function installEnvironment(): void {
   vi.stubEnv('PUBLIC_APP_URL', productionUrl);
 }
 
-function createTelegramFetch(methods: string[], wrongMenu = false): typeof fetch {
+function createTelegramFetch(
+  methods: string[],
+  wrongMenu = false,
+  rejectedMethod?: string,
+): typeof fetch {
   return async (input: string | URL | Request, init?: RequestInit) => {
     await Promise.resolve();
     const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
     const method = url.pathname.split('/').at(-1) ?? '';
     methods.push(method);
+    if (method === rejectedMethod) {
+      return new Response(
+        JSON.stringify({ ok: false, error_code: 400, description: 'Bad Request:\nbad webhook' }),
+        { status: 400, headers: { 'content-type': 'application/json' } },
+      );
+    }
     const bodyText = typeof init?.body === 'string' ? init.body : '{}';
     const body = JSON.parse(bodyText) as { language_code?: string };
     let result: unknown = true;

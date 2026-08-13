@@ -171,8 +171,17 @@ try {
   $smokeMarker = "velora_smoke_$(New-UrlSafeSecret 24)"
   $applyStarted = $true
   Write-CutoverStatus "APPLYING_TELEGRAM" "Applying and verifying the production Telegram configuration."
-  & node $telegramConfigurator --apply --output-file $configurationFile | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw "Telegram rejected the production configuration." }
+  $configurationOutput = & node $telegramConfigurator --apply --output-file $configurationFile 2>&1 | Out-String
+  if ($LASTEXITCODE -ne 0) {
+    $safeFailure = [regex]::Match(
+      $configurationOutput,
+      'Telegram operation [A-Za-z]+ failed with HTTP [0-9]+ \(error [0-9]+: [^\r\n]{1,320}\)\.'
+    )
+    if ($safeFailure.Success) {
+      throw $safeFailure.Value
+    }
+    throw "Telegram rejected the production configuration without a public diagnostic."
+  }
   $configuration = [IO.File]::ReadAllText($configurationFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
   if (
     $configuration.configured -ne $true -or
