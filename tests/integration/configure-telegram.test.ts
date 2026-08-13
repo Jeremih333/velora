@@ -112,7 +112,7 @@ describe('Telegram production configurator', () => {
     try {
       vi.resetModules();
       await expect(import('../../toolkit/configure-telegram.mjs')).rejects.toThrow(
-        'Telegram configuration verification failed.',
+        'Telegram configuration verification failed: menuUrl.',
       );
     } finally {
       process.argv.splice(process.argv.lastIndexOf('--apply'), 1);
@@ -162,6 +162,51 @@ describe('Telegram production configurator', () => {
       );
     } finally {
       process.argv.splice(process.argv.lastIndexOf('--apply'), 1);
+    }
+  });
+
+  it('retries transient Telegram failures without retrying permanent 4xx responses', async () => {
+    installEnvironment();
+    const methods: string[] = [];
+    let transientFailures = 0;
+    const successfulFetch = createTelegramFetch(methods);
+    vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
+      const method = url.pathname.split('/').at(-1) ?? '';
+      if (method === 'setWebhook' && transientFailures < 2) {
+        transientFailures += 1;
+        methods.push(method);
+        return new Response(
+          JSON.stringify({ ok: false, error_code: 503, description: 'Service unavailable' }),
+          { status: 503, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return successfulFetch(input, init);
+    });
+    process.argv.push('--apply');
+    try {
+      vi.resetModules();
+      await import('../../toolkit/configure-telegram.mjs');
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--apply'), 1);
+    }
+    expect(methods.filter((method) => method === 'setWebhook')).toHaveLength(3);
+  });
+
+  it('reports a bounded safe diagnostic after repeated network failures', async () => {
+    installEnvironment();
+    vi.stubGlobal('fetch', async () => {
+      await Promise.resolve();
+      throw new Error('socket temporarily unavailable\nsecret-like-noise');
+    });
+    process.argv.push('--check-identity');
+    try {
+      vi.resetModules();
+      await expect(import('../../toolkit/configure-telegram.mjs')).rejects.toThrow(
+        'Telegram operation getMe failed after 3 network attempts (socket temporarily unavailable secret-like-noise).',
+      );
+    } finally {
+      process.argv.splice(process.argv.lastIndexOf('--check-identity'), 1);
     }
   });
 });

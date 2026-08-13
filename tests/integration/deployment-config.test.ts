@@ -205,7 +205,9 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('[int]$configuration.englishCommandCount -ne 10');
     expect(source).toContain('$configuration.allowedUpdates | Sort-Object');
     expect(source).toContain("'callback_query,message,pre_checkout_query'");
-    expect(source).toContain('Telegram operation [A-Za-z]+ failed with HTTP');
+    expect(source).toContain('failed with HTTP [0-9]+');
+    expect(source).toContain('failed after 3 network attempts');
+    expect(source).toContain('configuration verification failed:');
     expect(source).toContain('without a public diagnostic');
     expect(source).toContain('$ErrorActionPreference = "Continue"');
     expect(source).toContain('$configurationExitCode = $LASTEXITCODE');

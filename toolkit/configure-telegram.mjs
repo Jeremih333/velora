@@ -101,30 +101,74 @@ if (!apply && !checkIdentity) {
 
 async function call(method, body = {}) {
   const environmentPath = apiEnvironment === 'test' ? '/test' : '';
-  const response = await fetch(`https://api.telegram.org/bot${token}${environmentPath}/${method}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const result = await response.json();
-  if (!response.ok || !result || typeof result !== 'object' || result.ok !== true) {
+  const url = `https://api.telegram.org/bot${token}${environmentPath}/${method}`;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      if (attempt < 3) {
+        await retryDelay(attempt);
+        continue;
+      }
+      const cause = error instanceof Error ? sanitizeTelegramDescription(error.message) : 'unknown';
+      throw new Error(`Telegram operation ${method} failed after 3 network attempts (${cause}).`, {
+        cause: error,
+      });
+    }
+    const responseText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      if ((response.status === 429 || response.status >= 500) && attempt < 3) {
+        await retryDelay(attempt);
+        continue;
+      }
+      throw new Error(`Telegram operation ${method} returned non-JSON HTTP ${response.status}.`);
+    }
+    if (response.ok && result && typeof result === 'object' && result.ok === true) {
+      return result.result;
+    }
     if (method === 'getMe' && response.status === 401) {
       throw new Error('Telegram rejected the bot token (HTTP 401).');
+    }
+    if ((response.status === 429 || response.status >= 500) && attempt < 3) {
+      const retryAfter =
+        result &&
+        typeof result === 'object' &&
+        result.parameters &&
+        typeof result.parameters === 'object' &&
+        Number.isFinite(result.parameters.retry_after)
+          ? Math.min(Math.max(Number(result.parameters.retry_after), 0), 5) * 1000
+          : undefined;
+      await retryDelay(attempt, retryAfter);
+      continue;
     }
     const errorCode =
       result && typeof result === 'object' && Number.isInteger(result.error_code)
         ? result.error_code
         : response.status;
-    const description =
+    const publicDescription =
       result && typeof result === 'object' && typeof result.description === 'string'
         ? sanitizeTelegramDescription(result.description)
         : 'no public description';
     throw new Error(
       `Telegram operation ${method} failed with HTTP ${response.status} ` +
-        `(error ${errorCode}: ${description}).`,
+        `(error ${errorCode}: ${publicDescription}).`,
     );
   }
-  return result.result;
+  throw new Error(`Telegram operation ${method} exhausted its retry policy.`);
+}
+
+async function retryDelay(attempt, explicitDelay) {
+  const baseDelay = process.env.VITEST ? 1 : 500;
+  const delay = explicitDelay ?? baseDelay * attempt;
+  await new Promise((resolve) => setTimeout(resolve, delay));
 }
 
 const identity = await call('getMe');
@@ -159,27 +203,38 @@ const webhookAllowedUpdates =
     ? webhook.allowed_updates
     : [];
 const expectedWebhookUrl = new URL('/telegram/webhook', appUrl).href;
-const exactConfigurationVerified =
-  webhookUrl === expectedWebhookUrl &&
-  sameStrings(webhookAllowedUpdates, allowedUpdates) &&
-  menu &&
-  typeof menu === 'object' &&
-  menu.type === menuButton.type &&
-  menu.text === menuButton.text &&
-  menu.web_app &&
-  typeof menu.web_app === 'object' &&
-  menu.web_app.url === menuButton.web_app.url &&
-  sameCommands(configuredCommands, commands) &&
-  sameCommands(configuredRussianCommands, commands) &&
-  sameCommands(configuredEnglishCommands, englishCommands) &&
-  configuredDescription &&
-  typeof configuredDescription === 'object' &&
-  configuredDescription.description === description &&
-  configuredShortDescription &&
-  typeof configuredShortDescription === 'object' &&
-  configuredShortDescription.short_description === shortDescription;
+const verificationChecks = {
+  webhookUrl: webhookUrl === expectedWebhookUrl,
+  allowedUpdates: sameStrings(webhookAllowedUpdates, allowedUpdates),
+  menuType: Boolean(menu && typeof menu === 'object' && menu.type === menuButton.type),
+  menuText: Boolean(menu && typeof menu === 'object' && menu.text === menuButton.text),
+  menuUrl: Boolean(
+    menu &&
+    typeof menu === 'object' &&
+    menu.web_app &&
+    typeof menu.web_app === 'object' &&
+    menu.web_app.url === menuButton.web_app.url,
+  ),
+  commandsDefault: sameCommands(configuredCommands, commands),
+  commandsRu: sameCommands(configuredRussianCommands, commands),
+  commandsEn: sameCommands(configuredEnglishCommands, englishCommands),
+  description: Boolean(
+    configuredDescription &&
+    typeof configuredDescription === 'object' &&
+    configuredDescription.description === description,
+  ),
+  shortDescription: Boolean(
+    configuredShortDescription &&
+    typeof configuredShortDescription === 'object' &&
+    configuredShortDescription.short_description === shortDescription,
+  ),
+};
+const failedChecks = Object.entries(verificationChecks)
+  .filter(([, passed]) => !passed)
+  .map(([name]) => name);
+const exactConfigurationVerified = failedChecks.length === 0;
 if (!exactConfigurationVerified) {
-  throw new Error('Telegram configuration verification failed.');
+  throw new Error(`Telegram configuration verification failed: ${failedChecks.join(', ')}.`);
 }
 const configurationResult = JSON.stringify(
   {

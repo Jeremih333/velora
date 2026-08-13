@@ -191,7 +191,7 @@ try {
   if ($configurationExitCode -ne 0) {
     $safeFailure = [regex]::Match(
       $configurationOutput,
-      'Telegram operation [A-Za-z]+ failed with HTTP [0-9]+ \(error [0-9]+: [^\r\n]{1,320}\)\.'
+      'Telegram (?:operation [A-Za-z]+ (?:failed with HTTP [0-9]+ \(error [0-9]+: [^\r\n]{1,320}\)|failed after 3 network attempts \([^\r\n]{1,320}\)|returned non-JSON HTTP [0-9]+)|configuration verification failed: [A-Za-z, ]+)\.'
     )
     if ($safeFailure.Success) {
       throw $safeFailure.Value
