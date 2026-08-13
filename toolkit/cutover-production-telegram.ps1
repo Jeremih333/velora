@@ -216,7 +216,7 @@ try {
 
   Write-Host "Telegram cutover completed and verified for @$botUsername." -ForegroundColor Green
   Write-Host "Complete the real /start and Mini App smoke in Telegram now." -ForegroundColor Yellow
-  Write-CutoverStatus "AWAITING_OWNER_SMOKE" "Send the displayed one-time /start command and open the Mini App within fifteen minutes."
+  Write-CutoverStatus "AWAITING_OWNER_SMOKE" "Send exactly: /start $smokeMarker ; then open the Mini App from the bot's new reply within fifteen minutes."
   Invoke-Checked {
     & node $telegramSmoke --started-at $cutoverStartedAt --timeout-seconds 900 --marker $smokeMarker
   } "Production /start or Mini App authentication smoke failed."
