@@ -217,6 +217,8 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain('"$productionUrl/openapi.json"');
     expect(source).toContain('Write-CutoverStatus "AWAITING_TOKEN"');
     expect(source).toContain('Write-CutoverStatus "AWAITING_OWNER_SMOKE"');
+    expect(source).toContain('within fifteen minutes');
+    expect(source).toContain('--timeout-seconds 900');
     expect(source).toContain('Write-CutoverStatus "COMPLETED"');
     expect(source).toContain('Write-CutoverStatus "FAILED" $originalFailure');
     expect(source).toContain('StatusFile must stay inside the Velora project.');

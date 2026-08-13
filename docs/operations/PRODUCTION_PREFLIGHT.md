@@ -93,7 +93,7 @@ restores the staging webhook. Scheduled production Telegram reconciliation stays
 enabling it is deliberately outside this cutover.
 
 The runner then prints a random, one-time `/start velora_smoke_…` command. The confirmed owner must
-send that exact command and open the Mini App from the new bot reply within five minutes. The
+send that exact command and open the Mini App from the new bot reply within fifteen minutes. The
 Worker stores only the marker's SHA-256 in `audit_logs`; the command text is not retained. Success
 requires the marker to have been processed under the server-derived `OWNER` role and a new,
 non-revoked production session to have been created after cutover began. A non-owner cannot create
