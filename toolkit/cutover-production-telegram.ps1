@@ -11,6 +11,7 @@ $wrangler = Join-Path $apiRoot "node_modules\wrangler\bin\wrangler.js"
 $preflight = Join-Path $PSScriptRoot "production-preflight.mjs"
 $telegramConfigurator = Join-Path $PSScriptRoot "configure-telegram.mjs"
 $telegramSmoke = Join-Path $PSScriptRoot "production-telegram-smoke.mjs"
+$secretStore = Join-Path $PSScriptRoot "velora-secret-store.ps1"
 $productionUrl = "https://velora-app.carreljeremih.workers.dev"
 $stagingUrl = "https://velora-staging.carreljeremih.workers.dev"
 $accountId = "9d1b271d6aec48ab5d8f595d1d3fac61"
@@ -135,9 +136,13 @@ try {
   Assert-ProductionEndpoints "pre-deploy"
 
   Write-CutoverStatus "AWAITING_TOKEN" "Waiting for the hidden @aivel0ra_bot token input."
-  $secureTelegramToken = Read-Host "Paste the @aivel0ra_bot BotFather token (hidden)" -AsSecureString
-  $telegramPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureTelegramToken)
-  $telegramToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($telegramPointer)
+  . $secretStore
+  $telegramToken = Get-VeloraStoredSecret "TELEGRAM_BOT_TOKEN"
+  if ([string]::IsNullOrWhiteSpace($telegramToken)) {
+    $secureTelegramToken = Read-Host "Paste the @aivel0ra_bot BotFather token (hidden)" -AsSecureString
+    $telegramPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureTelegramToken)
+    $telegramToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($telegramPointer)
+  }
   if ($telegramToken -notmatch '^\d{6,12}:[A-Za-z0-9_-]{30,}$') {
     throw "The Telegram token format is invalid. Telegram was not changed."
   }
@@ -171,8 +176,18 @@ try {
   $smokeMarker = "velora_smoke_$(New-UrlSafeSecret 24)"
   $applyStarted = $true
   Write-CutoverStatus "APPLYING_TELEGRAM" "Applying and verifying the production Telegram configuration."
-  $configurationOutput = & node $telegramConfigurator --apply --output-file $configurationFile 2>&1 | Out-String
-  if ($LASTEXITCODE -ne 0) {
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    # Windows PowerShell promotes native stderr to ErrorRecord when Stop is active. Capture the
+    # complete Node diagnostic first, then fail closed based on the native exit code below.
+    $ErrorActionPreference = "Continue"
+    $configurationOutput = & node $telegramConfigurator --apply --output-file $configurationFile 2>&1 | Out-String
+    $configurationExitCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  if ($configurationExitCode -ne 0) {
     $safeFailure = [regex]::Match(
       $configurationOutput,
       'Telegram operation [A-Za-z]+ failed with HTTP [0-9]+ \(error [0-9]+: [^\r\n]{1,320}\)\.'

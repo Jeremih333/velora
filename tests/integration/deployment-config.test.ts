@@ -203,6 +203,10 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).toContain("'callback_query,message,pre_checkout_query'");
     expect(source).toContain('Telegram operation [A-Za-z]+ failed with HTTP');
     expect(source).toContain('without a public diagnostic');
+    expect(source).toContain('$ErrorActionPreference = "Continue"');
+    expect(source).toContain('$configurationExitCode = $LASTEXITCODE');
+    expect(source).toContain('if ($configurationExitCode -ne 0)');
+    expect(source).toContain('Get-VeloraStoredSecret "TELEGRAM_BOT_TOKEN"');
     expect(source).toContain('Production /start or Mini App authentication smoke failed.');
     expect(source).toContain('--marker $smokeMarker');
     expect(source).toContain('$attempt -le 12');
@@ -218,6 +222,31 @@ describe('deployment paid-feature boundaries', () => {
     expect(source).not.toContain('BOTHUB_API_KEY');
     expect(source).not.toContain('PAID_AI_ENABLED');
     expect(source).not.toContain('PAYMENTS_ENABLED');
+  });
+
+  it('stores reusable local credentials only through Windows DPAPI', async () => {
+    const store = await readFile(
+      new URL('../../toolkit/velora-secret-store.ps1', import.meta.url),
+      'utf8',
+    );
+    const manager = await readFile(
+      new URL('../../toolkit/manage-velora-secrets.ps1', import.meta.url),
+      'utf8',
+    );
+    expect(store).toContain('ConvertFrom-SecureString $Value');
+    expect(store).toContain('ConvertTo-SecureString $cipherText');
+    expect(store).toContain('SetAccessRuleProtection($true, $false)');
+    expect(store).toContain('LOCALAPPDATA');
+    expect(store).not.toContain('Write-Host $plainText');
+    expect(manager).toContain('Read-Host "Enter $Name (hidden input)" -AsSecureString');
+    expect(manager).toContain('values are never displayed');
+    const selfTest = await readFile(
+      new URL('../../toolkit/test-velora-secret-store.ps1', import.meta.url),
+      'utf8',
+    );
+    expect(selfTest).toContain('DPAPI round trip failed.');
+    expect(selfTest).toContain('Plaintext leaked into the secret-store file.');
+    expect(selfTest).toContain('Remove-Item -LiteralPath $resolvedTestRoot -Recurse -Force');
   });
 
   it('launches the production Telegram cutover through a boundary-checked status wrapper', async () => {

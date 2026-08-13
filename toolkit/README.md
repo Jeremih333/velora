@@ -11,6 +11,12 @@
 - `verify.ps1` — запускает полный локальный quality gate.
 - `cost-estimator.mjs` — воспроизводимо рассчитывает годовой расход AI.
 - `configure-telegram.mjs` — dry-run, проверка identity и применение команд/menu/webhook.
+- `manage-velora-secrets.ps1` — управляет локальным DPAPI-хранилищем Telegram, BotHub и
+  Cloudflare-секретов; значения никогда не выводятся.
+- `velora-secret-store.ps1` — хранит ciphertext в `%LOCALAPPDATA%\Velora`, вне Git и рабочей
+  папки. Расшифровка доступна только текущей учётной записи Windows.
+- `test-velora-secret-store.ps1` — изолированный DPAPI round-trip, проверка отсутствия plaintext,
+  перечисления и удаления секрета.
 - `configure-telegram-secure.ps1` — проверяет bot identity до мутаций, устанавливает независимые
   Telegram/webhook/session secrets, публикует выбранный staging/test Worker и только затем
   применяет конфигурацию Bot API. Test Server разрешён только для `telegram-test`.
