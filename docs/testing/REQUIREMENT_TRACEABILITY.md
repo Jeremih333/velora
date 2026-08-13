@@ -1,6 +1,6 @@
 # Requirement traceability
 
-Updated: 2026-08-12. This is the section-level audit of all 179 numbered sections (`0`–`178`)
+Updated: 2026-08-13. This is the section-level audit of all 179 numbered sections (`0`–`178`)
 in the owner's master brief. A section is not promoted by implementation intent: `VERIFIED` needs
 the evidence named below, `VERIFIED_STAGING` still needs production evidence, `PARTIAL` names a
 real gap, and `BLOCKED_HUMAN` requires an external owner/account action.
@@ -11,10 +11,10 @@ production Worker and D1; `P2` = guarded production Telegram cutover and exact o
 
 | §   | Requirement                    | Status              | Authoritative evidence / remaining gap                            |
 | --- | ------------------------------ | ------------------- | ----------------------------------------------------------------- |
-| 0   | Role and main goal             | VERIFIED_STAGING    | SPEC, AUTO, LIVE; production conversation waits on P2             |
+| 0   | Role and main goal             | VERIFIED_STAGING    | SPEC, AUTO, LIVE, P2; production paid AI remains gated            |
 | 1   | Autonomous-work rules          | VERIFIED            | AGENTS.md, execution log, immutable checkpoints                   |
 | 2   | Paid-service rule              | VERIFIED            | owner checkpoints; paid gates default off                         |
-| 3   | Operating goal                 | VERIFIED_STAGING    | Free architecture, LIVE; production launch pending                |
+| 3   | Operating goal                 | VERIFIED_PRODUCTION | Free architecture and non-AI production launch proved             |
 | 4   | Project knowledge base         | VERIFIED            | complete `docs/` hierarchy                                        |
 | 5   | AGENTS.md invariants           | VERIFIED            | boundary/security/quality gate                                    |
 | 6   | Competitor research            | VERIFIED            | product research and RoleMate reference audit                     |
@@ -22,7 +22,7 @@ production Worker and D1; `P2` = guarded production Telegram cutover and exact o
 | 8   | Mobile-first                   | VERIFIED_MVP        | Android/iPhone/Desktop E2E                                        |
 | 9   | Stack                          | VERIFIED            | ADR-0001 and pinned workspace                                     |
 | 10  | Monorepo                       | VERIFIED            | strict TS workspace and independent Git                           |
-| 11  | Telegram authentication        | VERIFIED_STAGING    | HMAC/replay/CSRF tests and live initData                          |
+| 11  | Telegram authentication        | VERIFIED_PRODUCTION | HMAC/replay/CSRF plus fresh production initData session           |
 | 12  | Telegram bot                   | VERIFIED_PRODUCTION | exact production configuration and owner smoke passed             |
 | 13  | User account                   | VERIFIED_MVP        | account/profile/settings/export/erasure tests                     |
 | 14  | Personas                       | VERIFIED_MVP        | owned CRUD, snapshots/live settings                               |
@@ -139,16 +139,16 @@ production Worker and D1; `P2` = guarded production Telegram cutover and exact o
 | 125 | Fixtures                       | VERIFIED            | deterministic typed fixtures                                      |
 | 126 | Payment tests                  | VERIFIED_LOCAL      | idempotency/refund/reversal; live Stars blocked                   |
 | 127 | Owner documentation            | VERIFIED            | README and operations runbooks                                    |
-| 128 | Cloudflare bootstrap           | VERIFIED_PHASE_1    | isolated D1/Worker; P2 pending                                    |
+| 128 | Cloudflare bootstrap           | VERIFIED_PHASE_2    | isolated D1/Worker and production Telegram cutover                |
 | 129 | GitHub bootstrap               | VERIFIED            | private remote and clean-clone CI                                 |
 | 130 | Telegram bootstrap             | VERIFIED_PRODUCTION | production `/start` and fresh Mini App session proved             |
 | 131 | Deployment                     | VERIFIED_PHASE_2    | production Worker/D1 healthy; webhook points to production        |
-| 132 | Production smoke               | BLOCKED_HUMAN       | HTTP/D1 pass; Telegram/auth/AI final smoke needs P2               |
+| 132 | Production smoke               | VERIFIED_NON_AI     | HTTP/D1/Telegram/auth pass; paid AI remains separately gated      |
 | 133 | Rollback                       | VERIFIED_PROCEDURE  | previous Worker + automatic staging webhook rollback              |
 | 134 | Incident response              | VERIFIED_PROCEDURE  | documented alerts and drills                                      |
 | 135 | SLO                            | VERIFIED_STAGING    | 48/48 baseline; 30-day production evidence unavailable            |
 | 136 | Per-feature Definition of Done | VERIFIED_PROCESS    | acceptance criteria enforced by gate                              |
-| 137 | Global Definition of Done      | BLOCKED_HUMAN       | production Telegram and live Stars checks outstanding             |
+| 137 | Global Definition of Done      | BLOCKED_HUMAN       | live Stars, full media, production AI and SLO evidence remain     |
 | 138 | Severity                       | VERIFIED            | Sev policy and no known open Sev-1/Sev-2                          |
 | 139 | No fake complete               | VERIFIED            | gaps remain explicitly non-DONE                                   |
 | 140 | Milestone 0                    | VERIFIED            | foundations/research complete                                     |
@@ -161,7 +161,7 @@ production Worker and D1; `P2` = guarded production Telegram cutover and exact o
 | 147 | Milestone 7                    | VERIFIED_MVP        | moderation complete                                               |
 | 148 | Milestone 8                    | BLOCKED_HUMAN       | Stars coded and gated; live payment absent                        |
 | 149 | Milestone 9                    | VERIFIED_MVP        | reliability/cost/restore controls                                 |
-| 150 | Milestone 10                   | PARTIAL             | hardening pass; production acceptance pending                     |
+| 150 | Milestone 10                   | PARTIAL             | non-AI production passed; external evidence gaps remain           |
 | 151 | Task execution loop            | VERIFIED_PROCESS    | TASKS/STATUS/evidence workflow                                    |
 | 152 | Decision log                   | VERIFIED            | durable decisions and ADRs                                        |
 | 153 | Technical debt                 | VERIFIED            | explicit current gaps only                                        |
@@ -182,7 +182,7 @@ production Worker and D1; `P2` = guarded production Telegram cutover and exact o
 | 168 | Final deliverable              | PARTIAL             | repository/docs/tests/admin and P2 exist; remaining gaps below    |
 | 169 | Final verification report      | VERIFIED_STRUCTURE  | this traceability + `docs/FINAL_VERIFICATION.md`                  |
 | 170 | Final command report           | VERIFIED            | exact latest commands/results recorded                            |
-| 171 | Deployment report              | VERIFIED_PHASE_1    | Local/staging verified; production phase 1 only                   |
+| 171 | Deployment report              | VERIFIED_PHASE_2    | local/staging plus production HTTP/D1/Telegram/auth verified      |
 | 172 | Cost report                    | VERIFIED            | provider/model/message/month/year/runway/warnings                 |
 | 173 | Owner runbook                  | VERIFIED            | local/deploy/update/rollback/health/cost/backup/moderate          |
 | 174 | Durable knowledge              | VERIFIED            | repository contains all operational context                       |
