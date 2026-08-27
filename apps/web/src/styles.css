@@ -4755,7 +4755,7 @@ a {
 }
 .chat-title {
   display: grid;
-  gap: 1px;
+  gap: var(--space-2);
   flex: 1 1 0;
   min-width: 0;
   padding: var(--space-4) var(--space-6);
@@ -5130,7 +5130,7 @@ a {
 }
 .chat-menu-row-text {
   display: grid;
-  gap: 2px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .chat-menu-row-text strong {
@@ -5235,7 +5235,7 @@ a {
   place-items: center;
   color: var(--primary);
   background: color-mix(in srgb, var(--primary) 16%, var(--surface));
-  font-size: 64px;
+  font-size: var(--type-display-size);
   font-weight: 800;
 }
 .character-profile-name {
@@ -5279,7 +5279,7 @@ a {
 .character-profile-tags li {
   padding: var(--space-6) var(--space-12);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text);
   background: color-mix(in srgb, var(--primary) 8%, var(--surface));
   font-size: var(--type-body-sm-size);
