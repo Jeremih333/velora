@@ -98,6 +98,7 @@ export function buildChildBotRoleplayMessages(
   history: readonly ChildBotHistoryTurn[],
   userMessage: string,
   lore: readonly { readonly title: string; readonly content: string }[] = [],
+  greeting: string = bot.firstMessage,
 ) {
   const systemSections = [
     `Ты — ${bot.characterName}. Всегда оставайся этим персонажем и продолжай текущую художественную сцену.`,
@@ -108,7 +109,7 @@ export function buildChildBotRoleplayMessages(
     `Биография: ${bot.background}`,
     `Цели и мотивация: ${bot.goals}`,
     `Правила поведения: ${bot.behaviourRules}`,
-    `Эталон голоса и подачи персонажа: ${bot.firstMessage}`,
+    `Эталон голоса и подачи персонажа, и сцена, с которой начался этот чат: ${greeting}`,
     `Авторские инструкции: ${bot.systemInstructions}`,
     `Память этого чата: ${memoryText === '' ? 'пока пуста' : memoryText}`,
     [
@@ -221,6 +222,41 @@ export function readChildBotGreetings(
   return [bot.firstMessage.trim(), ...alternatives].filter(
     (value, index, values) => value !== '' && values.indexOf(value) === index,
   );
+}
+
+export async function readChildBotGreetingIndex(
+  database: D1Database,
+  avatarBotId: string,
+  telegramChatId: string,
+): Promise<number> {
+  const row = await database
+    .prepare(
+      `SELECT greeting_index AS greetingIndex FROM character_bot_greeting_selections
+       WHERE avatar_bot_id = ? AND telegram_chat_id = ?`,
+    )
+    .bind(avatarBotId, telegramChatId)
+    .first<{ greetingIndex: number }>();
+  return row && Number.isInteger(row.greetingIndex) && row.greetingIndex >= 0
+    ? row.greetingIndex
+    : 0;
+}
+
+async function writeChildBotGreetingIndex(
+  database: D1Database,
+  avatarBotId: string,
+  telegramChatId: string,
+  index: number,
+): Promise<void> {
+  await database
+    .prepare(
+      `INSERT INTO character_bot_greeting_selections
+         (avatar_bot_id, telegram_chat_id, greeting_index, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(avatar_bot_id, telegram_chat_id)
+       DO UPDATE SET greeting_index = excluded.greeting_index, updated_at = excluded.updated_at`,
+    )
+    .bind(avatarBotId, telegramChatId, index, Date.now())
+    .run();
 }
 
 export function childBotGreetingKeyboard(index: number, count: number) {
@@ -520,14 +556,17 @@ export async function processCharacterBotWebhook(input: {
   const command = normalizeChildBotCommand(message.text);
   if (command === '/start') {
     const greetings = readChildBotGreetings(bot);
-    await sendMessage(
-      fetcher,
-      token,
-      message.chat.id,
-      greetings[0] ?? bot.firstMessage,
-      childBotGreetingKeyboard(0, greetings.length),
-      input.telegramApiLocation,
-    );
+    await Promise.all([
+      writeChildBotGreetingIndex(input.database, bot.id, String(message.chat.id), 0),
+      sendMessage(
+        fetcher,
+        token,
+        message.chat.id,
+        greetings[0] ?? bot.firstMessage,
+        childBotGreetingKeyboard(0, greetings.length),
+        input.telegramApiLocation,
+      ),
+    ]);
     return 'processed';
   }
   if (command === '/help') {
@@ -844,6 +883,10 @@ export async function processCharacterBotWebhook(input: {
     .bind(bot.id, String(message.chat.id), update.update_id)
     .all<ChildBotHistoryTurn>();
   const recentContext = [...recentEvents.results].reverse();
+  const selectedGreeting =
+    readChildBotGreetings(bot)[
+      await readChildBotGreetingIndex(input.database, bot.id, String(message.chat.id))
+    ] ?? bot.firstMessage;
   const activeLore = await readActiveLore(input.database, {
     conversationId: `avatar:${bot.id}:${String(message.chat.id)}`,
     characterId: bot.characterId,
@@ -887,6 +930,7 @@ export async function processCharacterBotWebhook(input: {
             recentContext,
             message.text ?? '',
             activeLore.entries,
+            selectedGreeting,
           ),
           temperature: 0.95,
           onDelta: async (_text, output) => {
@@ -1036,6 +1080,7 @@ async function processControlCallback(input: {
       return 'processed';
     }
     await Promise.all([
+      writeChildBotGreetingIndex(input.database, input.bot.id, String(chatId), index),
       answerCallback(input.fetcher, input.token, callback.id, '', input.telegramApiLocation),
       editTelegramMessage(
         input.fetcher,
@@ -1587,6 +1632,10 @@ async function regenerateChildBotVariant(input: {
       .all<ChildBotHistoryTurn>(),
   ]);
   const recentContext = [...recentEvents.results].reverse();
+  const selectedGreeting =
+    readChildBotGreetings(input.bot)[
+      await readChildBotGreetingIndex(input.database, input.bot.id, String(chatId))
+    ] ?? input.bot.firstMessage;
   const activeLore = await readActiveLore(input.database, {
     conversationId: `avatar:${input.bot.id}:${String(chatId)}`,
     characterId: input.bot.characterId,
@@ -1610,6 +1659,7 @@ async function regenerateChildBotVariant(input: {
         recentContext,
         input.sourceMessage,
         activeLore.entries,
+        selectedGreeting,
       ),
       temperature: 1,
     });

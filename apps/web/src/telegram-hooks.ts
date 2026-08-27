@@ -117,21 +117,6 @@ export function useTelegramSafeArea(): TelegramSafeAreaState {
   return value;
 }
 
-export function useTelegramBackButton(active: boolean, onBack: () => void): boolean {
-  const backButton = getTelegramWebApp()?.BackButton;
-  useEffect(() => {
-    if (!backButton || !active) {
-      backButton?.hide();
-      return;
-    }
-    backButton.onClick(onBack).show();
-    return () => {
-      backButton.offClick(onBack).hide();
-    };
-  }, [active, backButton, onBack]);
-  return Boolean(backButton && active);
-}
-
 export function useTelegramTheme(): 'light' | 'dark' {
   const [theme, setTheme] = useState<'light' | 'dark'>(
     () => getTelegramWebApp()?.colorScheme ?? 'dark',

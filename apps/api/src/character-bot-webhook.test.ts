@@ -108,7 +108,9 @@ describe('character AI-avatar controls', () => {
       [{ title: 'Старый корпус', content: 'Под лестницей спрятан вход в медпункт.' }],
     );
     expect(messages[0]?.content).toContain('ночной лагерь');
-    expect(messages[0]?.content).toContain('Эталон голоса и подачи персонажа: Привет');
+    expect(messages[0]?.content).toContain(
+      'Эталон голоса и подачи персонажа, и сцена, с которой начался этот чат: Привет',
+    );
     expect(messages[0]?.content).toContain('полноценная художественная ролевая сцена');
     expect(messages[0]?.content).toContain('3–6 цельных абзацев');
     expect(messages[0]?.content).toContain('не управляй действиями пользователя');
@@ -117,6 +119,37 @@ describe('character AI-avatar controls', () => {
     expect(messages.map(({ role }) => role)).toEqual(['system', 'user', 'assistant', 'user']);
     expect(messages[0]?.content).toContain('ACTIVE_LORE. Это обязательный канон персонажа');
     expect(messages[2]?.content).toContain('*Щурится.*');
+  });
+
+  it('continues the greeting the reader picked instead of always the first one', () => {
+    const bot = {
+      id: 'bot-1',
+      characterId: 'character-1',
+      ownerId: 'owner-1',
+      ownerTelegramId: '1',
+      telegramBotId: '2',
+      telegramUsername: 'alice',
+      tokenCiphertext: 'x',
+      tokenIv: 'y',
+      characterName: 'Алиса',
+      personality: 'дерзкая и живая',
+      speechStyle: 'разговорный',
+      behaviourRules: 'не выходит из роли',
+      firstMessage: 'Встреча у ворот лагеря.',
+      alternateGreetingsJson: JSON.stringify(['Встреча на ночном пляже.']),
+      scenario: 'ночной лагерь',
+      appearance: 'рыжие волосы',
+      background: 'пионерка',
+      goals: 'раскрыть тайну',
+      systemInstructions: 'сохранять инициативу',
+      postHistoryInstructions: 'не повторяться',
+      modelProfileId: 'model',
+    };
+    const chosen = readChildBotGreetings(bot)[1];
+    expect(chosen).toBe('Встреча на ночном пляже.');
+    const messages = buildChildBotRoleplayMessages(bot, '', [], 'Привет.', [], chosen);
+    expect(messages[0]?.content).toContain('Встреча на ночном пляже.');
+    expect(messages[0]?.content).not.toContain('Встреча у ворот лагеря.');
   });
 
   it('builds compact looping greeting controls and ignores malformed alternatives', () => {

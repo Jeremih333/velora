@@ -37,7 +37,7 @@ import { Dialog, EmptyState, ErrorState, Skeleton } from './CoreComponents';
 import { useI18n, type Locale, type WebMessages } from './i18n';
 import { selectMessageWindow } from './message-window';
 import { SafeMarkdown } from './SafeMarkdown';
-import { useTelegramBackButton } from './telegram-hooks';
+import { useTelegramBackButton } from './telegram-back-button';
 import { VeloraIcon } from './VeloraIcon';
 import type {
   ChatCharacterProfile,

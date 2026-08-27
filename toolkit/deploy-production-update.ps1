@@ -11,13 +11,9 @@ $publicAppUrl = 'https://velora-app.carreljeremih.workers.dev'
 $accountId = '9d1b271d6aec48ab5d8f595d1d3fac61'
 $databaseName = 'velora-production'
 $expectedPendingMigrations = @(
-  '0062_avatar_bot_response_variants.sql',
-  '0063_character_greeting_and_lore_depth.sql',
-  '0064_roleplay_generation_fallbacks.sql',
-  '0065_break_free_model_fallback_cycle.sql',
-  '0066_break_standard_model_fallback_cycle.sql'
+  '0067_greeting_variants_everywhere.sql'
 )
-$expectedMigrationCount = 66
+$expectedMigrationCount = 67
 
 function Invoke-Checked([scriptblock]$Command, [string]$FailureMessage) {
   & $Command

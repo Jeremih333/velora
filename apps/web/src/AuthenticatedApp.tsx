@@ -69,7 +69,7 @@ import {
 } from './ProductComponents';
 import { getWebMessages, useI18n, type Locale, type WebMessages } from './i18n';
 import { openTelegramInvoice, type InvoiceStatus } from './telegram';
-import { useTelegramBackButton } from './telegram-hooks';
+import { useTelegramBackButton } from './telegram-back-button';
 import { VeloraIcon, type VeloraIconName } from './VeloraIcon';
 import type {
   AccessPackCatalog,

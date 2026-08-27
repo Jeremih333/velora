@@ -4014,6 +4014,39 @@ try {
     throw new Error('Conversation did not render the selected greeting with its persona snapshot.');
   }
   const initialGreeting = initialBranch.items[0];
+  if (
+    initialGreeting.variantCount !== publicCharacter.alternateGreetings.length + 1 ||
+    initialGreeting.variantIds.length !== initialGreeting.variantCount ||
+    initialGreeting.variantIndex !== 1 ||
+    !initialGreeting.variantIds.includes(initialGreeting.id)
+  ) {
+    throw new Error(
+      'A fresh conversation did not expose every character greeting as a browsable variant.',
+    );
+  }
+  const otherGreetingId = initialGreeting.variantIds.find((id) => id !== initialGreeting.id);
+  await request(
+    `/api/v1/conversations/${conversation.id}/active-message/${otherGreetingId}?descend=0`,
+    { method: 'PUT', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
+  const switchedGreetingBranch = await request(
+    `/api/v1/conversations/${conversation.id}/messages`,
+    { headers },
+    200,
+  );
+  if (
+    switchedGreetingBranch.items.length !== 1 ||
+    switchedGreetingBranch.items[0]?.id !== otherGreetingId ||
+    switchedGreetingBranch.items[0]?.isGreeting !== true
+  ) {
+    throw new Error('Switching to another greeting variant did not change the opening scene.');
+  }
+  await request(
+    `/api/v1/conversations/${conversation.id}/active-message/${initialGreeting.id}?descend=0`,
+    { method: 'PUT', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
   const greetingOverrideText = 'В этом диалоге архив встречает тебя иначе.';
   const greetingOverride = await request(
     `/api/v1/conversations/${conversation.id}/messages/${initialGreeting.id}/edit`,

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useTelegramBackButton } from './telegram-back-button';
 import {
-  useTelegramBackButton,
   useTelegramLifecycle,
   useTelegramSafeArea,
   useTelegramTheme,
@@ -17,14 +17,21 @@ function telegramFixture() {
   let backHandler: (() => void) | null = null;
   let showCalls = 0;
   let hideCalls = 0;
+  let backVisible = false;
   const backButton: TelegramBackButton = {
-    isVisible: false,
+    // Telegram flips isVisible inside show() and hide(); the hook reads it to
+    // decide whether an in-app arrow is still needed, so the fake must too.
+    get isVisible() {
+      return backVisible;
+    },
     show: () => {
       showCalls += 1;
+      backVisible = true;
       return backButton;
     },
     hide: () => {
       hideCalls += 1;
+      backVisible = false;
       return backButton;
     },
     onClick: vi.fn((callback: () => void) => {
@@ -159,5 +166,40 @@ describe('Telegram platform hooks', () => {
     view.rerender(<BackHarness active={false} onBack={onBack} />);
     expect(screen.getByText('fallback')).toBeTruthy();
     expect(fixture.getHideCalls()).toBeGreaterThan(0);
+  });
+
+  it('hands the shared back button back to the screen underneath when an overlay closes', () => {
+    const fixture = telegramFixture();
+    const onScreenBack = vi.fn();
+    const onOverlayBack = vi.fn();
+
+    // The drawer lives above the chat in the tree, so its effects run last. It
+    // used to hide the shared button on close and strand the chat with neither a
+    // native arrow nor an in-app one.
+    function Shell({ overlayOpen }: { readonly overlayOpen: boolean }) {
+      useTelegramBackButton(overlayOpen, onOverlayBack);
+      return <BackHarness active={!overlayOpen} onBack={onScreenBack} />;
+    }
+
+    const view = render(<Shell overlayOpen={false} />);
+    expect(screen.getByText('native')).toBeTruthy();
+
+    view.rerender(<Shell overlayOpen />);
+    act(() => {
+      fixture.pressBack();
+    });
+    expect(onOverlayBack).toHaveBeenCalledOnce();
+    expect(onScreenBack).not.toHaveBeenCalled();
+
+    view.rerender(<Shell overlayOpen={false} />);
+    // The button must be left showing, not merely re-registered: the overlay's
+    // hide() used to run after the chat had asked for it back.
+    expect(fixture.backButton.isVisible).toBe(true);
+    expect(screen.getByText('native')).toBeTruthy();
+    act(() => {
+      fixture.pressBack();
+    });
+    expect(onScreenBack).toHaveBeenCalledOnce();
+    expect(onOverlayBack).toHaveBeenCalledOnce();
   });
 });

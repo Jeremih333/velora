@@ -52,6 +52,7 @@ export interface OwnedConversationRow {
   readonly isPreview: number;
   readonly memoryStale: number;
   readonly memoryStaleSinceMessageId: string | null;
+  readonly greetingsBackfilled: number;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -188,6 +189,7 @@ const conversationProjection = `c.id, c.user_id AS userId, c.character_id AS cha
   c.active_leaf_message_id AS activeMessageId, c.state, c.is_preview AS isPreview,
   c.memory_stale AS memoryStale,
   c.memory_stale_since_message_id AS memoryStaleSinceMessageId,
+  c.greetings_backfilled AS greetingsBackfilled,
   c.created_at AS createdAt, c.updated_at AS updatedAt`;
 const settingsProjection = `model_profile AS modelProfile, model_profile_id AS modelProfileId, temperature,
   max_output_tokens AS maxOutputTokens, response_length AS responseLength,
@@ -391,8 +393,9 @@ conversationRoutes.post('/', async (context) => {
       context.env.DB.prepare(
         `INSERT INTO conversations (
           id, user_id, character_id, character_version_id, persona_id,
-          persona_snapshot_json, title, active_leaf_message_id, is_preview, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          persona_snapshot_json, title, active_leaf_message_id, is_preview,
+          greetings_backfilled, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       ).bind(
         conversationId,
         principal.userId,
@@ -581,6 +584,9 @@ conversationRoutes.get('/:conversationId/messages', async (context) => {
     principal.userId,
     context.req.param('conversationId'),
   );
+  if (conversation.greetingsBackfilled === 0) {
+    await materialiseGreetingVariants(context.env.DB, conversation);
+  }
   const query = messageQuerySchema.parse(context.req.query());
   const generationReactions = await readGenerationReactions(
     context.env.DB,
@@ -1398,6 +1404,149 @@ function parseAlternateGreetings(value: string): readonly string[] {
   } catch {
     return [];
   }
+}
+
+interface GreetingVersionRow {
+  readonly name: string;
+  readonly firstMessage: string;
+  readonly alternateGreetingsJson: string;
+  readonly description: string;
+  readonly scenario: string;
+}
+
+interface ExistingGreetingRow {
+  readonly id: string;
+  readonly content: string;
+  readonly metadataJson: string | null;
+  readonly createdAt: number;
+}
+
+function greetingIndexOf(row: Pick<ExistingGreetingRow, 'metadataJson'>): number | null {
+  try {
+    const parsed: unknown = JSON.parse(row.metadataJson ?? '');
+    if (typeof parsed === 'object' && parsed !== null && 'greetingIndex' in parsed) {
+      const index: unknown = parsed.greetingIndex;
+      if (typeof index === 'number' && Number.isInteger(index) && index >= 0) return index;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export interface PlannedGreeting {
+  readonly index: number;
+  readonly content: string;
+  readonly createdAt: number;
+}
+
+/**
+ * Decides which greeting siblings a conversation is still missing.
+ *
+ * Matching is on rendered content, so a greeting the reader edited or
+ * regenerated is left alone instead of being duplicated. Timestamps are laid
+ * out from the anchor greeting's own position, so restored alternates sort in
+ * greeting order and stay ahead of everything said afterwards.
+ */
+export function planGreetingBackfill(
+  rendered: readonly string[],
+  existing: readonly Pick<ExistingGreetingRow, 'content' | 'metadataJson' | 'createdAt'>[],
+): readonly PlannedGreeting[] {
+  const anchor = existing[0];
+  if (rendered.length < 2 || !anchor) return [];
+  const present = new Set(existing.map((row) => row.content));
+  const anchorIndex = greetingIndexOf(anchor) ?? Math.max(0, rendered.indexOf(anchor.content));
+  const base = anchor.createdAt - anchorIndex;
+  return rendered.flatMap((content, index) =>
+    present.has(content) ? [] : [{ index, content, createdAt: base + index }],
+  );
+}
+
+/**
+ * Adds the greeting siblings that a conversation is missing.
+ *
+ * Greetings only became sibling messages later, so conversations started before
+ * that hold a single row and can never offer the alternates their character
+ * defines. The rendered text depends on the persona and display name captured
+ * when the chat began, which no SQL migration can reproduce, so the repair runs
+ * here where that snapshot is available, once per conversation.
+ */
+async function materialiseGreetingVariants(
+  database: D1Database,
+  conversation: OwnedConversationRow,
+): Promise<void> {
+  const markRepaired = database
+    .prepare('UPDATE conversations SET greetings_backfilled = 1 WHERE id = ?')
+    .bind(conversation.id);
+  const version = await database
+    .prepare(
+      `SELECT name, first_message AS firstMessage,
+       alternate_greetings_json AS alternateGreetingsJson, description, scenario
+       FROM character_versions WHERE id = ?`,
+    )
+    .bind(conversation.characterVersionId)
+    .first<GreetingVersionRow>();
+  const greetingOptions = version
+    ? [version.firstMessage, ...parseAlternateGreetings(version.alternateGreetingsJson)]
+    : [];
+  if (!version || greetingOptions.length < 2) {
+    await markRepaired.run();
+    return;
+  }
+  const existing = await database
+    .prepare(
+      `SELECT id, content, metadata_json AS metadataJson, created_at AS createdAt
+       FROM messages WHERE conversation_id = ? AND is_greeting = 1
+       AND parent_message_id IS NULL AND deleted_at IS NULL
+       ORDER BY created_at ASC, id ASC`,
+    )
+    .bind(conversation.id)
+    .all<ExistingGreetingRow>();
+  const persona = ((): { readonly name?: string } | null => {
+    if (!conversation.personaSnapshotJson) return null;
+    try {
+      return JSON.parse(conversation.personaSnapshotJson) as { readonly name?: string };
+    } catch {
+      return null;
+    }
+  })();
+  const user = await database
+    .prepare('SELECT display_name AS displayName FROM users WHERE id = ?')
+    .bind(conversation.userId)
+    .first<{ displayName: string }>();
+  const rendered = renderConversationGreetings(greetingOptions, {
+    char: version.name,
+    user: persona?.name ?? user?.displayName ?? 'User',
+    persona: persona?.name ?? '',
+    scenario: version.scenario,
+    description: version.description,
+  });
+  const planned = planGreetingBackfill(rendered, existing.results);
+  if (planned.length === 0) {
+    await markRepaired.run();
+    return;
+  }
+  await database.batch([
+    ...planned.map((greeting) =>
+      database
+        .prepare(
+          `INSERT INTO messages (
+             id, conversation_id, role, content, content_format, status,
+             is_greeting, edited_by_user, origin, metadata_json, created_at, updated_at
+           ) VALUES (?, ?, 'ASSISTANT', ?, 'MARKDOWN', 'COMPLETED', 1, 0,
+             'CHARACTER_GREETING', ?, ?, ?)`,
+        )
+        .bind(
+          createId(),
+          conversation.id,
+          greeting.content,
+          JSON.stringify({ greetingIndex: greeting.index }),
+          greeting.createdAt,
+          greeting.createdAt,
+        ),
+    ),
+    markRepaired,
+  ]);
 }
 
 export function renderConversationGreetings(
