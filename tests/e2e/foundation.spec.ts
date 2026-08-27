@@ -134,6 +134,14 @@ async function openAppMenuSection(page: Page, name: string): Promise<void> {
   await expect(drawer).toBeHidden();
 }
 
+async function openStoryTool(page: Page, name: RegExp): Promise<void> {
+  await page.getByRole('button', { name: /^(?:Story tools|Инструменты истории)$/u }).click();
+  const menu = page.getByRole('dialog', { name: /^(?:Story tools|Инструменты истории)$/u });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('button', { name }).click();
+  await expect(menu).toBeHidden();
+}
+
 const matureReviewPendingText =
   'Персонаж с отметкой Mature отправлен на проверку возраста и безопасности. До решения модератора он не показывается в каталоге.';
 
@@ -3323,17 +3331,13 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
   await page.getByRole('dialog').getByRole('button', { name: 'Отправить' }).click();
   await expect(page.getByRole('heading', { name: 'Жалоба на сообщение' })).toBeHidden();
   await page.getByRole('button', { name: 'Инструменты истории' }).click();
-  const dialogTab = page
-    .getByRole('navigation', { name: 'Инструменты истории' })
-    .getByRole('button', { name: /Диалог/u });
-  await dialogTab.click();
-  await expect(dialogTab).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Настройки', exact: true }).click();
-  await page.getByRole('button', { name: 'Удалить диалог' }).click();
+  const storyMenu = page.getByRole('dialog', { name: 'Инструменты истории' });
+  await expect(storyMenu.getByRole('button', { name: /Профиль персонажа/u })).toBeVisible();
+  await expect(storyMenu.getByRole('button', { name: /Память и суммаризация/u })).toBeVisible();
+  await storyMenu.getByRole('button', { name: /Удалить чат/u }).click();
+  await expect(storyMenu).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Удалить диалог?' })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Оставить' }).click();
-  await page.getByRole('button', { name: 'Назад к диалогам' }).click();
-  await page.getByRole('button', { name: 'Назад к диалогам' }).click();
   await page.getByRole('button', { name: 'Назад к диалогам' }).click();
   await openAppMenuSection(page, 'Образы');
   await page.locator('.view-header').getByRole('button', { name: 'Создать', exact: true }).click();
@@ -3881,15 +3885,14 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
     await page.getByRole('button', { name: 'Отмена', exact: true }).click();
   }
   await page.getByRole('button', { name: /Лира · Алекс/u }).click();
-  await page.getByRole('button', { name: 'Инструменты истории' }).click();
-  await page.getByRole('button', { name: /Контекст/u }).click();
+  await openStoryTool(page, /Лорбук и контекст/u);
   await page.getByLabel('Архив мира').check();
   await expect(page.getByText('Активные сейчас: 1')).toBeVisible();
   await expect(page.getByText('6 токенов')).toBeVisible();
   await expect(page.getByText('Ключ: архив')).toBeVisible();
   await expect(page.getByText('Приоритет: 12')).toBeVisible();
   await expect(page.getByText('Токены: 6')).toBeVisible();
-  await page.getByRole('button', { name: /Память/u }).click();
+  await openStoryTool(page, /Память и суммаризация/u);
   await expect(
     page.getByText(/Память активной ветки хранится в одном редактируемом документе/u),
   ).toBeVisible();
@@ -3945,10 +3948,7 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
   await expect(page.getByLabel('Память разговора')).toHaveValue(
     /Обещание у маяка сохранено\.[\s\S]*Резюме последних событий\./u,
   );
-  await page
-    .getByRole('navigation', { name: 'Инструменты истории' })
-    .getByRole('button', { name: /Промпт/u })
-    .click();
+  await openStoryTool(page, /Инспектор промпта/u);
   await expect(page.getByText('Инспектор промпта', { exact: true })).toBeVisible();
   await expect(page.getByText(/Модель · velora-balanced · deepseek-chat-v3\.1/u)).toBeVisible();
   await expect(page.getByText('165 входных токенов')).toBeVisible();
@@ -3958,10 +3958,7 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
   await expect(page.getByText('Скрытая дверь')).toBeVisible();
   await page.locator('summary').filter({ hasText: 'Инструкции диалога' }).click();
   await expect(page.getByText('Пиши кинематографично.')).toBeVisible();
-  await page
-    .getByRole('navigation', { name: 'Инструменты истории' })
-    .getByRole('button', { name: /Настройки/u })
-    .click();
+  await openStoryTool(page, /Настройки генерации/u);
   await expect(page.getByRole('radio', { name: /Lunaris Roleplay/u })).toBeVisible();
   await page.locator('.chat-settings-panel').screenshot({
     path: testInfo.outputPath('actual-model-picker.png'),
@@ -4062,10 +4059,8 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
   });
   await quickModelPicker.getByRole('button', { name: 'Настройки генерации' }).click();
   await expect(page.locator('.chat-settings-panel')).toContainText('Настройки истории');
-  await page
-    .getByRole('navigation', { name: 'Инструменты истории' })
-    .getByRole('button', { name: /Настройки/u })
-    .click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.chat-settings-panel')).toBeHidden();
   expect(conversationSettings.customInstructions).toBe('Пиши кинематографично.');
   conversationMessages = Array.from({ length: longHistoryMessageCount }, (_, index) => ({
     id: `history-${String(index + 1)}`,
@@ -4270,7 +4265,7 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
   ).toBeVisible();
   await userActionTarget.getByRole('button', { name: 'Отмена' }).click();
   await userActionTarget.getByRole('button', { name: 'Действия с сообщением' }).click();
-  await page.locator('.chat-title').click();
+  await page.getByLabel('Реплика').click();
   await expect(userActionMenu).toBeHidden();
   const loadEarlier = page.getByRole('button', { name: 'Показать предыдущие сообщения · 420' });
   await expect(loadEarlier).toBeVisible();
@@ -4299,12 +4294,11 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
     'Архив отвечает после долгой истории.',
   );
   await expect(page.locator('.message-bubble')).toHaveCount(160);
-  await page.getByRole('button', { name: 'Инструменты истории' }).click();
-  await page.getByRole('button', { name: /Память/u }).click();
+  await openStoryTool(page, /Память и суммаризация/u);
   await expect(page.getByLabel('Память разговора')).toHaveValue(
     /Обещание у маяка сохранено\.[\s\S]*Резюме последних событий\./u,
   );
-  await page.getByRole('button', { name: /Память/u }).click();
+  await page.keyboard.press('Escape');
   await page.route(
     '**/api/v1/conversations/conversation-1/messages',
     async (route) => {
