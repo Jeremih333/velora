@@ -421,9 +421,16 @@ describe('character AI-avatar controls', () => {
   });
 
   it('accepts commands addressed to the avatar username', () => {
-    expect(normalizeChildBotCommand('/start@aliceneyrobot payload')).toBe('/start');
-    expect(normalizeChildBotCommand('/MODEL@AliceNeyRobot')).toBe('/model');
-    expect(normalizeChildBotCommand('обычный текст')).toBeNull();
+    expect(normalizeChildBotCommand('/start@aliceneyrobot payload', 'aliceneyrobot')).toBe(
+      '/start',
+    );
+    expect(normalizeChildBotCommand('/MODEL@AliceNeyRobot', '@aliceneyrobot')).toBe('/model');
+    expect(normalizeChildBotCommand('/start', 'aliceneyrobot')).toBe('/start');
+    expect(normalizeChildBotCommand('обычный текст', 'aliceneyrobot')).toBeNull();
+    // A group hands the command to every bot present, so one addressed at a
+    // different avatar must stay silent here instead of answering in chorus.
+    expect(normalizeChildBotCommand('/start@katyaneyobot', 'aliceneyrobot')).toBeNull();
+    expect(normalizeChildBotCommand('/model@moderatorbot', 'aliceneyrobot')).toBeNull();
   });
 
   it('answers every ordinary private message but requires a direct reply in groups', () => {

@@ -184,10 +184,22 @@ export function childBotFailureMessage(errorCode: string): string {
   return 'Не удалось получить ответ персонажа. Попробуйте ещё раз немного позже.';
 }
 
-export function normalizeChildBotCommand(text: string): string | null {
+/**
+ * Reads a command only when it is meant for this bot.
+ *
+ * Telegram hands a group command to every bot in the chat, and the trailing
+ * `@username` is how a reader says which one they meant. Dropping that suffix
+ * made each avatar bot treat `/start@someoneelse` as its own, so a group with
+ * several bots answered in chorus and drowned out the one being addressed. A
+ * command with no addressee still belongs to whoever receives it.
+ */
+export function normalizeChildBotCommand(text: string, botUsername: string): string | null {
   const token = text.trim().split(/\s+/u)[0]?.toLowerCase();
   if (!token?.startsWith('/')) return null;
-  return token.split('@', 1)[0] ?? null;
+  const [command, addressee] = token.slice(1).split('@', 2);
+  if (!command) return null;
+  if (addressee && addressee !== botUsername.toLowerCase().replace(/^@/u, '')) return null;
+  return `/${command}`;
 }
 
 export function isHumanChildBotActor(
@@ -553,7 +565,7 @@ export async function processCharacterBotWebhook(input: {
   }
   const message = update.message;
   if (!message?.from || !isHumanChildBotActor(message.from) || !message.text) return 'ignored';
-  const command = normalizeChildBotCommand(message.text);
+  const command = normalizeChildBotCommand(message.text, bot.telegramUsername);
   if (command === '/start') {
     const greetings = readChildBotGreetings(bot);
     await Promise.all([
