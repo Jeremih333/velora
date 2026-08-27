@@ -3702,22 +3702,6 @@ a {
 .billing-faq details[open] summary > svg {
   transform: rotate(180deg);
 }
-.billing-faq details[open] summary {
-  border-bottom: 1px solid color-mix(in srgb, var(--premium-accent) 48%, var(--border));
-  color: var(--color-black);
-  background: linear-gradient(
-    135deg,
-    var(--brand-vivid),
-    color-mix(in srgb, var(--brand-vivid) 72%, var(--brand-active))
-  );
-}
-.billing-faq details[open] {
-  border-color: color-mix(in srgb, var(--premium-accent) 62%, var(--border));
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--premium-accent) 12%, transparent);
-}
-.billing-faq details[open] summary > svg {
-  color: var(--color-black);
-}
 .billing-faq details p {
   margin: 0;
   padding: var(--space-16) var(--space-16) var(--space-20);
@@ -7518,7 +7502,15 @@ html[data-telegram-keyboard='open'] .desktop-chat-workspace > .chat-view.has-ins
   box-shadow: inset 3px 0 var(--primary);
 }
 .billing-faq details[open] summary {
+  /* The whole open state lives here. An earlier pass painted a light brand
+     gradient behind this question, and because only the colour was restated
+     the near-white --text ended up on that light plate and vanished. */
   color: var(--text);
+  background: transparent;
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border));
+}
+.billing-faq details[open] summary > svg {
+  color: var(--primary);
 }
 
 @media (min-width: 621px) {
