@@ -421,16 +421,25 @@ describe('character AI-avatar controls', () => {
   });
 
   it('accepts commands addressed to the avatar username', () => {
-    expect(normalizeChildBotCommand('/start@aliceneyrobot payload', 'aliceneyrobot')).toBe(
+    expect(
+      normalizeChildBotCommand('/start@aliceneyrobot payload', 'aliceneyrobot', 'private'),
+    ).toBe('/start');
+    expect(normalizeChildBotCommand('/MODEL@AliceNeyRobot', '@aliceneyrobot', 'private')).toBe(
+      '/model',
+    );
+    expect(normalizeChildBotCommand('/start', 'aliceneyrobot', 'private')).toBe('/start');
+    expect(normalizeChildBotCommand('обычный текст', 'aliceneyrobot', 'private')).toBeNull();
+    // A group hands the command to every bot present, so one addressed at a
+    // different avatar must stay silent instead of answering in chorus, and a
+    // bare command belongs to nobody in particular.
+    expect(
+      normalizeChildBotCommand('/start@katyaneyobot', 'aliceneyrobot', 'supergroup'),
+    ).toBeNull();
+    expect(normalizeChildBotCommand('/model@moderatorbot', 'aliceneyrobot', 'group')).toBeNull();
+    expect(normalizeChildBotCommand('/start', 'aliceneyrobot', 'supergroup')).toBeNull();
+    expect(normalizeChildBotCommand('/start@aliceneyrobot', 'aliceneyrobot', 'supergroup')).toBe(
       '/start',
     );
-    expect(normalizeChildBotCommand('/MODEL@AliceNeyRobot', '@aliceneyrobot')).toBe('/model');
-    expect(normalizeChildBotCommand('/start', 'aliceneyrobot')).toBe('/start');
-    expect(normalizeChildBotCommand('обычный текст', 'aliceneyrobot')).toBeNull();
-    // A group hands the command to every bot present, so one addressed at a
-    // different avatar must stay silent here instead of answering in chorus.
-    expect(normalizeChildBotCommand('/start@katyaneyobot', 'aliceneyrobot')).toBeNull();
-    expect(normalizeChildBotCommand('/model@moderatorbot', 'aliceneyrobot')).toBeNull();
   });
 
   it('answers every ordinary private message but requires a direct reply in groups', () => {
@@ -481,7 +490,7 @@ describe('character AI-avatar controls', () => {
     ).toBe(false);
   });
 
-  it('rate-limits official live drafts to private chats while groups use typing', () => {
+  it('paces the live reply for the channel each chat kind allows', () => {
     expect(
       shouldPublishChildBotLiveDraft({
         chatType: 'private',
@@ -498,10 +507,36 @@ describe('character AI-avatar controls', () => {
         elapsedMs: 800,
       }),
     ).toBe(true);
+    // sendMessageDraft is private-only, so a group streams by rewriting a
+    // placeholder message; edits are rate limited, hence the coarser steps.
     expect(
       shouldPublishChildBotLiveDraft({
         chatType: 'supergroup',
         outputLength: 500,
+        previousLength: 0,
+        elapsedMs: 100,
+      }),
+    ).toBe(true);
+    expect(
+      shouldPublishChildBotLiveDraft({
+        chatType: 'supergroup',
+        outputLength: 60,
+        previousLength: 0,
+        elapsedMs: 2_000,
+      }),
+    ).toBe(true);
+    expect(
+      shouldPublishChildBotLiveDraft({
+        chatType: 'supergroup',
+        outputLength: 60,
+        previousLength: 0,
+        elapsedMs: 900,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPublishChildBotLiveDraft({
+        chatType: 'supergroup',
+        outputLength: 0,
         previousLength: 0,
         elapsedMs: 5_000,
       }),

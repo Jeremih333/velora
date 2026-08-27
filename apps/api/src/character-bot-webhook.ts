@@ -193,13 +193,22 @@ export function childBotFailureMessage(errorCode: string): string {
  * several bots answered in chorus and drowned out the one being addressed. A
  * command with no addressee still belongs to whoever receives it.
  */
-export function normalizeChildBotCommand(text: string, botUsername: string): string | null {
+export function normalizeChildBotCommand(
+  text: string,
+  botUsername: string,
+  chatType: string,
+): string | null {
   const token = text.trim().split(/\s+/u)[0]?.toLowerCase();
   if (!token?.startsWith('/')) return null;
   const [command, addressee] = token.slice(1).split('@', 2);
   if (!command) return null;
-  if (addressee && addressee !== botUsername.toLowerCase().replace(/^@/u, '')) return null;
-  return `/${command}`;
+  const self = botUsername.toLowerCase().replace(/^@/u, '');
+  // Outside a private chat the addressee is required. Telegram hands a group
+  // command to every bot present, so a bare /start would be claimed by each
+  // avatar at once and collide with moderator bots sharing these names. The
+  // command menu fills the @username in, so naming a bot costs a tap.
+  if (chatType !== 'private') return addressee === self ? `/${command}` : null;
+  return !addressee || addressee === self ? `/${command}` : null;
 }
 
 export function isHumanChildBotActor(
@@ -346,16 +355,27 @@ export function hasExactBotMention(
   );
 }
 
+/**
+ * Paces the live view of a reply as it is written.
+ *
+ * Private chats use Telegram's own draft channel, which is built for streaming
+ * and cheap to update. sendMessageDraft is not available outside them, so a
+ * group is streamed by editing a placeholder message instead, and edits are
+ * rate limited per chat -- those move in larger, rarer steps so a long reply
+ * does not spend its budget on redraws.
+ */
 export function shouldPublishChildBotLiveDraft(input: {
   readonly chatType: string;
   readonly outputLength: number;
   readonly previousLength: number;
   readonly elapsedMs: number;
 }): boolean {
+  if (input.outputLength <= 0) return false;
+  const isPrivate = input.chatType === 'private';
+  const minimumGrowth = isPrivate ? 48 : 220;
+  const minimumPause = isPrivate ? 800 : 2_000;
   return (
-    input.chatType === 'private' &&
-    input.outputLength > 0 &&
-    (input.outputLength - input.previousLength >= 48 || input.elapsedMs >= 800)
+    input.outputLength - input.previousLength >= minimumGrowth || input.elapsedMs >= minimumPause
   );
 }
 
@@ -565,7 +585,7 @@ export async function processCharacterBotWebhook(input: {
   }
   const message = update.message;
   if (!message?.from || !isHumanChildBotActor(message.from) || !message.text) return 'ignored';
-  const command = normalizeChildBotCommand(message.text, bot.telegramUsername);
+  const command = normalizeChildBotCommand(message.text, bot.telegramUsername, message.chat.type);
   if (command === '/start') {
     const greetings = readChildBotGreetings(bot);
     await Promise.all([
@@ -908,12 +928,18 @@ export async function processCharacterBotWebhook(input: {
     userName: `Telegram ${String(message.from.id)}`,
     totalTokenBudget: ownerPlan.entitlements.loreTokenBudget,
   });
+  const isPrivateChat = message.chat.type === 'private';
+  // A group cannot use Telegram's draft channel, so the reply is posted straight
+  // away and rewritten as it is generated. Holding the message id also means the
+  // finished text lands in place instead of arriving twice, and a failure can
+  // replace the placeholder rather than leave it dangling.
+  let livePlaceholderId: number | null = null;
   try {
     await sendChatAction(fetcher, token, message.chat.id, input.telegramApiLocation);
     const draftId = Math.max(1, update.update_id);
     let lastDraftAt = Date.now();
     let lastDraftLength = 0;
-    if (message.chat.type === 'private') {
+    if (isPrivateChat) {
       await sendMessageDraft(
         fetcher,
         token,
@@ -922,6 +948,16 @@ export async function processCharacterBotWebhook(input: {
         '',
         input.telegramApiLocation,
       );
+    } else {
+      livePlaceholderId = await sendMessage(
+        fetcher,
+        token,
+        message.chat.id,
+        '…',
+        undefined,
+        input.telegramApiLocation,
+        message.message_id,
+      ).catch(() => null);
     }
     const typingTimer = setInterval(() => {
       void sendChatAction(fetcher, token, message.chat.id, input.telegramApiLocation).catch(
@@ -955,14 +991,27 @@ export async function processCharacterBotWebhook(input: {
                 elapsedMs: timestamp - lastDraftAt,
               })
             ) {
-              await sendMessageDraft(
-                fetcher,
-                token,
-                message.chat.id,
-                draftId,
-                output.slice(0, 4_000),
-                input.telegramApiLocation,
-              );
+              if (isPrivateChat) {
+                await sendMessageDraft(
+                  fetcher,
+                  token,
+                  message.chat.id,
+                  draftId,
+                  output.slice(0, 4_000),
+                  input.telegramApiLocation,
+                );
+              } else if (livePlaceholderId !== null) {
+                // A refused redraw must never abort a reply that is going fine.
+                await editTelegramMessage(
+                  fetcher,
+                  token,
+                  message.chat.id,
+                  livePlaceholderId,
+                  output.slice(0, 4_000),
+                  undefined,
+                  input.telegramApiLocation,
+                ).catch(() => undefined);
+              }
               lastDraftAt = timestamp;
               lastDraftLength = output.length;
             }
@@ -1000,15 +1049,26 @@ export async function processCharacterBotWebhook(input: {
         )
         .bind(nowMs(), bot.id),
     ]);
-    const telegramMessageId = await sendMessage(
-      fetcher,
-      token,
-      message.chat.id,
-      output.slice(0, 4_000),
-      childBotResponseKeyboard(update.update_id, 0),
-      input.telegramApiLocation,
-      message.message_id,
-    );
+    const telegramMessageId =
+      livePlaceholderId === null
+        ? await sendMessage(
+            fetcher,
+            token,
+            message.chat.id,
+            output.slice(0, 4_000),
+            childBotResponseKeyboard(update.update_id, 0),
+            input.telegramApiLocation,
+            message.message_id,
+          )
+        : await editTelegramMessage(
+            fetcher,
+            token,
+            message.chat.id,
+            livePlaceholderId,
+            output.slice(0, 4_000),
+            childBotResponseKeyboard(update.update_id, 0),
+            input.telegramApiLocation,
+          ).then(() => livePlaceholderId);
     if (telegramMessageId !== null) {
       await input.database
         .prepare(
@@ -1046,14 +1106,36 @@ export async function processCharacterBotWebhook(input: {
         )
         .bind(errorCode, nowMs(), bot.id),
     ]);
-    await sendMessage(
-      fetcher,
-      token,
-      message.chat.id,
-      childBotFailureMessage(errorCode),
-      undefined,
-      input.telegramApiLocation,
-    );
+    const failureText = childBotFailureMessage(errorCode);
+    if (livePlaceholderId === null) {
+      await sendMessage(
+        fetcher,
+        token,
+        message.chat.id,
+        failureText,
+        undefined,
+        input.telegramApiLocation,
+      );
+    } else {
+      await editTelegramMessage(
+        fetcher,
+        token,
+        message.chat.id,
+        livePlaceholderId,
+        failureText,
+        undefined,
+        input.telegramApiLocation,
+      ).catch(async () => {
+        await sendMessage(
+          fetcher,
+          token,
+          message.chat.id,
+          failureText,
+          undefined,
+          input.telegramApiLocation,
+        );
+      });
+    }
     return 'processed';
   }
 }
