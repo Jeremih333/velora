@@ -58,6 +58,7 @@ export interface OwnedConversationRow {
 }
 
 interface ConversationListRow extends OwnedConversationRow {
+  readonly siblingCount?: number;
   readonly characterName: string;
   readonly characterAvatarFileId: string | null;
   readonly characterAvatarFocalX: number;
@@ -249,6 +250,13 @@ conversationRoutes.get('/', async (context) => {
   const [result, count] = await Promise.all([
     context.env.DB.prepare(
       `SELECT ${conversationProjection}, COALESCE(g.name, v.name) AS characterName,
+       (SELECT COUNT(*) FROM conversations sibling
+         WHERE sibling.user_id = c.user_id AND sibling.character_id = c.character_id
+           AND sibling.deleted_at IS NULL AND sibling.is_preview = 0
+           AND (? = 'ALL' OR sibling.state = ?)
+           AND NOT EXISTS (SELECT 1 FROM conversation_character_groups grouped_sibling
+             WHERE grouped_sibling.conversation_id = sibling.id)) AS siblingCount,
+       
        COALESCE(g.avatar_file_id, ch.avatar_file_id) AS characterAvatarFileId,
        ch.avatar_focal_x AS characterAvatarFocalX,
        ch.avatar_focal_y AS characterAvatarFocalY,
@@ -274,6 +282,16 @@ conversationRoutes.get('/', async (context) => {
          OR EXISTS (SELECT 1 FROM messages sm
            WHERE sm.conversation_id = c.id AND sm.deleted_at IS NULL
              AND sm.role != 'INTERNAL' AND sm.content LIKE ? ESCAPE '\\'))
+       AND (c.is_preview = 1
+         OR EXISTS (SELECT 1 FROM conversation_character_groups grouped
+           WHERE grouped.conversation_id = c.id)
+         OR c.id = (SELECT newest.id FROM conversations newest
+           WHERE newest.user_id = c.user_id AND newest.character_id = c.character_id
+             AND newest.deleted_at IS NULL AND newest.is_preview = 0
+             AND (? = 'ALL' OR newest.state = ?)
+             AND NOT EXISTS (SELECT 1 FROM conversation_character_groups grouped_newest
+               WHERE grouped_newest.conversation_id = newest.id)
+           ORDER BY newest.updated_at DESC, newest.id DESC LIMIT 1))
      ORDER BY
        CASE WHEN ? = 'active' THEN (
          SELECT COUNT(*) FROM messages active_messages
@@ -290,7 +308,11 @@ conversationRoutes.get('/', async (context) => {
      LIMIT ?`,
     )
       .bind(
+        query.state,
+        query.state,
         ...sharedValues,
+        query.state,
+        query.state,
         query.sort,
         query.sort,
         query.sort,
@@ -315,9 +337,19 @@ conversationRoutes.get('/', async (context) => {
            OR COALESCE(c.persona_snapshot_json, '') LIKE ? ESCAPE '\\'
            OR EXISTS (SELECT 1 FROM messages sm
              WHERE sm.conversation_id = c.id AND sm.deleted_at IS NULL
-               AND sm.role != 'INTERNAL' AND sm.content LIKE ? ESCAPE '\\'))`,
+               AND sm.role != 'INTERNAL' AND sm.content LIKE ? ESCAPE '\\'))
+       AND (c.is_preview = 1
+         OR EXISTS (SELECT 1 FROM conversation_character_groups grouped
+           WHERE grouped.conversation_id = c.id)
+         OR c.id = (SELECT newest.id FROM conversations newest
+           WHERE newest.user_id = c.user_id AND newest.character_id = c.character_id
+             AND newest.deleted_at IS NULL AND newest.is_preview = 0
+             AND (? = 'ALL' OR newest.state = ?)
+             AND NOT EXISTS (SELECT 1 FROM conversation_character_groups grouped_newest
+               WHERE grouped_newest.conversation_id = newest.id)
+           ORDER BY newest.updated_at DESC, newest.id DESC LIMIT 1))`,
     )
-      .bind(...sharedValues)
+      .bind(...sharedValues, query.state, query.state)
       .first<{ readonly totalCount: number }>(),
   ]);
   return context.json({
@@ -938,6 +970,59 @@ interface ChatCharacterRow {
   readonly liked: number;
   readonly bookmarked: number;
 }
+
+conversationRoutes.get('/:conversationId/siblings', async (context) => {
+  const principal = context.get('principal');
+  const conversation = await requireOwnedConversation(
+    context.env.DB,
+    principal.userId,
+    context.req.param('conversationId'),
+  );
+  const result = await context.env.DB.prepare(
+    `SELECT c.id, c.title, c.state, c.is_preview AS isPreview,
+       c.active_leaf_message_id AS activeMessageId, c.updated_at AS updatedAt,
+       (SELECT content FROM messages lm WHERE lm.id = c.active_leaf_message_id) AS lastMessage,
+       ((SELECT COUNT(*) FROM messages mc WHERE mc.conversation_id = c.id
+          AND mc.deleted_at IS NULL AND mc.role != 'INTERNAL' AND mc.is_greeting = 0)
+        + CASE WHEN EXISTS (SELECT 1 FROM messages greeting
+            WHERE greeting.conversation_id = c.id AND greeting.deleted_at IS NULL
+              AND greeting.role != 'INTERNAL' AND greeting.is_greeting = 1)
+          THEN 1 ELSE 0 END) AS messageCount
+     FROM conversations c
+     WHERE c.user_id = ? AND c.character_id = ? AND c.deleted_at IS NULL
+       AND c.state != 'DELETED'
+       -- Draft previews keep their own row in the list instead of collapsing,
+       -- so listing them here too would show the same chat in two places. The
+       -- open conversation is always included, even when it is a preview.
+       AND (c.is_preview = 0 OR c.id = ?)
+       AND NOT EXISTS (SELECT 1 FROM conversation_character_groups grouped
+         WHERE grouped.conversation_id = c.id)
+     ORDER BY c.updated_at DESC, c.id DESC LIMIT 50`,
+  )
+    .bind(principal.userId, conversation.characterId, conversation.id)
+    .all<{
+      id: string;
+      title: string;
+      state: 'ACTIVE' | 'ARCHIVED';
+      isPreview: number;
+      activeMessageId: string | null;
+      updatedAt: number;
+      lastMessage: string | null;
+      messageCount: number;
+    }>();
+  return context.json({
+    items: result.results.map((row) => ({
+      id: row.id,
+      title: row.title,
+      state: row.state,
+      isPreview: row.isPreview === 1,
+      lastMessage: row.lastMessage,
+      messageCount: row.messageCount,
+      updatedAt: row.updatedAt,
+      current: row.id === conversation.id,
+    })),
+  });
+});
 
 conversationRoutes.get('/:conversationId/character', async (context) => {
   const principal = context.get('principal');
@@ -1717,6 +1802,7 @@ function toConversationSummary(row: ConversationListRow) {
     personaName: conversationPersonaName(row.personaSnapshotJson),
     lastMessage: row.lastMessage,
     messageCount: row.messageCount,
+    siblingCount: row.siblingCount ?? 1,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

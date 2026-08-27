@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { getTelegramWebApp } from './telegram';
 
 /**
@@ -53,9 +53,21 @@ function readBackButtonVisible(): boolean {
 
 export function useTelegramBackButton(active: boolean, onBack: () => void): boolean {
   const visible = useSyncExternalStore(subscribeBackButton, readBackButtonVisible, () => false);
+  // A back handler exists to read whatever state the screen is in right now, so
+  // its identity changes on almost every render. Registering it through a ref
+  // keeps that from re-entering the consumer stack each time, which would make
+  // ownership churn and force callers into brittle dependency lists.
+  const latest = useRef(onBack);
+  useEffect(() => {
+    latest.current = onBack;
+  }, [onBack]);
   useEffect(() => {
     if (!active) return;
-    const consumer: BackButtonConsumer = { onBack };
+    const consumer: BackButtonConsumer = {
+      onBack: () => {
+        latest.current();
+      },
+    };
     backButtonConsumers.push(consumer);
     syncBackButton();
     return () => {
@@ -63,6 +75,6 @@ export function useTelegramBackButton(active: boolean, onBack: () => void): bool
       if (index >= 0) backButtonConsumers.splice(index, 1);
       syncBackButton();
     };
-  }, [active, onBack]);
+  }, [active]);
   return active && visible;
 }

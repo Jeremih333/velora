@@ -5154,6 +5154,121 @@ a {
 .chat-menu-row.is-danger .chat-menu-row-text strong {
   color: var(--danger);
 }
+.chat-switcher-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12);
+  align-items: center;
+  width: 100%;
+  min-height: 62px;
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.chat-switcher-row:hover,
+.chat-switcher-row:focus-visible {
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+}
+.chat-switcher-row.is-current {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+}
+.chat-switcher-row-text {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.chat-switcher-row-text strong {
+  overflow: hidden;
+  font-size: var(--type-body-size);
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-switcher-row-text small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--type-body-sm-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-switcher-row-meta {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: end;
+  color: var(--muted);
+  font-size: var(--type-label-size);
+}
+.chat-switcher-row-meta em {
+  font-style: normal;
+  font-weight: 700;
+}
+.conversation-sibling-count {
+  color: var(--primary);
+  font-weight: 750;
+}
+.character-page-backdrop {
+  position: fixed;
+  z-index: 92;
+  inset: 0;
+  display: grid;
+  align-items: stretch;
+  justify-items: center;
+  background: var(--bg);
+  animation: overlay-fade-in 160ms ease-out both;
+}
+.character-page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 720px);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+.character-page-header {
+  display: flex;
+  gap: var(--space-8);
+  align-items: center;
+  padding: max(var(--space-10), var(--safe-top)) var(--space-12) var(--space-10);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.character-page-header button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+.character-page-header strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--type-heading-sm-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.character-page-scroll {
+  min-height: 0;
+  padding: var(--space-12) var(--space-12) max(var(--space-24), var(--safe-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.character-page-scroll .story-card.is-expanded {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+}
 .character-profile-backdrop {
   position: fixed;
   z-index: 95;

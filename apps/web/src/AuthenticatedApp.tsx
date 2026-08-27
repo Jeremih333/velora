@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ReactNode,
   type SyntheticEvent,
 } from 'react';
 import { renderTemplate } from '@velora/prompts';
@@ -1677,6 +1678,18 @@ function DiscoveryView({
       setPersonaRequest(null);
       setPersonaSearch('');
       setRememberPersona(false);
+      // The character page is a full screen, so it has to step aside once the
+      // chat it describes is open; otherwise it sits over the app on return.
+      setSharedCharacterId(null);
+      const location = new URL(window.location.href);
+      if (location.searchParams.has('character')) {
+        location.searchParams.delete('character');
+        window.history.replaceState(
+          window.history.state,
+          '',
+          `${location.pathname}${location.search}${location.hash}`,
+        );
+      }
       await Promise.all([
         client.invalidateQueries({ queryKey: ['settings'] }),
         client.invalidateQueries({ queryKey: ['personas'] }),
@@ -2311,10 +2324,17 @@ export function CharacterCard({
       ]);
     },
   });
-  return (
+  const collapse = () => {
+    if (onExpansionChange) onExpansionChange(false);
+    else setUncontrolledExpanded(false);
+  };
+  const card = (
     <article
       className={expanded ? 'story-card is-expanded' : 'story-card is-startable'}
       onClick={(event) => {
+        // On its own page the whole surface is readable content, so tapping it
+        // must not silently start a chat the way a catalogue tile does.
+        if (expanded) return;
         const target = event.target;
         if (!(target instanceof Element)) return;
         if (target.closest('.story-cover, button, a, input, select, textarea, [role="button"]')) {
@@ -2716,6 +2736,52 @@ export function CharacterCard({
         ) : null}
       </div>
     </article>
+  );
+  if (!expanded) return card;
+  return (
+    <CharacterPageShell title={character.name} onBack={collapse}>
+      {card}
+    </CharacterPageShell>
+  );
+}
+
+/**
+ * Shows a character on a page of its own instead of unfolding inside the
+ * catalogue. Expanding in place pushed every other card down and left no
+ * obvious way back, so the details now open as a screen with a back control:
+ * Telegram's own arrow when the client draws one, and an in-app arrow when it
+ * does not, which is the same rule the chat header follows.
+ */
+function CharacterPageShell({
+  title,
+  onBack,
+  children,
+}: {
+  readonly title: string;
+  readonly onBack: () => void;
+  readonly children: ReactNode;
+}) {
+  const { messages } = useI18n();
+  const nativeBackVisible = useTelegramBackButton(true, onBack);
+  return (
+    <Dialog
+      backdropClassName="character-page-backdrop"
+      className="character-page"
+      label={title}
+      onClose={onBack}
+    >
+      <>
+        <header className="character-page-header">
+          {nativeBackVisible ? null : (
+            <button type="button" aria-label={messages.discovery.backToCatalogue} onClick={onBack}>
+              <VeloraIcon name="arrowLeft" />
+            </button>
+          )}
+          <strong>{title}</strong>
+        </header>
+        <div className="character-page-scroll">{children}</div>
+      </>
+    </Dialog>
   );
 }
 

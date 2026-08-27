@@ -664,6 +664,7 @@ export interface ConversationSummary {
   readonly personaName: string | null;
   readonly lastMessage: string | null;
   readonly messageCount: number;
+  readonly siblingCount: number;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -699,6 +700,17 @@ export interface ChatCharacterProfile {
   readonly isOwner: boolean;
   readonly interactable: boolean;
   readonly estimatedTokens: number;
+}
+
+export interface ConversationSibling {
+  readonly id: string;
+  readonly title: string;
+  readonly state: 'ACTIVE' | 'ARCHIVED';
+  readonly isPreview: boolean;
+  readonly lastMessage: string | null;
+  readonly messageCount: number;
+  readonly updatedAt: number;
+  readonly current: boolean;
 }
 
 export interface ConversationSettings {

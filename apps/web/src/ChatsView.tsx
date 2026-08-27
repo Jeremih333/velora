@@ -42,6 +42,7 @@ import { VeloraIcon } from './VeloraIcon';
 import type {
   ChatCharacterProfile,
   ConversationDetail,
+  ConversationSibling,
   ConversationMemory,
   ConversationMessage,
   ConversationSummary,
@@ -120,6 +121,10 @@ export function ChatsView({
             setSelectedId(null);
             onConversationOpened(null);
           }}
+          onSelectConversation={(id) => {
+            setSelectedId(id);
+            onConversationOpened(id);
+          }}
         />
       </div>
     );
@@ -147,6 +152,7 @@ function ChatList({
   readonly selectedId?: string | null;
 }) {
   const { locale, messages } = useI18n();
+  const menuMessages = getChatMenuMessages(locale);
   const client = useQueryClient();
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -367,6 +373,11 @@ function ChatList({
               <div className="conversation-meta">
                 <time>{formatTime(conversation.updatedAt, locale)}</time>
                 <span>{messages.chat.messageCount(conversation.messageCount)}</span>
+                {conversation.siblingCount > 1 ? (
+                  <span className="conversation-sibling-count">
+                    {menuMessages.chatCount(conversation.siblingCount)}
+                  </span>
+                ) : null}
                 {conversation.state === 'ARCHIVED' ? <span>{messages.chat.archived}</span> : null}
               </div>
               <p className={expandedId === conversation.id ? 'is-expanded' : ''}>
@@ -457,11 +468,13 @@ function ChatThread({
   conversationId,
   allowedModelProfiles,
   onBack,
+  onSelectConversation,
   telegramBackBlocked,
 }: {
   readonly conversationId: string;
   readonly allowedModelProfiles: readonly ('BALANCED' | 'CREATIVE' | 'PREMIUM')[];
   readonly onBack: () => void;
+  readonly onSelectConversation: (id: string) => void;
   readonly telegramBackBlocked: boolean;
 }) {
   const { locale, messages: translations } = useI18n();
@@ -480,6 +493,7 @@ function ChatThread({
   const [showModelCatalog, setShowModelCatalog] = useState(false);
   const [showTools, setShowTools] = useState(false);
   const [showCharacterProfile, setShowCharacterProfile] = useState(false);
+  const [showChatSwitcher, setShowChatSwitcher] = useState(false);
   const [actionMessageId, setActionMessageId] = useState<string | null>(null);
   const [reactionMessageId, setReactionMessageId] = useState<string | null>(null);
   const [headerReactionOpen, setHeaderReactionOpen] = useState(false);
@@ -556,8 +570,11 @@ function ChatThread({
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [closeInspector, inspectorOpen]);
-  const handleBack = useCallback(() => {
+  // Deliberately not memoised: this reads a dozen pieces of state, and the
+  // back button hook holds it through a ref, so a fresh identity is harmless.
+  const handleBack = () => {
     if (showCharacterProfile) setShowCharacterProfile(false);
+    else if (showChatSwitcher) setShowChatSwitcher(false);
     else if (showModelCatalog) setShowModelCatalog(false);
     else if (showModelPicker) setShowModelPicker(false);
     else if (showLore) setShowLore(false);
@@ -574,25 +591,7 @@ function ChatThread({
     else if (modelInfoMessageId) setModelInfoMessageId(null);
     else if (showDeleteChat) setShowDeleteChat(false);
     else onBack();
-  }, [
-    actionMessageId,
-    deleteMessageId,
-    editingMessageId,
-    headerReactionOpen,
-    modelInfoMessageId,
-    onBack,
-    reactionMessageId,
-    reportMessageId,
-    showCharacterProfile,
-    showDeleteChat,
-    showLore,
-    showMemory,
-    showModelCatalog,
-    showModelPicker,
-    showPromptInspector,
-    showSettings,
-    showTools,
-  ]);
+  };
   const nativeBackVisible = useTelegramBackButton(!telegramBackBlocked, handleBack);
   const [visibleMessageCount, setVisibleMessageCount] = useState(80);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -1260,6 +1259,15 @@ function ChatThread({
                   setShowCharacterProfile(true);
                 }}
               />
+              <ChatMenuRow
+                icon="list"
+                title={menuMessages.switchChat}
+                hint={menuMessages.switchChatHint(conversation.data?.siblingCount ?? 1)}
+                onClick={() => {
+                  closeInspector();
+                  setShowChatSwitcher(true);
+                }}
+              />
               <p className="chat-menu-group">{menuMessages.groupGeneration}</p>
               <ChatMenuRow
                 icon="sparkle"
@@ -1657,6 +1665,18 @@ function ChatThread({
           {translations.chat.jumpToBottom}
         </button>
       ) : null}
+      {showChatSwitcher ? (
+        <ChatSwitcherSheet
+          conversationId={conversationId}
+          onSelect={(id) => {
+            setShowChatSwitcher(false);
+            if (id !== conversationId) onSelectConversation(id);
+          }}
+          onClose={() => {
+            setShowChatSwitcher(false);
+          }}
+        />
+      ) : null}
       {showCharacterProfile ? (
         <CharacterProfileSheet
           conversationId={conversationId}
@@ -1887,6 +1907,79 @@ function ProfileSection({
         </button>
       ) : null}
     </section>
+  );
+}
+
+function ChatSwitcherSheet({
+  conversationId,
+  onSelect,
+  onClose,
+}: {
+  readonly conversationId: string;
+  readonly onSelect: (id: string) => void;
+  readonly onClose: () => void;
+}) {
+  const { locale, messages } = useI18n();
+  const switcherMessages = getChatMenuMessages(locale);
+  const siblings = useQuery({
+    queryKey: ['conversation', conversationId, 'siblings'],
+    queryFn: () =>
+      apiRequest<{ readonly items: readonly ConversationSibling[] }>(
+        `/api/v1/conversations/${conversationId}/siblings`,
+      ),
+  });
+  return (
+    <Dialog
+      backdropClassName="chat-menu-backdrop"
+      className="chat-menu"
+      label={switcherMessages.switchChatTitle}
+      onClose={onClose}
+    >
+      <>
+        <header className="chat-menu-header">
+          <span>{switcherMessages.switchChatTitle}</span>
+          <button type="button" aria-label={switcherMessages.switchChatClose} onClick={onClose}>
+            <VeloraIcon name="close" />
+          </button>
+        </header>
+        <div className="chat-menu-scroll">
+          {siblings.isPending ? (
+            <Skeleton label={switcherMessages.switchChatTitle} rows={3} />
+          ) : null}
+          {siblings.isError ? (
+            <ErrorState error={siblings.error} retry={() => void siblings.refetch()} />
+          ) : null}
+          {siblings.data?.items.map((sibling) => (
+            <button
+              key={sibling.id}
+              className={sibling.current ? 'chat-switcher-row is-current' : 'chat-switcher-row'}
+              type="button"
+              aria-current={sibling.current ? 'true' : undefined}
+              onClick={() => {
+                onSelect(sibling.id);
+              }}
+            >
+              <span className="chat-switcher-row-text">
+                <strong>{sibling.title}</strong>
+                <small>{sibling.lastMessage ?? switcherMessages.switchChatEmptyMessage}</small>
+              </span>
+              <span className="chat-switcher-row-meta">
+                <time>{formatTime(sibling.updatedAt, locale)}</time>
+                <em>
+                  {sibling.current
+                    ? switcherMessages.switchChatCurrent
+                    : sibling.isPreview
+                      ? switcherMessages.switchChatPreview
+                      : sibling.state === 'ARCHIVED'
+                        ? switcherMessages.switchChatArchived
+                        : messages.chat.messageCount(sibling.messageCount)}
+                </em>
+              </span>
+            </button>
+          ))}
+        </div>
+      </>
+    </Dialog>
   );
 }
 

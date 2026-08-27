@@ -37,6 +37,7 @@ const conversation = (id: string, name: string): ConversationSummary => ({
   personaName: null,
   lastMessage: 'Последняя реплика',
   messageCount: 3,
+  siblingCount: 1,
   createdAt: 1,
   updatedAt: 2,
 });
@@ -317,12 +318,10 @@ describe('chat selection state machine', () => {
     expect(screen.queryByRole('region', { name: 'Story inspector' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Story tools' }));
     fireEvent.click(screen.getByRole('button', { name: /Generation settings/u }));
-    const inspectorBackHandler = backHandler;
     fireEvent.click(screen.getByRole('button', { name: 'Collapse inspector' }));
     expect(screen.queryByRole('region', { name: 'Story inspector' })).toBeNull();
-    await waitFor(() => {
-      expect(backHandler).not.toBe(inspectorBackHandler);
-    });
+    // The registered handler stays the same object on purpose -- it reads the
+    // current state through a ref -- so what matters is what it now does.
     expect(backHandler).not.toBeNull();
     act(() => {
       backHandler?.();

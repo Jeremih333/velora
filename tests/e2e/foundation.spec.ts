@@ -3183,19 +3183,40 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
     'true',
   );
   await expect(greetingBlock).not.toContainText('**Ты всё-таки пришёл.**');
+  // An opened character is a page of its own now, not a card unfolding inside
+  // the catalogue row, so what matters is that the page covers the screen and
+  // its content stays inside it.
   const expandedCharacterGeometry = await liraCharacter.evaluate((card) => {
-    const grid = card.closest('.card-grid');
     const cardRect = card.getBoundingClientRect();
-    const gridRect = grid?.getBoundingClientRect();
+    const page = card.closest('.character-page');
+    const pageRect = page?.getBoundingClientRect();
+    const scroller = page?.querySelector('.character-page-scroll');
     return {
-      cardWidth: cardRect.width,
-      gridWidth: gridRect?.width ?? 0,
+      cardLeft: cardRect.left,
+      cardRight: cardRect.right,
+      pageLeft: pageRect?.left ?? -1,
+      pageRight: pageRect?.right ?? -1,
+      pageWidth: pageRect?.width ?? 0,
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      scrollerOverflow: scroller ? getComputedStyle(scroller).overflowY : '',
     };
   });
-  expect(expandedCharacterGeometry.gridWidth).toBeGreaterThan(0);
-  expect(expandedCharacterGeometry.cardWidth).toBeGreaterThanOrEqual(
-    expandedCharacterGeometry.gridWidth * 0.95,
+  expect(expandedCharacterGeometry.pageWidth).toBeGreaterThan(0);
+  expect(expandedCharacterGeometry.pageWidth).toBeLessThanOrEqual(
+    expandedCharacterGeometry.viewportWidth,
   );
+  expect(expandedCharacterGeometry.cardLeft).toBeGreaterThanOrEqual(
+    expandedCharacterGeometry.pageLeft - 1,
+  );
+  expect(expandedCharacterGeometry.cardRight).toBeLessThanOrEqual(
+    expandedCharacterGeometry.pageRight + 1,
+  );
+  expect(expandedCharacterGeometry.documentWidth).toBeLessThanOrEqual(
+    expandedCharacterGeometry.viewportWidth,
+  );
+  expect(expandedCharacterGeometry.scrollerOverflow).toBe('auto');
+  await expect(page.getByRole('button', { name: 'Назад в каталог' })).toBeVisible();
   if (capturesReferenceEvidence(testInfo)) {
     await greetingBlock.evaluate((element) => {
       element.scrollIntoView({ block: 'start', behavior: 'instant' });
@@ -3233,8 +3254,9 @@ test('@visual @a11y authenticated MiniApp navigation and persona creation remain
   await liraCharacter.getByLabel('Описание жалобы').fill('Повторяющийся рекламный контент.');
   await liraCharacter.getByRole('button', { name: 'Отправить жалобу' }).click();
   await expect(page.getByText('Жалоба отправлена в очередь модерации.')).toBeVisible();
-  // The card copy itself is the primary start target; the cover remains reserved for avatar preview.
-  await liraCharacter.getByRole('heading', { name: 'Лира' }).click();
+  // On the character's own page the whole surface is readable content, so the
+  // explicit button is the start target rather than a tap on the card copy.
+  await liraCharacter.getByRole('button', { name: 'Начать историю' }).click();
   const personaChooser = page.getByRole('dialog', { name: 'Кто будет общаться с Лира?' });
   await expect(personaChooser).toBeVisible();
   await expect(personaChooser.getByRole('radio', { name: /Алекс/u })).toBeChecked();

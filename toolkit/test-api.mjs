@@ -4047,6 +4047,60 @@ try {
     { method: 'PUT', headers: { ...headers, 'x-csrf-token': csrfToken } },
     200,
   );
+  const secondChatWithCharacter = await request(
+    '/api/v1/conversations',
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        characterId: character.id,
+        personaId: storyPersona.id,
+        greetingIndex: 0,
+        idempotencyKey: `second-chat:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const collapsedList = await request('/api/v1/conversations?state=ALL', { headers }, 200);
+  const rowsForCharacter = collapsedList.items.filter(
+    (item) => item.characterId === character.id && !item.isPreview,
+  );
+  if (rowsForCharacter.length !== 1) {
+    throw new Error(
+      `Starting another chat with the same character duplicated it in the list: ${rowsForCharacter.length} rows.`,
+    );
+  }
+  if (
+    rowsForCharacter[0].id !== secondChatWithCharacter.id ||
+    rowsForCharacter[0].siblingCount !== 2 ||
+    collapsedList.totalCount !== collapsedList.items.length
+  ) {
+    throw new Error('The collapsed conversation row did not describe its sibling chats.');
+  }
+  const siblings = await request(
+    `/api/v1/conversations/${secondChatWithCharacter.id}/siblings`,
+    { headers },
+    200,
+  );
+  if (
+    siblings.items.length !== 2 ||
+    !siblings.items.some((item) => item.id === conversation.id && item.current === false) ||
+    !siblings.items.some((item) => item.id === secondChatWithCharacter.id && item.current === true)
+  ) {
+    throw new Error('The chat switcher did not list both chats with the character.');
+  }
+  await request(
+    `/api/v1/conversations/${secondChatWithCharacter.id}`,
+    { method: 'DELETE', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
+  const restoredList = await request('/api/v1/conversations?state=ALL', { headers }, 200);
+  if (
+    restoredList.items.filter((item) => item.characterId === character.id && !item.isPreview)[0]
+      ?.id !== conversation.id
+  ) {
+    throw new Error('Deleting the newer chat did not surface the remaining one.');
+  }
   const greetingOverrideText = 'В этом диалоге архив встречает тебя иначе.';
   const greetingOverride = await request(
     `/api/v1/conversations/${conversation.id}/messages/${initialGreeting.id}/edit`,
