@@ -8,18 +8,27 @@ The mandatory `pnpm test:roleplay-quality` gate runs six typed scenarios through
 `activateLore` and `buildRoleplayPrompt` functions used by inference. It performs no provider
 request and spends no BotHub CAPS.
 
-| ID  | Scenario                          | Verified invariants                                                   |
-| --- | --------------------------------- | --------------------------------------------------------------------- |
-| A   | Simple English                    | character, persona, scenario and selected branch are present          |
-| B   | Russian roleplay                  | Unicode character/persona/memory and recent Russian dialogue survive  |
-| C   | Large definition                  | essential definition remains bounded by the declared context budget   |
-| D   | Multiple lore entries             | deterministic relevant entries activate; unrelated sentinel is absent |
-| E   | Heavy `{{char}}` / `{{user}}` use | nested documented variables resolve across prompt layers              |
-| F   | 360-message conversation          | memory and newest branch survive while old history is dropped         |
+| ID  | Scenario                          | Verified invariants                                                    |
+| --- | --------------------------------- | ---------------------------------------------------------------------- |
+| A   | Simple English                    | character, persona, scenario and selected branch are present           |
+| B   | Russian roleplay                  | Unicode character/persona/memory and recent Russian dialogue survive   |
+| C   | Large definition                  | essential definition remains bounded by the declared context budget    |
+| D   | Multiple lore entries             | deterministic relevant entries activate; unrelated sentinel is absent  |
+| E   | Heavy `{{char}}` / `{{user}}` use | nested documented variables resolve across prompt layers               |
+| F   | 360-message conversation          | memory and newest branch survive while old history is dropped          |
+| G   | Final Мира / Алекс acceptance     | templates, manual+auto memory, lore, style and selected branch survive |
 
 Every case also asserts the reserved output budget, inspector/token equality and absence of
 unknown template variables. A dedicated regression proves recursive templates terminate safely,
 preserve escaped literals and do not evaluate arbitrary tokens.
+
+The final acceptance additionally uses the real local Worker and temporary D1 with character
+`Мира` and persona `Алекс`. It creates manual memory, runs the deterministic automatic-summary job,
+then reads the protected Prompt Inspector again. The result retains the manual fact and prior branch
+event, the activated Lorebook entry, selected branch, rendered per-chat style instruction and
+`deepseek-chat-v3.1` resolved from persisted conversation settings. The production-like browser
+journey visibly expands the model, persona, lore and instruction sections. This diagnostic path uses
+the same prompt assembly as generation and does not spend provider credits.
 
 ## Live staging conversation
 

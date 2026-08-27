@@ -1,0 +1,2483 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VeloraAI — visual review 46/46</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, sans-serif;
+        background: #090a0c;
+        color: #f5f5f4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, #111317, #08090b 35rem);
+      }
+      .top {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 14px clamp(14px, 3vw, 36px);
+        background: rgba(9, 10, 12, 0.94);
+        border-bottom: 1px solid #303238;
+        backdrop-filter: blur(16px);
+      }
+      h1 {
+        margin: 0 auto 0 0;
+        font-size: clamp(18px, 3vw, 28px);
+      }
+      .summary {
+        color: #b5b8bf;
+        font-variant-numeric: tabular-nums;
+      }
+      button {
+        min-height: 40px;
+        padding: 8px 14px;
+        border: 1px solid #454850;
+        border-radius: 999px;
+        background: #1b1d22;
+        color: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: #d7d9de;
+      }
+      .export {
+        background: #f4f4f3;
+        color: #111214;
+      }
+      main {
+        display: grid;
+        gap: 18px;
+        padding: 18px clamp(10px, 2vw, 28px) 64px;
+      }
+      .state {
+        padding: 16px;
+        border: 1px solid #303238;
+        border-radius: 20px;
+        background: #15171b;
+        box-shadow: 0 16px 45px rgba(0, 0, 0, 0.2);
+      }
+      .state[data-result='PASS'] {
+        border-color: #397a5b;
+      }
+      .state[data-result='FAIL'] {
+        border-color: #a94b57;
+      }
+      .state header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      h2 {
+        margin: 0 auto 0 0;
+        font-size: 17px;
+        letter-spacing: 0.08em;
+      }
+      .decision {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .state[data-result='PASS'] [data-value='PASS'] {
+        background: #286443;
+        border-color: #4da578;
+      }
+      .state[data-result='FAIL'] [data-value='FAIL'] {
+        background: #7b2936;
+        border-color: #d55b6d;
+      }
+      .shots {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(160px, 1fr));
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        scrollbar-width: thin;
+      }
+      figure {
+        margin: 0;
+        min-width: 0;
+      }
+      figcaption {
+        margin: 0 0 6px;
+        color: #b5b8bf;
+        font-size: 13px;
+      }
+      img {
+        display: block;
+        width: 100%;
+        height: 360px;
+        object-fit: contain;
+        object-position: top center;
+        border: 1px solid #303238;
+        border-radius: 12px;
+        background: #050607;
+      }
+      .na {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 360px;
+        padding: 20px;
+        border: 1px dashed #454850;
+        border-radius: 12px;
+        background: #0e0f12;
+        color: #b5b8bf;
+        text-align: center;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        margin-top: 12px;
+        color: #c8cad0;
+        font-size: 13px;
+      }
+      textarea {
+        width: 100%;
+        resize: vertical;
+        padding: 10px 12px;
+        border: 1px solid #383b42;
+        border-radius: 12px;
+        background: #0e0f12;
+        color: #f5f5f4;
+        font: inherit;
+      }
+      @media (max-width: 720px) {
+        .shots {
+          grid-template-columns: repeat(5, 76vw);
+        }
+        img {
+          height: 62vh;
+        }
+        .state header {
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <h1>VeloraAI · visual review 46/46</h1>
+      <span class="summary" aria-live="polite"></span>
+      <button class="export" type="button">Скачать результат</button>
+    </header>
+    <main>
+      <article class="state" data-state="ui-01">
+        <header>
+          <h2>UI-01</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-01">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-01/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-01/expected.jpg" alt="ui-01: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-01/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-01/actual-iphone.png" alt="ui-01: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-01/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-01/actual-tablet.png" alt="ui-01: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-01/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-01/actual-desktop.png" alt="ui-01: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-01/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-01/diff-iphone.png" alt="ui-01: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-02">
+        <header>
+          <h2>UI-02</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-02">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-02/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-02/expected.jpg" alt="ui-02: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-02/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-02/actual-iphone.png" alt="ui-02: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-02/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-02/actual-tablet.png" alt="ui-02: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-02/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-02/actual-desktop.png" alt="ui-02: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-02/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-02/diff-iphone.png" alt="ui-02: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-03">
+        <header>
+          <h2>UI-03</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-03">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-03/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-03/expected.jpg" alt="ui-03: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-03/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-03/actual-iphone.png" alt="ui-03: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-03/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-03/actual-tablet.png" alt="ui-03: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-03/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-03/actual-desktop.png" alt="ui-03: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-03/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-03/diff-iphone.png" alt="ui-03: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-04">
+        <header>
+          <h2>UI-04</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-04">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-04/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-04/expected.jpg" alt="ui-04: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-04/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-04/actual-iphone.png" alt="ui-04: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-04/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-04/actual-tablet.png" alt="ui-04: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-04/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-04/actual-desktop.png" alt="ui-04: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-04/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-04/diff-iphone.png" alt="ui-04: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-05">
+        <header>
+          <h2>UI-05</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-05">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-05/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-05/expected.jpg" alt="ui-05: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-05/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-05/actual-iphone.png" alt="ui-05: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-05/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-05/actual-tablet.png" alt="ui-05: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-05/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-05/actual-desktop.png" alt="ui-05: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-05/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-05/diff-iphone.png" alt="ui-05: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-06">
+        <header>
+          <h2>UI-06</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-06">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-06/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-06/expected.jpg" alt="ui-06: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <div class="na">
+              На телефоне сортировка скрыта намеренно. Проверь состояние на планшете и desktop.
+            </div>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-06/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-06/actual-tablet.png" alt="ui-06: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-06/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-06/actual-desktop.png" alt="ui-06: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-06/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-06/diff-iphone.png" alt="ui-06: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-07">
+        <header>
+          <h2>UI-07</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-07">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-07/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-07/expected.jpg" alt="ui-07: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-07/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-07/actual-iphone.png" alt="ui-07: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-07/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-07/actual-tablet.png" alt="ui-07: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-07/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-07/actual-desktop.png" alt="ui-07: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-07/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-07/diff-iphone.png" alt="ui-07: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-08">
+        <header>
+          <h2>UI-08</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-08">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-08/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-08/expected.jpg" alt="ui-08: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-08/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-08/actual-iphone.png" alt="ui-08: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-08/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-08/actual-tablet.png" alt="ui-08: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-08/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-08/actual-desktop.png" alt="ui-08: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-08/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-08/diff-iphone.png" alt="ui-08: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-09">
+        <header>
+          <h2>UI-09</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-09">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-09/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-09/expected.jpg" alt="ui-09: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-09/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-09/actual-iphone.png" alt="ui-09: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-09/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-09/actual-tablet.png" alt="ui-09: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-09/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-09/actual-desktop.png" alt="ui-09: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-09/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-09/diff-iphone.png" alt="ui-09: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-10">
+        <header>
+          <h2>UI-10</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-10">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-10/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-10/expected.jpg" alt="ui-10: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-10/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-10/actual-iphone.png" alt="ui-10: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-10/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-10/actual-tablet.png" alt="ui-10: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-10/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-10/actual-desktop.png" alt="ui-10: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-10/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-10/diff-iphone.png" alt="ui-10: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-11">
+        <header>
+          <h2>UI-11</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-11">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-11/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-11/expected.jpg" alt="ui-11: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-11/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-11/actual-iphone.png" alt="ui-11: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-11/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-11/actual-tablet.png" alt="ui-11: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-11/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-11/actual-desktop.png" alt="ui-11: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-11/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-11/diff-iphone.png" alt="ui-11: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-12">
+        <header>
+          <h2>UI-12</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-12">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-12/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-12/expected.jpg" alt="ui-12: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-12/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-12/actual-iphone.png" alt="ui-12: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-12/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-12/actual-tablet.png" alt="ui-12: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-12/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-12/actual-desktop.png" alt="ui-12: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-12/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-12/diff-iphone.png" alt="ui-12: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-13">
+        <header>
+          <h2>UI-13</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-13">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-13/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-13/expected.jpg" alt="ui-13: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-13/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-13/actual-iphone.png" alt="ui-13: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-13/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-13/actual-tablet.png" alt="ui-13: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-13/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-13/actual-desktop.png" alt="ui-13: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-13/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-13/diff-iphone.png" alt="ui-13: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-14">
+        <header>
+          <h2>UI-14</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-14">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-14/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-14/expected.jpg" alt="ui-14: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-14/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-14/actual-iphone.png" alt="ui-14: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-14/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-14/actual-tablet.png" alt="ui-14: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-14/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-14/actual-desktop.png" alt="ui-14: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-14/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-14/diff-iphone.png" alt="ui-14: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-15">
+        <header>
+          <h2>UI-15</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-15">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-15/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-15/expected.jpg" alt="ui-15: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-15/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-15/actual-iphone.png" alt="ui-15: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-15/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-15/actual-tablet.png" alt="ui-15: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-15/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-15/actual-desktop.png" alt="ui-15: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-15/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-15/diff-iphone.png" alt="ui-15: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-16">
+        <header>
+          <h2>UI-16</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-16">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-16/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-16/expected.jpg" alt="ui-16: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-16/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-16/actual-iphone.png" alt="ui-16: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-16/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-16/actual-tablet.png" alt="ui-16: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-16/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-16/actual-desktop.png" alt="ui-16: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-16/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-16/diff-iphone.png" alt="ui-16: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-17">
+        <header>
+          <h2>UI-17</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-17">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-17/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-17/expected.jpg" alt="ui-17: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-17/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-17/actual-iphone.png" alt="ui-17: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-17/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-17/actual-tablet.png" alt="ui-17: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-17/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-17/actual-desktop.png" alt="ui-17: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-17/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-17/diff-iphone.png" alt="ui-17: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-18">
+        <header>
+          <h2>UI-18</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-18">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-18/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-18/expected.jpg" alt="ui-18: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-18/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-18/actual-iphone.png" alt="ui-18: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-18/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-18/actual-tablet.png" alt="ui-18: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-18/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-18/actual-desktop.png" alt="ui-18: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-18/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-18/diff-iphone.png" alt="ui-18: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-19">
+        <header>
+          <h2>UI-19</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-19">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-19/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-19/expected.jpg" alt="ui-19: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-19/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-19/actual-iphone.png" alt="ui-19: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-19/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-19/actual-tablet.png" alt="ui-19: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-19/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-19/actual-desktop.png" alt="ui-19: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-19/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-19/diff-iphone.png" alt="ui-19: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-20">
+        <header>
+          <h2>UI-20</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-20">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-20/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-20/expected.jpg" alt="ui-20: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-20/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-20/actual-iphone.png" alt="ui-20: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-20/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-20/actual-tablet.png" alt="ui-20: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-20/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-20/actual-desktop.png" alt="ui-20: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-20/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-20/diff-iphone.png" alt="ui-20: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-21">
+        <header>
+          <h2>UI-21</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-21">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-21/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-21/expected.jpg" alt="ui-21: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-21/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-21/actual-iphone.png" alt="ui-21: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-21/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-21/actual-tablet.png" alt="ui-21: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-21/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-21/actual-desktop.png" alt="ui-21: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-21/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-21/diff-iphone.png" alt="ui-21: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-22">
+        <header>
+          <h2>UI-22</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-22">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-22/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-22/expected.jpg" alt="ui-22: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-22/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-22/actual-iphone.png" alt="ui-22: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-22/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-22/actual-tablet.png" alt="ui-22: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-22/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-22/actual-desktop.png" alt="ui-22: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-22/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-22/diff-iphone.png" alt="ui-22: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-23">
+        <header>
+          <h2>UI-23</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-23">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-23/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-23/expected.jpg" alt="ui-23: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-23/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-23/actual-iphone.png" alt="ui-23: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-23/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-23/actual-tablet.png" alt="ui-23: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-23/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-23/actual-desktop.png" alt="ui-23: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-23/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-23/diff-iphone.png" alt="ui-23: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-24">
+        <header>
+          <h2>UI-24</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-24">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-24/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-24/expected.jpg" alt="ui-24: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-24/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-24/actual-iphone.png" alt="ui-24: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-24/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-24/actual-tablet.png" alt="ui-24: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-24/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-24/actual-desktop.png" alt="ui-24: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-24/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-24/diff-iphone.png" alt="ui-24: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-25">
+        <header>
+          <h2>UI-25</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-25">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-25/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-25/expected.jpg" alt="ui-25: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-25/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-25/actual-iphone.png" alt="ui-25: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-25/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-25/actual-tablet.png" alt="ui-25: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-25/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-25/actual-desktop.png" alt="ui-25: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-25/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-25/diff-iphone.png" alt="ui-25: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-26">
+        <header>
+          <h2>UI-26</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-26">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-26/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-26/expected.jpg" alt="ui-26: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-26/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-26/actual-iphone.png" alt="ui-26: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-26/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-26/actual-tablet.png" alt="ui-26: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-26/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-26/actual-desktop.png" alt="ui-26: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-26/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-26/diff-iphone.png" alt="ui-26: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-27">
+        <header>
+          <h2>UI-27</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-27">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-27/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-27/expected.jpg" alt="ui-27: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-27/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-27/actual-iphone.png" alt="ui-27: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-27/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-27/actual-tablet.png" alt="ui-27: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-27/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-27/actual-desktop.png" alt="ui-27: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-27/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-27/diff-iphone.png" alt="ui-27: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-28">
+        <header>
+          <h2>UI-28</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-28">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-28/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-28/expected.jpg" alt="ui-28: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-28/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-28/actual-iphone.png" alt="ui-28: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-28/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-28/actual-tablet.png" alt="ui-28: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-28/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-28/actual-desktop.png" alt="ui-28: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-28/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-28/diff-iphone.png" alt="ui-28: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-29">
+        <header>
+          <h2>UI-29</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-29">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-29/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-29/expected.jpg" alt="ui-29: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-29/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-29/actual-iphone.png" alt="ui-29: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-29/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-29/actual-tablet.png" alt="ui-29: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-29/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-29/actual-desktop.png" alt="ui-29: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-29/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-29/diff-iphone.png" alt="ui-29: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-30">
+        <header>
+          <h2>UI-30</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-30">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-30/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-30/expected.jpg" alt="ui-30: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-30/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-30/actual-iphone.png" alt="ui-30: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-30/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-30/actual-tablet.png" alt="ui-30: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-30/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-30/actual-desktop.png" alt="ui-30: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-30/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-30/diff-iphone.png" alt="ui-30: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-31">
+        <header>
+          <h2>UI-31</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-31">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-31/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-31/expected.jpg" alt="ui-31: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-31/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-31/actual-iphone.png" alt="ui-31: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-31/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-31/actual-tablet.png" alt="ui-31: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-31/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-31/actual-desktop.png" alt="ui-31: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-31/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-31/diff-iphone.png" alt="ui-31: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-32">
+        <header>
+          <h2>UI-32</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-32">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-32/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-32/expected.jpg" alt="ui-32: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-32/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-32/actual-iphone.png" alt="ui-32: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-32/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-32/actual-tablet.png" alt="ui-32: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-32/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-32/actual-desktop.png" alt="ui-32: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-32/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-32/diff-iphone.png" alt="ui-32: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-33">
+        <header>
+          <h2>UI-33</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-33">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-33/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-33/expected.jpg" alt="ui-33: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-33/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-33/actual-iphone.png" alt="ui-33: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-33/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-33/actual-tablet.png" alt="ui-33: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-33/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-33/actual-desktop.png" alt="ui-33: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-33/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-33/diff-iphone.png" alt="ui-33: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-34">
+        <header>
+          <h2>UI-34</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-34">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-34/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-34/expected.jpg" alt="ui-34: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-34/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-34/actual-iphone.png" alt="ui-34: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-34/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-34/actual-tablet.png" alt="ui-34: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-34/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-34/actual-desktop.png" alt="ui-34: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-34/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-34/diff-iphone.png" alt="ui-34: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-35">
+        <header>
+          <h2>UI-35</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-35">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-35/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-35/expected.jpg" alt="ui-35: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-35/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-35/actual-iphone.png" alt="ui-35: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-35/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-35/actual-tablet.png" alt="ui-35: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-35/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-35/actual-desktop.png" alt="ui-35: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-35/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-35/diff-iphone.png" alt="ui-35: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-36">
+        <header>
+          <h2>UI-36</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-36">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-36/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-36/expected.jpg" alt="ui-36: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-36/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-36/actual-iphone.png" alt="ui-36: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-36/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-36/actual-tablet.png" alt="ui-36: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-36/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-36/actual-desktop.png" alt="ui-36: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-36/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-36/diff-iphone.png" alt="ui-36: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-37">
+        <header>
+          <h2>UI-37</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-37">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-37/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-37/expected.jpg" alt="ui-37: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-37/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-37/actual-iphone.png" alt="ui-37: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-37/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-37/actual-tablet.png" alt="ui-37: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-37/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-37/actual-desktop.png" alt="ui-37: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-37/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-37/diff-iphone.png" alt="ui-37: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-38">
+        <header>
+          <h2>UI-38</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-38">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-38/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-38/expected.jpg" alt="ui-38: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-38/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-38/actual-iphone.png" alt="ui-38: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-38/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-38/actual-tablet.png" alt="ui-38: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-38/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-38/actual-desktop.png" alt="ui-38: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-38/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-38/diff-iphone.png" alt="ui-38: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-39">
+        <header>
+          <h2>UI-39</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-39">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-39/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-39/expected.jpg" alt="ui-39: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-39/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-39/actual-iphone.png" alt="ui-39: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-39/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-39/actual-tablet.png" alt="ui-39: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-39/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-39/actual-desktop.png" alt="ui-39: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-39/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-39/diff-iphone.png" alt="ui-39: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-40">
+        <header>
+          <h2>UI-40</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-40">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-40/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-40/expected.jpg" alt="ui-40: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-40/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-40/actual-iphone.png" alt="ui-40: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-40/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-40/actual-tablet.png" alt="ui-40: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-40/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-40/actual-desktop.png" alt="ui-40: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-40/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-40/diff-iphone.png" alt="ui-40: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-41">
+        <header>
+          <h2>UI-41</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-41">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-41/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-41/expected.jpg" alt="ui-41: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-41/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-41/actual-iphone.png" alt="ui-41: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-41/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-41/actual-tablet.png" alt="ui-41: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-41/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-41/actual-desktop.png" alt="ui-41: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-41/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-41/diff-iphone.png" alt="ui-41: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-42">
+        <header>
+          <h2>UI-42</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-42">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-42/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-42/expected.jpg" alt="ui-42: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-42/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-42/actual-iphone.png" alt="ui-42: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-42/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-42/actual-tablet.png" alt="ui-42: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-42/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-42/actual-desktop.png" alt="ui-42: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-42/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-42/diff-iphone.png" alt="ui-42: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-43">
+        <header>
+          <h2>UI-43</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-43">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-43/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-43/expected.jpg" alt="ui-43: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-43/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-43/actual-iphone.png" alt="ui-43: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-43/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-43/actual-tablet.png" alt="ui-43: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-43/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-43/actual-desktop.png" alt="ui-43: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-43/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-43/diff-iphone.png" alt="ui-43: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-44">
+        <header>
+          <h2>UI-44</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-44">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-44/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-44/expected.jpg" alt="ui-44: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-44/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-44/actual-iphone.png" alt="ui-44: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-44/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-44/actual-tablet.png" alt="ui-44: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-44/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-44/actual-desktop.png" alt="ui-44: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-44/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-44/diff-iphone.png" alt="ui-44: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-45">
+        <header>
+          <h2>UI-45</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-45">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-45/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-45/expected.jpg" alt="ui-45: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-45/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-45/actual-iphone.png" alt="ui-45: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-45/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-45/actual-tablet.png" alt="ui-45: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-45/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-45/actual-desktop.png" alt="ui-45: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-45/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-45/diff-iphone.png" alt="ui-45: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+
+      <article class="state" data-state="ui-46">
+        <header>
+          <h2>UI-46</h2>
+          <div class="decision" role="group" aria-label="Решение для ui-46">
+            <button type="button" data-value="PASS">PASS</button>
+            <button type="button" data-value="FAIL">FAIL</button>
+            <button type="button" data-value="OPEN">СБРОС</button>
+          </div>
+        </header>
+        <div class="shots">
+          <figure>
+            <figcaption>Reference</figcaption>
+            <a href="./ui-46/expected.jpg" target="_blank"
+              ><img loading="lazy" src="./ui-46/expected.jpg" alt="ui-46: reference"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone</figcaption>
+            <a href="./ui-46/actual-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-46/actual-iphone.png" alt="ui-46: phone"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Tablet</figcaption>
+            <a href="./ui-46/actual-tablet.png" target="_blank"
+              ><img loading="lazy" src="./ui-46/actual-tablet.png" alt="ui-46: tablet"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Desktop</figcaption>
+            <a href="./ui-46/actual-desktop.png" target="_blank"
+              ><img loading="lazy" src="./ui-46/actual-desktop.png" alt="ui-46: desktop"
+            /></a>
+          </figure>
+          <figure>
+            <figcaption>Phone diff</figcaption>
+            <a href="./ui-46/diff-iphone.png" target="_blank"
+              ><img loading="lazy" src="./ui-46/diff-iphone.png" alt="ui-46: phone diff"
+            /></a>
+          </figure>
+        </div>
+        <label
+          >Комментарий<textarea
+            rows="2"
+            placeholder="Что поправить или почему состояние принято"
+          ></textarea>
+        </label>
+      </article>
+    </main>
+    <script>
+      const storageKey = 'velora-visual-review-v2-20260826';
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      const states = [...document.querySelectorAll('.state')];
+      function render() {
+        for (const state of states) {
+          const value = saved[state.dataset.state] || { result: 'OPEN', comment: '' };
+          state.dataset.result = value.result;
+          state.querySelector('textarea').value = value.comment || '';
+        }
+        const counts = { PASS: 0, FAIL: 0, OPEN: 0 };
+        for (const state of states) counts[state.dataset.result] += 1;
+        document.querySelector('.summary').textContent =
+          'PASS ' + counts.PASS + ' · FAIL ' + counts.FAIL + ' · OPEN ' + counts.OPEN;
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+      }
+      document.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-value]');
+        if (!button) return;
+        const state = button.closest('.state');
+        saved[state.dataset.state] = {
+          result: button.dataset.value,
+          comment: state.querySelector('textarea').value,
+        };
+        render();
+      });
+      document.addEventListener('input', (event) => {
+        if (!(event.target instanceof HTMLTextAreaElement)) return;
+        const state = event.target.closest('.state');
+        saved[state.dataset.state] = {
+          result: state.dataset.result || 'OPEN',
+          comment: event.target.value,
+        };
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+      });
+      document.querySelector('.export').addEventListener('click', () => {
+        const result = {
+          generatedAt: new Date().toISOString(),
+          releaseCandidate: 'local-2026-08-26',
+          states: saved,
+        };
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(
+          new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' }),
+        );
+        link.download = 'velora-visual-review.json';
+        link.click();
+        URL.revokeObjectURL(link.href);
+      });
+      render();
+    </script>
+  </body>
+</html>

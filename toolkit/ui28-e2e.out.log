@@ -1,0 +1,41 @@
+
+Running 4 tests using 4 workers
+
+  ok 3 [iphone] › tests\e2e\foundation.spec.ts:78:1 › renders the isolated Velora shell without pretending standalone auth (2.4s)
+  ok 4 [iphone] › tests\e2e\foundation.spec.ts:3131:1 › authenticated shell and heavy workspaces load from separate chunks (3.7s)
+  ok 2 [iphone] › tests\e2e\foundation.spec.ts:3241:1 › owner manages moderator appointments without exposing the control to staff (15.1s)
+  x  1 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (2.0m)
+
+
+  1) [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "newest"
+    Received: "active"
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      2628 |     });
+      2629 |     await page.getByRole('option', { name: 'Сначала недавние' }).click();
+    > 2630 |     await expect.poll(() => conversationListQueries.at(-1)?.get('sort')).toBe('newest');
+           |                                                                          ^
+      2631 |     await page.getByRole('button', { name: 'Управление диалогами' }).click();
+      2632 |     await expect.poll(() => conversationListQueries.at(-1)?.get('state')).toBe('ALL');
+      2633 |     const conversationCard = page.getByRole('article').filter({ hasText: 'Лира · Алекс' });
+        at C:\Users\User\Desktop\бот для ролплея с нейросетями\tests\e2e\foundation.spec.ts:2630:74
+
+    Error Context: test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 
+  3 passed (2.2m)

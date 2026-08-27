@@ -1,4 +1,4 @@
-import { AppError } from '@velora/shared';
+import { AppError, type CharacterLanguageCode } from '@velora/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { readThroughPublicCache } from './public-cache';
@@ -12,11 +12,12 @@ interface PublicEnvironment {
 interface PublicCharacterRow {
   readonly id: string;
   readonly avatarFileId: string | null;
-  readonly language: 'ru' | 'en';
+  readonly language: CharacterLanguageCode;
   readonly updatedAt: number;
   readonly name: string;
   readonly tagline: string;
   readonly description: string;
+  readonly personality: string | null;
   readonly firstMessage: string;
   readonly alternateGreetingsJson: string;
   readonly creatorId: string;
@@ -34,8 +35,9 @@ interface TagRow {
 }
 
 const idSchema = z.uuid();
-const publicProjection = `c.id, c.avatar_file_id AS avatarFileId, c.language,
+const publicProjection = `c.id, c.avatar_file_id AS avatarFileId, c.language_code AS language,
   c.updated_at AS updatedAt, v.name, v.tagline, v.description,
+  CASE WHEN c.personality_visible = 1 THEN v.personality ELSE NULL END AS personality,
   v.first_message AS firstMessage, v.alternate_greetings_json AS alternateGreetingsJson,
   u.id AS creatorId, COALESCE(up.display_name, u.display_name) AS creatorName,
   (SELECT COUNT(*) FROM character_likes cl WHERE cl.character_id = c.id) AS likeCount,

@@ -28,13 +28,16 @@ const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
 const botUsername = process.env.TELEGRAM_BOT_USERNAME;
 const appUrl = new URL(process.env.PUBLIC_APP_URL);
 if (appUrl.protocol !== 'https:') throw new Error('PUBLIC_APP_URL must use HTTPS.');
+const webAppUrl = new URL(appUrl);
+const cacheVersion = process.env.WEB_APP_CACHE_VERSION;
+if (cacheVersion) webAppUrl.searchParams.set('v', cacheVersion);
 if (!/^[A-Za-z0-9_]{5,32}$/u.test(botUsername)) throw new Error('Invalid Telegram bot username.');
 if (webhookSecret.length < 16 || webhookSecret.length > 256) {
   throw new Error('TELEGRAM_WEBHOOK_SECRET must contain 16–256 characters.');
 }
 
 const commands = [
-  { command: 'start', description: 'Начать работу с Velora' },
+  { command: 'start', description: 'Начать работу с VeloraAI' },
   { command: 'app', description: 'Открыть приложение' },
   { command: 'help', description: 'Помощь' },
   { command: 'settings', description: 'Настройки' },
@@ -46,7 +49,7 @@ const commands = [
   { command: 'privacy', description: 'Конфиденциальность' },
 ];
 const englishCommands = [
-  { command: 'start', description: 'Start using Velora' },
+  { command: 'start', description: 'Start using VeloraAI' },
   { command: 'app', description: 'Open the app' },
   { command: 'help', description: 'Help' },
   { command: 'settings', description: 'Settings' },
@@ -58,9 +61,9 @@ const englishCommands = [
   { command: 'privacy', description: 'Privacy policy' },
 ];
 const description =
-  'Velora — пространство для AI roleplay: персонажи, personas, память, ветвление историй и полный контроль над контекстом.';
+  'VeloraAI — пространство для AI roleplay: персонажи, personas, память, ветвление историй и полный контроль над контекстом.';
 const shortDescription = 'AI roleplay с персонажами и живой памятью.';
-const menuButton = { type: 'web_app', text: 'Открыть', web_app: { url: appUrl.href } };
+const menuButton = { type: 'web_app', text: 'Открыть', web_app: { url: webAppUrl.href } };
 const allowedUpdates = ['message', 'callback_query', 'pre_checkout_query'];
 
 const operations = [

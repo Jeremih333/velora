@@ -1,22 +1,73 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState, type ChangeEvent, type SyntheticEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react';
 import { apiRequest } from './api';
+import { EmptyState, EntityTabs, Skeleton } from './CoreComponents';
+import { ActionMenu, SortDropdown } from './ProductComponents';
+import { CharacterImage } from './CharacterImage';
+import { ImageUploadControl } from './ImageUploadControl';
 import { useI18n, type WebMessages } from './i18n';
-import type { Character, Lorebook, LorebookTransfer, LoreEntry } from './types';
+import type {
+  Character,
+  Lorebook,
+  LorebookTransfer,
+  LoreEntry,
+  MediaFile,
+  MediaLibraryResponse,
+} from './types';
+import { VeloraIcon } from './VeloraIcon';
+import { parseLibraryUrlState, writeLibraryUrlState, type LibrarySort } from './library-url-state';
 
 interface ListResponse<T> {
   readonly items: readonly T[];
 }
 
-export function LorebooksView({ onBack }: { readonly onBack: () => void }) {
+export function LorebookCard({ children }: { readonly children: ReactNode }) {
+  return <article className="list-card lorebook-list-card">{children}</article>;
+}
+
+export function LorebooksView({
+  onBack,
+  createRequest = 0,
+}: {
+  readonly onBack: () => void;
+  readonly createRequest?: number;
+}) {
   const { messages } = useI18n();
   const client = useQueryClient();
-  const [editing, setEditing] = useState<Lorebook | 'new' | null>(null);
+  const [editing, setEditing] = useState<Lorebook | 'new' | null>(createRequest > 0 ? 'new' : null);
   const [transferNotice, setTransferNotice] = useState<string | null>(null);
+  const [initialUrlState] = useState(() =>
+    parseLibraryUrlState(typeof window === 'undefined' ? '' : window.location.search),
+  );
+  const [query, setQuery] = useState(initialUrlState.query);
+  const [sort, setSort] = useState<LibrarySort>(initialUrlState.sort);
+  useEffect(() => {
+    const search = writeLibraryUrlState(window.location.search, {
+      query,
+      sort,
+      visibility: 'ALL',
+      kind: 'ALL',
+    });
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${search}${window.location.hash}`,
+    );
+  }, [query, sort]);
   const importInput = useRef<HTMLInputElement>(null);
   const books = useQuery({
-    queryKey: ['lorebooks'],
-    queryFn: () => apiRequest<ListResponse<Lorebook>>('/api/v1/lorebooks'),
+    queryKey: ['lorebooks', query, sort],
+    queryFn: () => {
+      const parameters = new URLSearchParams({ q: query, sort });
+      return apiRequest<ListResponse<Lorebook>>(`/api/v1/lorebooks?${parameters.toString()}`);
+    },
   });
   const remove = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/v1/lorebooks/${id}`, { method: 'DELETE' }),
@@ -82,17 +133,14 @@ export function LorebooksView({ onBack }: { readonly onBack: () => void }) {
       />
     );
   return (
-    <div className="view-stack">
-      <header className="view-header">
+    <div className="view-stack library-view lorebooks-library">
+      <header className="view-header library-view-header">
         <div>
           <p className="eyebrow">{messages.lorebooks.eyebrow}</p>
-          <h1>{messages.lorebooks.title}</h1>
+          <h1>{messages.characters.title}</h1>
           <p>{messages.lorebooks.description}</p>
         </div>
         <div className="header-actions">
-          <button className="secondary compact-button" type="button" onClick={onBack}>
-            {messages.lorebooks.backToCharacters}
-          </button>
           <button
             className="compact-primary"
             type="button"
@@ -122,7 +170,39 @@ export function LorebooksView({ onBack }: { readonly onBack: () => void }) {
           />
         </div>
       </header>
-      <p className="meta">{messages.lorebooks.importHint}</p>
+      <EntityTabs
+        label={messages.navigation.myLibrary}
+        value="lorebooks"
+        items={[
+          { id: 'characters', label: messages.navigation.characters },
+          { id: 'lorebooks', label: messages.lorebooks.title },
+        ]}
+        onChange={(value) => {
+          if (value === 'characters') onBack();
+        }}
+      />
+      <div className="library-controls lorebook-controls">
+        <label className="library-search">
+          <VeloraIcon name="search" />
+          <input
+            value={query}
+            aria-label={messages.lorebooks.searchLabel}
+            placeholder={messages.lorebooks.searchPlaceholder}
+            onChange={(event) => {
+              setQuery(event.currentTarget.value);
+            }}
+          />
+        </label>
+        <SortDropdown
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: 'newest', label: messages.lorebooks.newest },
+            { value: 'oldest', label: messages.lorebooks.oldest },
+          ]}
+          label={messages.lorebooks.sortLabel}
+        />
+      </div>
       {transferNotice ? (
         <p className="success" role="status">
           {transferNotice}
@@ -134,23 +214,42 @@ export function LorebooksView({ onBack }: { readonly onBack: () => void }) {
         </p>
       ) : null}
       {books.data?.items.length === 0 ? (
-        <div className="empty-state">
-          <span>⌘</span>
-          <h2>{messages.lorebooks.emptyTitle}</h2>
-          <p>{messages.lorebooks.emptyText}</p>
-        </div>
+        <EmptyState
+          title={messages.lorebooks.emptyTitle}
+          text={messages.lorebooks.emptyText}
+          action={
+            <button
+              className="compact-primary"
+              type="button"
+              onClick={() => {
+                setEditing('new');
+              }}
+            >
+              {messages.lorebooks.create}
+            </button>
+          }
+        />
       ) : null}
       {books.isError ? (
         <p className="error" role="alert">
           {books.error.message}
         </p>
       ) : null}
+      {books.isPending ? <Skeleton label={messages.lorebooks.loading} /> : null}
       <div className="list-stack">
         {books.data?.items.map((book) => (
-          <article className="list-card" key={book.id}>
-            <div className="avatar lore-symbol">⌘</div>
+          <LorebookCard key={book.id}>
+            <div className="lorebook-cover">
+              <CharacterImage
+                fileId={book.coverMediaFileId}
+                alt={book.name}
+                fallback={<VeloraIcon name="book" />}
+                previewable
+              />
+            </div>
             <div className="list-copy">
               <h2>{book.name}</h2>
+              <small className="library-owner">{messages.lorebooks.ownerYou}</small>
               <p>{book.description || messages.lorebooks.noDescription}</p>
               <div className="tag-list">
                 <span>{visibilityLabel(book.visibility, messages)}</span>
@@ -158,37 +257,37 @@ export function LorebooksView({ onBack }: { readonly onBack: () => void }) {
               </div>
             </div>
             <div className="card-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(book);
-                }}
-              >
-                {messages.lorebooks.open}
-              </button>
-              <button
-                type="button"
-                disabled={exportBook.isPending}
-                onClick={() => {
-                  exportBook.mutate(book);
-                }}
-              >
-                {messages.lorebooks.export}
-              </button>
-              <button
-                className="danger-link"
-                type="button"
-                onClick={() => {
-                  if (window.confirm(messages.lorebooks.removeBookConfirm(book.name)))
-                    remove.mutate(book.id);
-                }}
-              >
-                {messages.lorebooks.remove}
-              </button>
+              <ActionMenu
+                label={messages.lorebooks.ownerActions(book.name)}
+                items={[
+                  {
+                    label: messages.lorebooks.open,
+                    onSelect: () => {
+                      setEditing(book);
+                    },
+                  },
+                  {
+                    label: messages.lorebooks.export,
+                    disabled: exportBook.isPending,
+                    onSelect: () => {
+                      exportBook.mutate(book);
+                    },
+                  },
+                  {
+                    label: messages.lorebooks.remove,
+                    danger: true,
+                    onSelect: () => {
+                      if (window.confirm(messages.lorebooks.removeBookConfirm(book.name)))
+                        remove.mutate(book.id);
+                    },
+                  },
+                ]}
+              />
             </div>
-          </article>
+          </LorebookCard>
         ))}
       </div>
+      <p className="meta">{messages.lorebooks.importHint}</p>
     </div>
   );
 }
@@ -227,7 +326,13 @@ function NewLorebook({
   );
 }
 
-function LorebookEditor({ id, onBack }: { readonly id: string; readonly onBack: () => void }) {
+export function LorebookEditor({
+  id,
+  onBack,
+}: {
+  readonly id: string;
+  readonly onBack: () => void;
+}) {
   const { messages } = useI18n();
   const client = useQueryClient();
   const [entryEditor, setEntryEditor] = useState<LoreEntry | 'new' | null>(null);
@@ -282,15 +387,10 @@ function LorebookEditor({ id, onBack }: { readonly id: string; readonly onBack: 
       apiRequest(`/api/v1/lorebooks/${id}/entries/${entryId}`, { method: 'DELETE' }),
     onSuccess: async () => client.invalidateQueries({ queryKey: ['lorebook', id] }),
   });
-  if (!book.data)
-    return (
-      <div className="empty-state">
-        <h2>{messages.lorebooks.loading}</h2>
-      </div>
-    );
+  if (!book.data) return <Skeleton label={messages.lorebooks.loading} />;
   if (entryEditor)
     return (
-      <LoreEntryForm
+      <LorebookEntryEditor
         bookId={id}
         entry={entryEditor}
         onBack={() => {
@@ -413,6 +513,13 @@ function BookForm({
   readonly onSubmit: (body: object) => void;
 }) {
   const { messages } = useI18n();
+  const [coverMediaFileId, setCoverMediaFileId] = useState(initial?.coverMediaFileId ?? '');
+  const media = useQuery({
+    queryKey: ['media'],
+    queryFn: () => apiRequest<MediaLibraryResponse>('/api/v1/media'),
+  });
+  const images = (media.data?.items ?? []).filter((item) => item.mimeType.startsWith('image/'));
+  const selectedCover = images.find((item) => item.id === coverMediaFileId) ?? null;
   const submit = (event: SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -420,6 +527,7 @@ function BookForm({
       name: text(data, 'name'),
       description: text(data, 'description'),
       visibility: text(data, 'visibility'),
+      coverMediaFileId: coverMediaFileId || null,
     });
   };
   return (
@@ -430,7 +538,41 @@ function BookForm({
         </button>
         <h1>{title}</h1>
       </div>
-      <form className="editor-card" onSubmit={submit}>
+      <form className="editor-card lorebook-editor-card" onSubmit={submit}>
+        <section className="lorebook-cover-editor" aria-labelledby="lorebook-cover-label">
+          <div className="lorebook-cover-preview">
+            <CharacterImage
+              fileId={selectedCover?.id ?? null}
+              alt={messages.lorebooks.cover}
+              fallback={<VeloraIcon name="book" />}
+            />
+          </div>
+          <div className="lorebook-cover-controls">
+            <label className="field">
+              <span id="lorebook-cover-label">{messages.lorebooks.cover}</span>
+              <select
+                value={coverMediaFileId}
+                onChange={(event) => {
+                  setCoverMediaFileId(event.currentTarget.value);
+                }}
+              >
+                <option value="">{messages.profile.noAvatar}</option>
+                {images.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.originalName ?? item.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+        <ImageUploadControl
+          capabilities={media.data?.capabilities}
+          aspectRatio={4 / 3}
+          onUploaded={(uploaded: MediaFile) => {
+            setCoverMediaFileId(uploaded.id);
+          }}
+        />
         <label className="field">
           <span>{messages.lorebooks.name}</span>
           <input name="name" defaultValue={initial?.name} required maxLength={120} />
@@ -470,7 +612,7 @@ function BookForm({
   );
 }
 
-function LoreEntryForm({
+export function LorebookEntryEditor({
   bookId,
   entry,
   onBack,
@@ -520,7 +662,7 @@ function LoreEntryForm({
         </button>
         <h1>{existing ? messages.lorebooks.editEntry : messages.lorebooks.newEntry}</h1>
       </div>
-      <form className="editor-card" onSubmit={submit}>
+      <form className="editor-card lorebook-editor-card" onSubmit={submit}>
         <label className="field">
           <span>{messages.lorebooks.entryTitle}</span>
           <input name="title" defaultValue={existing?.title} required />

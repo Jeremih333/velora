@@ -1,6 +1,16 @@
 $ErrorActionPreference = "Stop"
 
-$script:VeloraSecretNames = @("TELEGRAM_BOT_TOKEN", "BOTHUB_API_KEY", "CLOUDFLARE_API_TOKEN")
+$script:VeloraSecretNames = @(
+  "TELEGRAM_BOT_TOKEN",
+  "BOTHUB_API_KEY",
+  "CLOUDFLARE_API_TOKEN",
+  "ALICE_CHARACTER_BOT_TOKEN",
+  "LENA_CHARACTER_BOT_TOKEN",
+  "KATYA_CHARACTER_BOT_TOKEN",
+  "CHILD_BOT_ENCRYPTION_KEY",
+  "SECONDARY_SESSION_SIGNING_KEY",
+  "SECONDARY_TELEGRAM_WEBHOOK_SECRET"
+)
 
 function Get-VeloraSecretStorePath {
   if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {

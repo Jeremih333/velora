@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 const productionUrl = 'https://velora-app.carreljeremih.workers.dev/';
 const commands = [
-  ['start', 'Начать работу с Velora'],
+  ['start', 'Начать работу с VeloraAI'],
   ['app', 'Открыть приложение'],
   ['help', 'Помощь'],
   ['settings', 'Настройки'],
@@ -17,7 +17,7 @@ const commands = [
   ['privacy', 'Конфиденциальность'],
 ].map(([command, description]) => ({ command, description }));
 const englishCommands = [
-  ['start', 'Start using Velora'],
+  ['start', 'Start using VeloraAI'],
   ['app', 'Open the app'],
   ['help', 'Help'],
   ['settings', 'Settings'],
@@ -259,7 +259,7 @@ function createTelegramFetch(
     if (method === 'getMyDescription') {
       result = {
         description:
-          'Velora — пространство для AI roleplay: персонажи, personas, память, ветвление историй и полный контроль над контекстом.',
+          'VeloraAI — пространство для AI roleplay: персонажи, personas, память, ветвление историй и полный контроль над контекстом.',
       };
     }
     if (method === 'getMyShortDescription') {

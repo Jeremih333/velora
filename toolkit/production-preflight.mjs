@@ -61,8 +61,14 @@ export function inspectProductionConfig(source) {
     throw new Error('Production and staging must not share D1.');
   }
   if (ownerTelegramId !== '1040929628') throw new Error('Production owner ID is not confirmed.');
-  if (vars.PAID_AI_ENABLED !== 'false' || vars.PAYMENTS_ENABLED !== 'false') {
-    throw new Error('Production paid gates must remain disabled before cutover.');
+  if (
+    vars.PAID_AI_ENABLED !== 'true' ||
+    vars.SPONSORED_FREE_AI_ENABLED !== 'true' ||
+    vars.PAYMENTS_ENABLED !== 'true'
+  ) {
+    throw new Error(
+      'Production AI access and the owner-authorized Stars cutover must stay enabled.',
+    );
   }
 
   const sharedTelegramBotWithStaging = productionBot === stagingBot;
@@ -72,8 +78,9 @@ export function inspectProductionConfig(source) {
     databaseName,
     databaseId,
     ownerTelegramId,
-    paidAiEnabled: false,
-    paymentsEnabled: false,
+    paidAiEnabled: true,
+    sponsoredFreeAiEnabled: true,
+    paymentsEnabled: true,
     sharedTelegramBotWithStaging,
     telegramWebhookCutoverRequired: sharedTelegramBotWithStaging,
   };

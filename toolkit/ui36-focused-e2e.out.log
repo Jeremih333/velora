@@ -1,0 +1,8 @@
+
+Running 3 tests using 3 workers
+
+  ok 1 [desktop] › tests\e2e\foundation.spec.ts:3353:1 › @a11y discovery language filter supports Unicode, CJK and RTL (2.7s)
+  ok 3 [android] › tests\e2e\foundation.spec.ts:3353:1 › @a11y discovery language filter supports Unicode, CJK and RTL (3.0s)
+  ok 2 [iphone] › tests\e2e\foundation.spec.ts:3353:1 › @a11y discovery language filter supports Unicode, CJK and RTL (5.8s)
+
+  3 passed (11.3s)

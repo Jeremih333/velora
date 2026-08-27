@@ -4,6 +4,7 @@ import {
   detectImageType,
   inspectImage,
   selectTelegramImage,
+  uploadTelegramImage,
 } from './telegram-media';
 
 describe('Telegram image adapter', () => {
@@ -36,6 +37,51 @@ describe('Telegram image adapter', () => {
 
   it('does not select a non-media message', () => {
     expect(selectTelegramImage(undefined, undefined)).toBeNull();
+  });
+
+  it('uploads a compressed image to the owner Telegram storage and cleans the service message', async () => {
+    const calls: string[] = [];
+    const fetcher: typeof fetch = (input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      calls.push(url);
+      if (url.endsWith('/sendDocument')) {
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            result: {
+              message_id: 42,
+              document: {
+                file_id: 'telegram-file',
+                file_unique_id: 'telegram-unique',
+                file_name: 'avatar.webp',
+                mime_type: 'image/webp',
+                file_size: 4,
+              },
+            },
+          }),
+        );
+      }
+      return Promise.resolve(Response.json({ ok: true, result: true }));
+    };
+
+    await expect(
+      uploadTelegramImage(
+        'test-token',
+        '1040929628',
+        new Uint8Array([1, 2, 3, 4]).buffer,
+        'image/webp',
+        'avatar.webp',
+        fetcher,
+        'https://telegram.test',
+      ),
+    ).resolves.toMatchObject({
+      fileId: 'telegram-file',
+      uniqueId: 'telegram-unique',
+      originalName: 'avatar.webp',
+    });
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toContain('/sendDocument');
+    expect(calls[1]).toContain('/deleteMessage');
   });
 
   it('reads real dimensions from PNG, progressive JPEG and every supported WebP header', () => {

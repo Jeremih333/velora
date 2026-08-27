@@ -2,7 +2,10 @@ node_modules
 dist
 coverage
 .wrangler
+.wrangler-*
+**/.wrangler-*
 .tooling-dist
 dist-worker
 pnpm-lock.yaml
 *.sql
+backups/

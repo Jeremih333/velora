@@ -1,0 +1,7 @@
+$ playwright test --grep @visual --project=iphone --workers=1 && playwright test --grep @visual --project=android --workers=1 && playwright test --grep @visual --project=desktop --workers=1
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"

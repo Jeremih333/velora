@@ -9,7 +9,8 @@ Automated Android, iPhone and desktop checks currently prove:
 - `prefers-reduced-motion: reduce` disables animation, transitions and smooth scrolling;
 - 200% root font scaling does not create horizontal viewport overflow, including the sticky chat
   header;
-- dialogs use labelled modal roles in covered deletion/report flows;
+- dialogs use labelled modal roles, move focus inside, trap Tab/Shift+Tab, close with Escape and
+  restore focus to the opener in covered drawer, deletion, report, model and memory flows;
 - network loss exposes an `aria-live` status without unmounting the authenticated application;
 - a failed offline chat send preserves the typed draft and reports `NETWORK_OFFLINE` in Russian;
 - reconnecting removes the offline status without forcing a new Telegram login.

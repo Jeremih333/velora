@@ -28,6 +28,7 @@ export async function readActiveLore(
     readonly characterName: string;
     readonly userName: string;
     readonly totalTokenBudget: number;
+    readonly forceActivateAll?: boolean;
   },
 ): Promise<LoreActivationResult> {
   const result = await database
@@ -57,6 +58,7 @@ export async function readActiveLore(
     contextMessages: input.contextMessages,
     totalTokenBudget: input.totalTokenBudget,
     variables: { char: input.characterName, user: input.userName },
+    ...(input.forceActivateAll === undefined ? {} : { forceActivateAll: input.forceActivateAll }),
   });
 }
 

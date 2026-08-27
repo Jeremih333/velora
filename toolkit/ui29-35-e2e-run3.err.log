@@ -1,0 +1,2 @@
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"

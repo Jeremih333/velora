@@ -1,4 +1,13 @@
-import { AppError, nowMs } from '@velora/shared';
+import {
+  AppError,
+  characterGroupSizeSchema,
+  characterGroupSizes,
+  characterLanguageSchema,
+  characterLanguages,
+  nowMs,
+  type CharacterGroupSize,
+  type CharacterLanguageCode,
+} from '@velora/shared';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { z } from 'zod';
@@ -14,16 +23,22 @@ interface DiscoveryEnvironment {
 interface DiscoveryRow {
   readonly id: string;
   readonly avatarFileId: string | null;
+  readonly avatarFocalX: number;
+  readonly avatarFocalY: number;
   readonly contentRating: 'SAFE' | 'MATURE';
-  readonly language: 'ru' | 'en';
+  readonly language: CharacterLanguageCode;
+  readonly groupSize: CharacterGroupSize;
   readonly updatedAt: number;
   readonly name: string;
   readonly tagline: string;
   readonly description: string;
+  readonly personality: string | null;
   readonly firstMessage: string;
   readonly alternateGreetingsJson: string;
   readonly creatorId: string;
   readonly creatorName: string;
+  readonly creatorRole: string;
+  readonly avatarBotUsername: string | null;
   readonly likeCount: number;
   readonly bookmarkCount: number;
   readonly reviewCount: number;
@@ -42,13 +57,54 @@ interface ReviewRow {
   readonly updatedAt: number;
 }
 
+interface DiscoveryTagRow {
+  readonly slug: string;
+  readonly displayName: string;
+  readonly usageCount: number;
+}
+
+interface DiscoveryLanguageCountRow {
+  readonly code: CharacterLanguageCode;
+  readonly usageCount: number;
+}
+
+interface DiscoveryGroupSizeCountRow {
+  readonly code: CharacterGroupSize;
+  readonly usageCount: number;
+}
+
 const querySchema = z.object({
   q: z.string().trim().max(80).default(''),
-  language: z.enum(['ru', 'en']).optional(),
-  rating: z.enum(['SAFE', 'MATURE', 'ALL']).default('SAFE'),
+  language: characterLanguageSchema.optional(),
+  languages: z.string().trim().max(180).default(''),
+  groupSizes: z.string().trim().max(80).default(''),
+  rating: z.enum(['SAFE', 'MATURE', 'ALL']).default('ALL'),
   tags: z.string().trim().max(240).default(''),
+  includeTags: z.string().trim().max(640).default(''),
+  excludeTags: z.string().trim().max(640).default(''),
+  sort: z.enum(['newest', 'oldest']).default('newest'),
   cursor: z.string().max(256).optional(),
   limit: z.coerce.number().int().min(1).max(30).default(20),
+});
+const tagCatalogueQuerySchema = z.object({
+  language: characterLanguageSchema.optional(),
+  languages: z.string().trim().max(180).default(''),
+  rating: z.enum(['SAFE', 'MATURE', 'ALL']).default('ALL'),
+  groupSizes: z.string().trim().max(80).default(''),
+  limit: z.coerce.number().int().min(1).max(200).default(200),
+});
+const languageCatalogueQuerySchema = z.object({
+  rating: z.enum(['SAFE', 'MATURE', 'ALL']).default('ALL'),
+  includeTags: z.string().trim().max(640).default(''),
+  excludeTags: z.string().trim().max(640).default(''),
+  groupSizes: z.string().trim().max(80).default(''),
+});
+const groupSizeCatalogueQuerySchema = z.object({
+  language: characterLanguageSchema.optional(),
+  languages: z.string().trim().max(180).default(''),
+  rating: z.enum(['SAFE', 'MATURE', 'ALL']).default('ALL'),
+  includeTags: z.string().trim().max(640).default(''),
+  excludeTags: z.string().trim().max(640).default(''),
 });
 
 const cursorSchema = z.object({ updatedAt: z.number().int().nonnegative(), id: z.string().min(1) });
@@ -62,15 +118,17 @@ export const discoveryRoutes = new Hono<DiscoveryEnvironment>();
 discoveryRoutes.get('/', async (context) => {
   const principal = context.get('principal');
   const query = querySchema.parse(context.req.query());
-  const allowMature = await canViewMature(
+  const maturePreferences = await readMaturePreferences(
     context.env.DB,
     principal.userId,
     principal.ageGateAcceptedAt,
   );
   const publicReviews = await isFeatureEnabled(context.env.DB, 'public_reviews', principal.userId);
-  if ((query.rating === 'MATURE' || query.rating === 'ALL') && !allowMature) {
+  const groupsEnabled = await isFeatureEnabled(context.env.DB, 'groups', principal.userId);
+  if (query.rating === 'MATURE' && !maturePreferences.allowMature) {
     throw new AppError('MATURE_CONTENT_DISABLED', 'Mature-контент отключён в настройках.', 403);
   }
+  const effectiveRating = effectiveDiscoveryRating(query.rating, maturePreferences.safeSearch);
   const conditions = [
     "c.publish_state = 'PUBLISHED'",
     "c.visibility = 'PUBLIC'",
@@ -78,25 +136,26 @@ discoveryRoutes.get('/', async (context) => {
     "u.moderation_state = 'ACTIVE'",
     'u.deleted_at IS NULL',
   ];
-  const values: (string | number)[] = [
-    principal.userId,
-    principal.userId,
-    principal.userId,
-    principal.userId,
-  ];
+  const filterValues: (string | number)[] = [];
   conditions.push(
     `NOT EXISTS (SELECT 1 FROM user_blocks ub
       WHERE (ub.blocker_id = ? AND ub.blocked_user_id = c.owner_id)
          OR (ub.blocker_id = c.owner_id AND ub.blocked_user_id = ?))`,
   );
-  values.push(principal.userId, principal.userId);
-  if (query.rating !== 'ALL') {
+  filterValues.push(principal.userId, principal.userId);
+  if (effectiveRating !== 'ALL') {
     conditions.push('c.content_rating = ?');
-    values.push(query.rating);
+    filterValues.push(effectiveRating);
   }
-  if (query.language) {
-    conditions.push('c.language = ?');
-    values.push(query.language);
+  const languageFilters = resolveDiscoveryLanguageFilters(query.languages, query.language);
+  if (languageFilters.length > 0) {
+    conditions.push(`c.language_code IN (${languageFilters.map(() => '?').join(',')})`);
+    filterValues.push(...languageFilters);
+  }
+  const groupSizeFilters = groupsEnabled ? resolveDiscoveryGroupSizeFilters(query.groupSizes) : [];
+  if (groupSizeFilters.length > 0) {
+    conditions.push(`c.group_size IN (${groupSizeFilters.map(() => '?').join(',')})`);
+    filterValues.push(...groupSizeFilters);
   }
   if (query.q) {
     conditions.push(
@@ -106,27 +165,65 @@ discoveryRoutes.get('/', async (context) => {
           WHERE search_ct.character_id = c.id
             AND (instr(search_t.display_name, ?) > 0 OR instr(search_t.slug, ?) > 0)))`,
     );
-    values.push(query.q, query.q, query.q, query.q, query.q, query.q);
+    filterValues.push(query.q, query.q, query.q, query.q, query.q, query.q);
   }
-  const tagSlugs = parseTagFilter(query.tags);
-  if (tagSlugs.length > 0) {
+  const tagFilters = resolveDiscoveryTagFilters(query.includeTags, query.excludeTags, query.tags);
+  for (const slug of tagFilters.include) {
     conditions.push(
       `EXISTS (SELECT 1 FROM character_tags filter_ct JOIN tags filter_t ON filter_t.id = filter_ct.tag_id
-       WHERE filter_ct.character_id = c.id AND filter_t.slug IN (${tagSlugs.map(() => '?').join(',')}))`,
+       WHERE filter_ct.character_id = c.id AND filter_t.slug = ?)`,
     );
-    values.push(...tagSlugs);
+    filterValues.push(slug);
   }
+  if (tagFilters.exclude.length > 0) {
+    conditions.push(
+      `NOT EXISTS (SELECT 1 FROM character_tags excluded_ct JOIN tags excluded_t ON excluded_t.id = excluded_ct.tag_id
+       WHERE excluded_ct.character_id = c.id
+         AND excluded_t.slug IN (${tagFilters.exclude.map(() => '?').join(',')}))`,
+    );
+    filterValues.push(...tagFilters.exclude);
+  }
+  const countConditions = [...conditions];
+  const countValues = [...filterValues];
   const cursor = query.cursor ? decodeCursor(query.cursor) : null;
   if (cursor) {
-    conditions.push('(c.updated_at < ? OR (c.updated_at = ? AND c.id < ?))');
-    values.push(cursor.updatedAt, cursor.updatedAt, cursor.id);
+    const comparison = query.sort === 'newest' ? '<' : '>';
+    conditions.push(
+      `(c.updated_at ${comparison} ? OR (c.updated_at = ? AND c.id ${comparison} ?))`,
+    );
+    filterValues.push(cursor.updatedAt, cursor.updatedAt, cursor.id);
   }
-  values.push(query.limit + 1);
+  const direction = query.sort === 'newest' ? 'DESC' : 'ASC';
+  const values: (string | number)[] = [
+    principal.userId,
+    principal.userId,
+    principal.userId,
+    principal.userId,
+    ...filterValues,
+    query.limit + 1,
+  ];
+  const total = await context.env.DB.prepare(
+    `SELECT COUNT(*) AS totalCount
+     FROM characters c JOIN character_versions v ON v.id = c.active_version_id
+     JOIN users u ON u.id = c.owner_id
+     LEFT JOIN user_profiles up ON up.user_id = u.id
+     WHERE ${countConditions.join(' AND ')}`,
+  )
+    .bind(...countValues)
+    .first<{ totalCount: number }>();
   const result = await context.env.DB.prepare(
-    `SELECT c.id, c.avatar_file_id AS avatarFileId, c.content_rating AS contentRating,
-       c.language, c.updated_at AS updatedAt, v.name, v.tagline, v.description,
+    `SELECT c.id, c.avatar_file_id AS avatarFileId,
+       c.avatar_focal_x AS avatarFocalX, c.avatar_focal_y AS avatarFocalY,
+       c.content_rating AS contentRating,
+       c.language_code AS language, c.group_size AS groupSize, c.updated_at AS updatedAt,
+       v.name, v.tagline, v.description,
+       CASE WHEN c.personality_visible = 1 THEN v.personality ELSE NULL END AS personality,
        v.first_message AS firstMessage, v.alternate_greetings_json AS alternateGreetingsJson,
        u.id AS creatorId, COALESCE(up.display_name, u.display_name) AS creatorName,
+       u.role AS creatorRole,
+       (SELECT cab.telegram_username FROM character_avatar_bots cab
+        WHERE cab.character_id = c.id AND cab.status = 'ACTIVE'
+        ORDER BY cab.updated_at DESC LIMIT 1) AS avatarBotUsername,
        (SELECT COUNT(*) FROM character_likes cl WHERE cl.character_id = c.id) AS likeCount,
        (SELECT COUNT(*) FROM character_bookmarks cb WHERE cb.character_id = c.id) AS bookmarkCount,
        (SELECT COUNT(*) FROM character_reviews cr WHERE cr.character_id = c.id) AS reviewCount,
@@ -138,7 +235,7 @@ discoveryRoutes.get('/', async (context) => {
      FROM characters c JOIN character_versions v ON v.id = c.active_version_id
      JOIN users u ON u.id = c.owner_id
      LEFT JOIN user_profiles up ON up.user_id = u.id
-     WHERE ${conditions.join(' AND ')} ORDER BY c.updated_at DESC, c.id DESC LIMIT ?`,
+     WHERE ${conditions.join(' AND ')} ORDER BY c.updated_at ${direction}, c.id ${direction} LIMIT ?`,
   )
     .bind(...values)
     .all<DiscoveryRow>();
@@ -150,9 +247,215 @@ discoveryRoutes.get('/', async (context) => {
   const last = rows.at(-1);
   return context.json({
     items,
+    totalCount: total?.totalCount ?? 0,
     nextCursor: hasMore && last ? encodeCursor(last.updatedAt, last.id) : null,
+    contentPreferences: {
+      safeSearch: maturePreferences.safeSearch,
+      matureImageBlur: maturePreferences.matureImageBlur,
+    },
   });
 });
+
+discoveryRoutes.get('/tags/catalog', async (context) => {
+  const principal = context.get('principal');
+  const query = tagCatalogueQuerySchema.parse(context.req.query());
+  const maturePreferences = await readMaturePreferences(
+    context.env.DB,
+    principal.userId,
+    principal.ageGateAcceptedAt,
+  );
+  if (query.rating === 'MATURE' && !maturePreferences.allowMature) {
+    throw new AppError('MATURE_CONTENT_DISABLED', 'Mature-контент отключён в настройках.', 403);
+  }
+  const effectiveRating = effectiveDiscoveryRating(query.rating, maturePreferences.safeSearch);
+  const groupsEnabled = await isFeatureEnabled(context.env.DB, 'groups', principal.userId);
+  const conditions = [
+    "c.publish_state = 'PUBLISHED'",
+    "c.visibility = 'PUBLIC'",
+    'c.deleted_at IS NULL',
+    "u.moderation_state = 'ACTIVE'",
+    'u.deleted_at IS NULL',
+    `NOT EXISTS (SELECT 1 FROM user_blocks ub
+      WHERE (ub.blocker_id = ? AND ub.blocked_user_id = c.owner_id)
+         OR (ub.blocker_id = c.owner_id AND ub.blocked_user_id = ?))`,
+  ];
+  const values: (string | number)[] = [principal.userId, principal.userId];
+  if (effectiveRating !== 'ALL') {
+    conditions.push('c.content_rating = ?');
+    values.push(effectiveRating);
+  }
+  const languageFilters = resolveDiscoveryLanguageFilters(query.languages, query.language);
+  if (languageFilters.length > 0) {
+    conditions.push(`c.language_code IN (${languageFilters.map(() => '?').join(',')})`);
+    values.push(...languageFilters);
+  }
+  const groupSizes = groupsEnabled ? resolveDiscoveryGroupSizeFilters(query.groupSizes) : [];
+  if (groupSizes.length > 0) {
+    conditions.push(`c.group_size IN (${groupSizes.map(() => '?').join(',')})`);
+    values.push(...groupSizes);
+  }
+  const result = await context.env.DB.prepare(
+    `SELECT t.slug, t.display_name AS displayName, COUNT(DISTINCT c.id) AS usageCount
+     FROM tags t
+     JOIN character_tags ct ON ct.tag_id = t.id
+     JOIN characters c ON c.id = ct.character_id
+     JOIN users u ON u.id = c.owner_id
+     WHERE ${conditions.join(' AND ')}
+     GROUP BY t.id, t.slug, t.display_name
+     ORDER BY usageCount DESC, t.display_name COLLATE NOCASE ASC, t.slug ASC
+     LIMIT ?`,
+  )
+    .bind(...values, query.limit)
+    .all<DiscoveryTagRow>();
+  return context.json({ items: result.results });
+});
+
+discoveryRoutes.get('/languages/catalog', async (context) => {
+  const principal = context.get('principal');
+  const query = languageCatalogueQuerySchema.parse(context.req.query());
+  const maturePreferences = await readMaturePreferences(
+    context.env.DB,
+    principal.userId,
+    principal.ageGateAcceptedAt,
+  );
+  if (query.rating === 'MATURE' && !maturePreferences.allowMature) {
+    throw new AppError('MATURE_CONTENT_DISABLED', 'Mature-контент отключён в настройках.', 403);
+  }
+  const effectiveRating = effectiveDiscoveryRating(query.rating, maturePreferences.safeSearch);
+  const groupsEnabled = await isFeatureEnabled(context.env.DB, 'groups', principal.userId);
+  const conditions = [
+    "c.publish_state = 'PUBLISHED'",
+    "c.visibility = 'PUBLIC'",
+    'c.deleted_at IS NULL',
+    "u.moderation_state = 'ACTIVE'",
+    'u.deleted_at IS NULL',
+    `NOT EXISTS (SELECT 1 FROM user_blocks ub
+      WHERE (ub.blocker_id = ? AND ub.blocked_user_id = c.owner_id)
+         OR (ub.blocker_id = c.owner_id AND ub.blocked_user_id = ?))`,
+  ];
+  const values: (string | number)[] = [principal.userId, principal.userId];
+  if (effectiveRating !== 'ALL') {
+    conditions.push('c.content_rating = ?');
+    values.push(effectiveRating);
+  }
+  const tagFilters = resolveDiscoveryTagFilters(query.includeTags, query.excludeTags, '');
+  for (const slug of tagFilters.include) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM character_tags filter_ct JOIN tags filter_t ON filter_t.id = filter_ct.tag_id
+       WHERE filter_ct.character_id = c.id AND filter_t.slug = ?)`,
+    );
+    values.push(slug);
+  }
+  if (tagFilters.exclude.length > 0) {
+    conditions.push(
+      `NOT EXISTS (SELECT 1 FROM character_tags excluded_ct JOIN tags excluded_t ON excluded_t.id = excluded_ct.tag_id
+       WHERE excluded_ct.character_id = c.id
+         AND excluded_t.slug IN (${tagFilters.exclude.map(() => '?').join(',')}))`,
+    );
+    values.push(...tagFilters.exclude);
+  }
+  const groupSizes = groupsEnabled ? resolveDiscoveryGroupSizeFilters(query.groupSizes) : [];
+  if (groupSizes.length > 0) {
+    conditions.push(`c.group_size IN (${groupSizes.map(() => '?').join(',')})`);
+    values.push(...groupSizes);
+  }
+  const result = await context.env.DB.prepare(
+    `SELECT c.language_code AS code, COUNT(*) AS usageCount
+     FROM characters c JOIN users u ON u.id = c.owner_id
+     WHERE ${conditions.join(' AND ')}
+     GROUP BY c.language_code`,
+  )
+    .bind(...values)
+    .all<DiscoveryLanguageCountRow>();
+  const counts = new Map(result.results.map((row) => [row.code, row.usageCount]));
+  const catalogueOrder = new Map(
+    characterLanguages.map((language, index) => [language.code, index]),
+  );
+  const items = characterLanguages
+    .map((language) => ({ ...language, usageCount: counts.get(language.code) ?? 0 }))
+    .sort(
+      (left, right) =>
+        right.usageCount - left.usageCount ||
+        (catalogueOrder.get(left.code) ?? 0) - (catalogueOrder.get(right.code) ?? 0),
+    );
+  return context.json({ items });
+});
+
+discoveryRoutes.get('/group-sizes/catalog', async (context) => {
+  const principal = context.get('principal');
+  const enabled = await isFeatureEnabled(context.env.DB, 'groups', principal.userId);
+  if (!enabled) return context.json({ enabled: false, items: [] });
+
+  const query = groupSizeCatalogueQuerySchema.parse(context.req.query());
+  const maturePreferences = await readMaturePreferences(
+    context.env.DB,
+    principal.userId,
+    principal.ageGateAcceptedAt,
+  );
+  if (query.rating === 'MATURE' && !maturePreferences.allowMature) {
+    throw new AppError('MATURE_CONTENT_DISABLED', 'Mature-контент отключён в настройках.', 403);
+  }
+  const effectiveRating = effectiveDiscoveryRating(query.rating, maturePreferences.safeSearch);
+  const conditions = [
+    "c.publish_state = 'PUBLISHED'",
+    "c.visibility = 'PUBLIC'",
+    'c.deleted_at IS NULL',
+    "u.moderation_state = 'ACTIVE'",
+    'u.deleted_at IS NULL',
+    `NOT EXISTS (SELECT 1 FROM user_blocks ub
+      WHERE (ub.blocker_id = ? AND ub.blocked_user_id = c.owner_id)
+         OR (ub.blocker_id = c.owner_id AND ub.blocked_user_id = ?))`,
+  ];
+  const values: (string | number)[] = [principal.userId, principal.userId];
+  if (effectiveRating !== 'ALL') {
+    conditions.push('c.content_rating = ?');
+    values.push(effectiveRating);
+  }
+  const languages = resolveDiscoveryLanguageFilters(query.languages, query.language);
+  if (languages.length > 0) {
+    conditions.push(`c.language_code IN (${languages.map(() => '?').join(',')})`);
+    values.push(...languages);
+  }
+  const tags = resolveDiscoveryTagFilters(query.includeTags, query.excludeTags, '');
+  for (const slug of tags.include) {
+    conditions.push(
+      `EXISTS (SELECT 1 FROM character_tags filter_ct JOIN tags filter_t ON filter_t.id = filter_ct.tag_id
+       WHERE filter_ct.character_id = c.id AND filter_t.slug = ?)`,
+    );
+    values.push(slug);
+  }
+  if (tags.exclude.length > 0) {
+    conditions.push(
+      `NOT EXISTS (SELECT 1 FROM character_tags excluded_ct JOIN tags excluded_t ON excluded_t.id = excluded_ct.tag_id
+       WHERE excluded_ct.character_id = c.id
+         AND excluded_t.slug IN (${tags.exclude.map(() => '?').join(',')}))`,
+    );
+    values.push(...tags.exclude);
+  }
+  const result = await context.env.DB.prepare(
+    `SELECT c.group_size AS code, COUNT(*) AS usageCount
+     FROM characters c JOIN users u ON u.id = c.owner_id
+     WHERE ${conditions.join(' AND ')}
+     GROUP BY c.group_size`,
+  )
+    .bind(...values)
+    .all<DiscoveryGroupSizeCountRow>();
+  const counts = new Map(result.results.map((row) => [row.code, row.usageCount]));
+  return context.json({
+    enabled: true,
+    items: characterGroupSizes.map((definition) => ({
+      ...definition,
+      usageCount: counts.get(definition.code) ?? 0,
+    })),
+  });
+});
+
+export function effectiveDiscoveryRating(
+  requested: 'SAFE' | 'MATURE' | 'ALL',
+  safeSearch: boolean,
+): 'SAFE' | 'MATURE' | 'ALL' {
+  return safeSearch ? 'SAFE' : requested;
+}
 
 discoveryRoutes.get('/creator-stats/me', async (context) => {
   const principal = context.get('principal');
@@ -284,10 +587,18 @@ discoveryRoutes.delete('/:characterId/review', async (context) => {
 discoveryRoutes.get('/:characterId', async (context) => {
   const principal = context.get('principal');
   const row = await context.env.DB.prepare(
-    `SELECT c.id, c.avatar_file_id AS avatarFileId, c.content_rating AS contentRating,
-       c.language, c.updated_at AS updatedAt, v.name, v.tagline, v.description,
+    `SELECT c.id, c.avatar_file_id AS avatarFileId,
+       c.avatar_focal_x AS avatarFocalX, c.avatar_focal_y AS avatarFocalY,
+       c.content_rating AS contentRating,
+       c.language_code AS language, c.group_size AS groupSize, c.updated_at AS updatedAt,
+       v.name, v.tagline, v.description,
+       CASE WHEN c.personality_visible = 1 THEN v.personality ELSE NULL END AS personality,
        v.first_message AS firstMessage, v.alternate_greetings_json AS alternateGreetingsJson,
         u.id AS creatorId, COALESCE(up.display_name, u.display_name) AS creatorName,
+       u.role AS creatorRole,
+       (SELECT cab.telegram_username FROM character_avatar_bots cab
+        WHERE cab.character_id = c.id AND cab.status = 'ACTIVE'
+        ORDER BY cab.updated_at DESC LIMIT 1) AS avatarBotUsername,
        (SELECT COUNT(*) FROM character_likes cl WHERE cl.character_id = c.id) AS likeCount,
        (SELECT COUNT(*) FROM character_bookmarks cb WHERE cb.character_id = c.id) AS bookmarkCount,
        (SELECT COUNT(*) FROM character_reviews cr WHERE cr.character_id = c.id) AS reviewCount,
@@ -463,17 +774,39 @@ async function requireInteractableCharacter(
   }
 }
 
+interface MaturePreferences {
+  readonly allowMature: boolean;
+  readonly safeSearch: boolean;
+  readonly matureImageBlur: boolean;
+}
+
+async function readMaturePreferences(
+  database: D1Database,
+  userId: string,
+  ageGateAcceptedAt: number | null,
+): Promise<MaturePreferences> {
+  const row = await database
+    .prepare(
+      `SELECT nsfw_visible AS nsfwVisible, safe_search AS safeSearch,
+       mature_image_blur AS matureImageBlur FROM user_settings WHERE user_id = ?`,
+    )
+    .bind(userId)
+    .first<{ nsfwVisible: number; safeSearch: number; matureImageBlur: number }>();
+  if (!row) throw new AppError('SETTINGS_NOT_FOUND', 'Настройки не найдены.', 404);
+  const allowMature = ageGateAcceptedAt !== null && row.nsfwVisible === 1;
+  return {
+    allowMature,
+    safeSearch: !allowMature || row.safeSearch !== 0,
+    matureImageBlur: row.matureImageBlur !== 0,
+  };
+}
+
 async function canViewMature(
   database: D1Database,
   userId: string,
   ageGateAcceptedAt: number | null,
 ): Promise<boolean> {
-  if (ageGateAcceptedAt === null) return false;
-  const row = await database
-    .prepare('SELECT nsfw_visible AS nsfwVisible FROM user_settings WHERE user_id = ?')
-    .bind(userId)
-    .first<{ nsfwVisible: number }>();
-  return row?.nsfwVisible === 1;
+  return (await readMaturePreferences(database, userId, ageGateAcceptedAt)).allowMature;
 }
 
 async function readTags(database: D1Database, characterId: string): Promise<string[]> {
@@ -495,7 +828,81 @@ function parseTagFilter(value: string): string[] {
         .map(toTagSlug)
         .filter((tag) => tag.length > 0),
     ),
-  ].slice(0, 5);
+  ].slice(0, 20);
+}
+
+export function resolveDiscoveryLanguageFilters(
+  value: string,
+  legacyLanguage?: CharacterLanguageCode,
+): readonly CharacterLanguageCode[] {
+  const candidates = [
+    ...new Set([
+      ...(legacyLanguage ? [legacyLanguage] : []),
+      ...value
+        .split(',')
+        .map((candidate) => candidate.trim().toLocaleLowerCase())
+        .filter((candidate) => candidate.length > 0),
+    ]),
+  ];
+  if (candidates.length > characterLanguages.length) {
+    throw new AppError('TOO_MANY_LANGUAGE_FILTERS', 'Выбрано слишком много языков.', 400);
+  }
+  return candidates.map((candidate) => {
+    const parsed = characterLanguageSchema.safeParse(candidate);
+    if (!parsed.success) {
+      throw new AppError('INVALID_LANGUAGE_FILTER', `Неизвестный язык «${candidate}».`, 400);
+    }
+    return parsed.data;
+  });
+}
+
+export function resolveDiscoveryGroupSizeFilters(value: string): readonly CharacterGroupSize[] {
+  const candidates = [
+    ...new Set(
+      value
+        .split(',')
+        .map((candidate) => candidate.trim().toLocaleLowerCase())
+        .filter((candidate) => candidate.length > 0),
+    ),
+  ];
+  if (candidates.length > characterGroupSizes.length) {
+    throw new AppError(
+      'TOO_MANY_GROUP_SIZE_FILTERS',
+      'Выбрано слишком много размеров группы.',
+      400,
+    );
+  }
+  return candidates.map((candidate) => {
+    const parsed = characterGroupSizeSchema.safeParse(candidate);
+    if (!parsed.success) {
+      throw new AppError(
+        'INVALID_GROUP_SIZE_FILTER',
+        `Неизвестный размер группы «${candidate}».`,
+        400,
+      );
+    }
+    return parsed.data;
+  });
+}
+
+export function resolveDiscoveryTagFilters(
+  includeValue: string,
+  excludeValue: string,
+  legacyIncludeValue = '',
+): { readonly include: readonly string[]; readonly exclude: readonly string[] } {
+  const include = [
+    ...new Set([...parseTagFilter(legacyIncludeValue), ...parseTagFilter(includeValue)]),
+  ];
+  const exclude = parseTagFilter(excludeValue);
+  const conflict = include.find((slug) => exclude.includes(slug));
+  if (conflict) {
+    throw new AppError(
+      'TAG_FILTER_CONFLICT',
+      `Тег «${conflict}» нельзя одновременно включить и исключить.`,
+      400,
+    );
+  }
+  return { include, exclude };
 }
 
 function toTagSlug(value: string): string {

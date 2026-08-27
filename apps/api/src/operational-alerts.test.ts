@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { deriveOperationalSignals, shouldNotifyAlert } from './operational-alerts';
+import {
+  deriveOperationalSignals,
+  operationalFailureWindowStart,
+  shouldNotifyAlert,
+} from './operational-alerts';
 
 const emptyMetrics = {
   deadJobs: 0,
@@ -34,12 +38,14 @@ describe('operational alerts', () => {
     expect(JSON.stringify(signals)).not.toContain('prompt');
   });
 
-  it('deduplicates warnings for six hours and critical alerts for one hour', () => {
+  it('notifies an open incident once until it is resolved', () => {
     const now = 10 * 60 * 60 * 1000;
-    expect(shouldNotifyAlert('WARNING', null, now)).toBe(true);
-    expect(shouldNotifyAlert('WARNING', now - 5 * 60 * 60 * 1000, now)).toBe(false);
-    expect(shouldNotifyAlert('WARNING', now - 6 * 60 * 60 * 1000, now)).toBe(true);
-    expect(shouldNotifyAlert('CRITICAL', now - 59 * 60 * 1000, now)).toBe(false);
-    expect(shouldNotifyAlert('CRITICAL', now - 60 * 60 * 1000, now)).toBe(true);
+    expect(shouldNotifyAlert(null)).toBe(true);
+    expect(shouldNotifyAlert(now - 24 * 60 * 60 * 1000)).toBe(false);
+  });
+
+  it('only treats recent DEAD transitions as an active operational failure', () => {
+    const now = Date.UTC(2026, 7, 25, 12, 0, 0);
+    expect(operationalFailureWindowStart(now)).toBe(now - 15 * 60 * 1000);
   });
 });

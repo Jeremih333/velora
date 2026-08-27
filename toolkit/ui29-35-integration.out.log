@@ -1,0 +1,27 @@
+[36mvite v8.2.1 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 415 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                             0.64 kB │ gzip:   0.40 kB
+dist/.vite/manifest.json                    1.32 kB │ gzip:   0.35 kB
+dist/assets/index-B6LC3Ibt.css             77.48 kB │ gzip:  14.48 kB
+dist/assets/LorebooksView-NTeE74WQ.js      14.31 kB │ gzip:   3.56 kB │ map:    39.79 kB
+dist/assets/ChatsView-C1KCwGsX.js          40.54 kB │ gzip:   9.72 kB │ map:   127.72 kB
+dist/assets/SafeMarkdown-DOJJog6M.js      158.97 kB │ gzip:  47.67 kB │ map:   951.35 kB
+dist/assets/AuthenticatedApp-Ia_Gb_Bu.js  195.97 kB │ gzip:  47.12 kB │ map:   747.88 kB
+dist/assets/index-AIsv28zJ.js             332.06 kB │ gzip: 104.06 kB │ map: 1,144.88 kB
+
+[32m✓ built in 501ms[39m
+Web bundle budget passed: initial=332069 B; assets/index-AIsv28zJ.js=332069 B, assets/AuthenticatedApp-Ia_Gb_Bu.js=195977 B, assets/ChatsView-C1KCwGsX.js=40549 B, assets/LorebooksView-NTeE74WQ.js=14312 B, assets/SafeMarkdown-DOJJog6M.js=158975 B.
+Local D1 migration, idempotent quality seed and integrity checks passed.
+Local load smoke passed: users=40@p50=598.7ms/p95=1075.1ms/max=1079.5ms, D1=40@p50=560.3ms/p95=561.5ms/max=561.7ms, search=40@p50=2023.1ms/p95=2024.8ms/max=2024.9ms, AI=4@p50=1975.7ms/p95=1980.8ms/max=1980.8ms.
+Local Worker auth/settings/persona/character/discovery/media/conversation/moderation integration passed.
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  11 passed (11)
+      Tests  76 passed (76)
+   Start at  00:39:23
+   Duration  768ms (transform 386ms, setup 0ms, import 1.14s, tests 911ms, environment 3ms)
+

@@ -14,6 +14,10 @@ Base path: `/api/v1`. JSON errors use `ERROR_MODEL.md`; mutating requests accept
 - CRUD `/personas`, `/characters`, `/lorebooks`; lore entries at
   `/lorebooks/:id/entries`; owner-only safe transfer uses versioned
   `GET /lorebooks/:id/export` and atomic idempotent `POST /lorebooks/import`
+- `POST /characters/assist` returns a bounded, rate-limited Workers AI draft for exactly one
+  allowlisted character field (`tagline`, `description`, `personality`, or `firstMessage`). It
+  never writes a character; applying the suggestion remains an explicit client action followed by
+  the normal validated autosave/versioning path
 - character and conversation lore attachments at
   `/characters/:id/lorebooks/:lorebookId` and
   `/conversations/:id/lorebooks/:lorebookId`
@@ -30,14 +34,25 @@ Base path: `/api/v1`. JSON errors use `ERROR_MODEL.md`; mutating requests accept
   maximum output tokens, persona mode and per-chat instructions
 - `GET/POST /conversations/:id/messages`, immutable branch edit at
   `/conversations/:id/messages/:messageId/edit`
+  - every message exposes `contentFormat`, `isGreeting`, `editedByUser`, `origin`, `createdAt`,
+    `updatedAt` and its lifecycle status; internal rows use role `INTERNAL` and are never projected
+    into the reader's visible branch
+  - a selected character greeting is copied into the new conversation as the first `ASSISTANT`
+    message with `isGreeting=true` and `origin=CHARACTER_GREETING`; the character version remains
+    unchanged
 - idempotent active-branch selection at `PUT /conversations/:id/active-message/:messageId`;
   `descend=1` restores the latest surviving descendant of that variant
 - branch-aware soft deletion at `DELETE /conversations/:id/messages/:messageId`; dependent
   descendants are removed together and memory becomes stale
 - SSE generation at `/conversations/:id/generate` and stop at
-  `/conversations/:id/generate/:generationId/stop`; generation mode is `REPLY` or `CONTINUE`
-- memory inspector/edit at `/conversations/:id/memory`; background summarize/full-regenerate,
-  job status, explicit keep-current, version list and restore under the same resource
+  `/conversations/:id/generate/:generationId/stop`; generation mode is `REPLY`, `CONTINUE` or
+  conversation-scoped `GREETING`
+- memory inspector/edit at `/conversations/:id/memory` with separate `manualContext` and
+  `autoSummary`; background summarize/full-regenerate never mutates the manual block,
+  job status, explicit keep-current, version list and restore under the same resource; the read-only
+  `POST /conversations/:id/memory/regenerate/preview` returns the current/generated comparison
+  without creating a job or version, while stale state includes the exact
+  `staleSinceMessageId`
 - read-only `GET /conversations/:id/prompt-inspector` reuses the exact active prompt assembly and
   returns rendered character, memory, active lore, retained branch messages and token estimates;
   it is available only when the conversation owner also owns the character, or has `ADMIN`/`OWNER`
@@ -62,8 +77,16 @@ Base path: `/api/v1`. JSON errors use `ERROR_MODEL.md`; mutating requests accept
   and the allowlisted intersection of the authenticated BotHub model catalogue
 - owner-only `GET /admin/feature-flags` and
   `PATCH /admin/feature-flags/:key`; rollout changes apply without a deploy and are audited
-- `/media/:id` uses access checks and the configured media adapter; Telegram ingestion parses
-  actual PNG/JPEG/WebP dimensions, bounds pixel geometry and never trusts declared dimensions
+- `GET /media` returns owned media plus the current direct-upload capability; `POST /media`
+  accepts only binary JPEG/PNG/WebP up to 10 MB when the private R2 binding is available, inspects
+  actual bytes and geometry, generates an opaque owner-scoped object key, and treats the optional
+  source filename as display-only metadata; base64 image payloads are never stored in D1
+- `POST /media/generate-avatar` uses the bound Workers AI image model under plan-aware and global
+  daily limits, returns an ephemeral JPEG payload, and relies on the normal authenticated
+  `POST /media` path for inspection, private storage, moderation metadata and selection
+- `/media/:id/content` applies the same owner/moderator/public-reference checks to Telegram and R2
+  bytes; `DELETE /media/:id` removes the R2 object before soft-deleting its D1 metadata, while
+  scheduled account erasure deletes every remaining owner object before database erasure
 - owned support requests at `GET/POST /support/requests`; administrator queue and state updates
   under `/admin/support/requests`
 - `/health`, `/ready`, `/openapi.json`

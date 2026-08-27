@@ -45,12 +45,21 @@ describe('conversation schemas', () => {
   it('rejects empty patches and oversized memory', () => {
     expect(conversationPatchSchema.safeParse({}).success).toBe(false);
     expect(
-      memoryEditSchema.safeParse({ content: 'x'.repeat(64_001), idempotencyKey: 'memory:01' })
-        .success,
+      memoryEditSchema.safeParse({
+        manualContext: 'x'.repeat(64_001),
+        idempotencyKey: 'memory:01',
+      }).success,
     ).toBe(false);
   });
 
-  it('allows explicit continuation but rejects unknown generation actions', () => {
+  it('accepts exactly the four response-length presets', () => {
+    for (const responseLength of ['SHORT', 'MEDIUM', 'DETAILED', 'LONG']) {
+      expect(conversationPatchSchema.safeParse({ responseLength }).success).toBe(true);
+    }
+    expect(conversationPatchSchema.safeParse({ responseLength: 'UNBOUNDED' }).success).toBe(false);
+  });
+
+  it('allows continuation and conversation-scoped greeting regeneration', () => {
     expect(
       generationCreateSchema.parse({
         parentMessageId: crypto.randomUUID(),
@@ -58,6 +67,13 @@ describe('conversation schemas', () => {
         idempotencyKey: 'continue:message:01',
       }).mode,
     ).toBe('CONTINUE');
+    expect(
+      generationCreateSchema.parse({
+        parentMessageId: crypto.randomUUID(),
+        mode: 'GREETING',
+        idempotencyKey: 'regenerate:greeting:01',
+      }).mode,
+    ).toBe('GREETING');
     expect(
       generationCreateSchema.safeParse({
         mode: 'DELETE',

@@ -150,11 +150,11 @@ export class BotHubProvider implements AIProvider {
       );
     }
     if (!response.ok) {
-      // Read the body only to classify the response in memory. Never expose or persist it: an
-      // upstream error may echo request fragments or provider-internal details.
-      await response.text();
+      // Classify only a small allowlist in memory. Never expose or persist the upstream body: it
+      // may echo request fragments or provider-internal details.
+      const upstreamBody = await response.text();
       throw new AIProviderError(
-        classifyBotHubHttpStatus(response.status),
+        classifyBotHubFailure(response.status, upstreamBody),
         `BotHub returned HTTP ${String(response.status)}.`,
         response.status === 408 ||
           response.status === 409 ||
@@ -178,10 +178,15 @@ export class BotHubProvider implements AIProvider {
       }
       const chunk = streamChunkSchema.parse(unknownChunk);
       if (chunk.error) {
+        const restriction = isExplicitContentRestriction(chunk.error.code, chunk.error.message);
         throw new AIProviderError(
-          `BOTHUB_${String(chunk.error.code ?? 'STREAM_ERROR')}`,
-          chunk.error.message,
-          true,
+          restriction
+            ? 'BOTHUB_CONTENT_RESTRICTED'
+            : `BOTHUB_${String(chunk.error.code ?? 'STREAM_ERROR')}`,
+          restriction
+            ? 'BotHub rejected the generation under its content policy.'
+            : chunk.error.message,
+          !restriction,
         );
       }
       const choice = chunk.choices?.[0];
@@ -210,6 +215,13 @@ export class BotHubProvider implements AIProvider {
         'BOTHUB_USAGE_MISSING',
         'BotHub stream ended without usage accounting.',
         true,
+      );
+    }
+    if (isContentFilterFinishReason(finishReason)) {
+      throw new AIProviderError(
+        'BOTHUB_CONTENT_RESTRICTED',
+        'BotHub stopped the generation under its content policy.',
+        false,
       );
     }
     yield { type: 'completed', usage, finishReason };
@@ -283,6 +295,39 @@ export function classifyBotHubHttpStatus(status: number): string {
   if (status === 429) return 'BOTHUB_RATE_LIMITED';
   if (status >= 500) return 'BOTHUB_UPSTREAM_UNAVAILABLE';
   return 'BOTHUB_HTTP_ERROR';
+}
+
+export function classifyBotHubFailure(status: number, body: string): string {
+  return isExplicitContentRestriction(undefined, body)
+    ? 'BOTHUB_CONTENT_RESTRICTED'
+    : classifyBotHubHttpStatus(status);
+}
+
+function isContentFilterFinishReason(value: string): boolean {
+  return /^(?:content_filter|content_policy|moderation_blocked)$/iu.test(value.trim());
+}
+
+function isExplicitContentRestriction(code: string | number | undefined, message: string): boolean {
+  const machineCode = String(code ?? '').trim();
+  if (/^(?:content_filter|content_policy|moderation_blocked|safety_block)$/iu.test(machineCode)) {
+    return true;
+  }
+  try {
+    const parsed: unknown = JSON.parse(message);
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      const error = (parsed as Readonly<Record<string, unknown>>)['error'];
+      if (typeof error === 'object' && error !== null && !Array.isArray(error)) {
+        const errorCode = (error as Readonly<Record<string, unknown>>)['code'];
+        if (typeof errorCode !== 'string' && typeof errorCode !== 'number') return false;
+        return /^(?:content_filter|content_policy|moderation_blocked|safety_block)$/iu.test(
+          String(errorCode).trim(),
+        );
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
 }
 
 export async function* readSseData(stream: ReadableStream<Uint8Array>): AsyncIterable<string> {

@@ -1,0 +1,2 @@
+$ corepack pnpm --filter @velora/web build && node toolkit/test-d1.mjs && node toolkit/test-api.mjs && vitest run tests/integration
+$ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs

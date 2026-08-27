@@ -84,5 +84,23 @@ export async function upsertTelegramUser(
     )
     .bind(persisted.id, persisted.displayName.slice(0, 80), timestamp, timestamp)
     .run();
+  await database
+    .prepare(
+      `INSERT INTO user_notifications
+       (id, user_id, kind, title_ru, body_ru, title_en, body_en,
+        action_tab, dedup_key, created_at)
+       VALUES (?, ?, 'WELCOME', ?, ?, ?, ?, 'discover', 'welcome-v1', ?)
+       ON CONFLICT(user_id, dedup_key) DO NOTHING`,
+    )
+    .bind(
+      `welcome:${persisted.id}`,
+      persisted.id,
+      'Добро пожаловать в VeloraAI',
+      'Создай персонажа или выбери историю в каталоге — твои диалоги и настройки сохраняются автоматически.',
+      'Welcome to VeloraAI',
+      'Create a character or choose a story from the catalogue — your chats and settings are saved automatically.',
+      timestamp,
+    )
+    .run();
   return persisted;
 }

@@ -40,7 +40,15 @@ const getFileResponseSchema = z.object({
   result: z.object({ file_path: z.string().min(1).max(1_024), file_size: z.number().optional() }),
 });
 
-const maxImageBytes = 10_000_000;
+const sendDocumentResponseSchema = z.object({
+  ok: z.literal(true),
+  result: z.object({
+    message_id: z.number().int().positive(),
+    document: telegramDocumentSchema,
+  }),
+});
+
+export const maxImageBytes = 10_000_000;
 const maxImageDimension = 8_192;
 const maxImagePixels = 40_000_000;
 
@@ -48,6 +56,51 @@ export interface InspectedImage {
   readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
   readonly width: number;
   readonly height: number;
+}
+
+export async function uploadTelegramImage(
+  token: string,
+  telegramId: string,
+  bytes: ArrayBuffer,
+  mimeType: InspectedImage['mimeType'],
+  originalName: string,
+  fetcher: typeof fetch = fetch,
+  apiBaseUrl?: string,
+  apiEnvironment?: TelegramApiEnvironment,
+): Promise<TelegramImageCandidate> {
+  const location = telegramApiLocationFromOptions(apiBaseUrl, apiEnvironment);
+  const form = new FormData();
+  form.set('chat_id', telegramId);
+  form.set('disable_content_type_detection', 'true');
+  form.set('document', new Blob([bytes], { type: mimeType }), originalName);
+  const response = await fetcher(telegramBotApiUrl(token, 'sendDocument', location), {
+    method: 'POST',
+    body: form,
+  });
+  const parsed = response.ok
+    ? sendDocumentResponseSchema.safeParse(await response.json())
+    : { success: false as const };
+  if (!parsed.success) {
+    throw new AppError(
+      'MEDIA_STORAGE_UNAVAILABLE',
+      'Telegram временно не принял изображение.',
+      503,
+    );
+  }
+  const document = parsed.data.result.document;
+  await fetcher(telegramBotApiUrl(token, 'deleteMessage', location), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chat_id: telegramId, message_id: parsed.data.result.message_id }),
+  }).catch(() => undefined);
+  return {
+    fileId: document.file_id,
+    uniqueId: document.file_unique_id,
+    declaredSize: document.file_size ?? bytes.byteLength,
+    width: null,
+    height: null,
+    originalName: document.file_name ?? originalName,
+  };
 }
 
 export function selectTelegramImage(

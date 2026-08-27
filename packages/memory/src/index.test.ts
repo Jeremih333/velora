@@ -1,17 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeterministicSummary, isMemoryStale, validateMemoryVersion } from './index';
+import {
+  buildDeterministicSummary,
+  composePersistentMemory,
+  isMemoryStale,
+  MEMORY_SECTION_TITLES,
+  MEMORY_SUMMARY_RETENTION_RULES,
+  validateMemoryVersion,
+} from './index';
 
 describe('memory invariants', () => {
   it('requires coverage for auto summaries', () => {
     expect(() => {
       validateMemoryVersion({
-        content: 'fact',
+        manualContext: '',
+        autoSummary: 'fact',
         source: 'AUTO_SUMMARY',
         previousVersionId: null,
         fromMessageId: null,
         toMessageId: null,
       });
     }).toThrow();
+  });
+
+  it('keeps pinned manual context and automatic summary as explicit prompt blocks', () => {
+    expect(composePersistentMemory('Пользователь боится высоты.', 'Герои вошли в башню.')).toBe(
+      'PINNED_MANUAL_CONTEXT:\nПользователь боится высоты.\n\nAUTO_SUMMARY:\nГерои вошли в башню.',
+    );
   });
 
   it('marks a memory stale when covered history was edited', () => {
@@ -43,6 +57,29 @@ describe('deterministic memory fallback', () => {
     );
     expect(summary.fromMessageId).toBe('first');
     expect(summary.toMessageId).toBe('last');
+    for (const rule of MEMORY_SUMMARY_RETENTION_RULES) {
+      expect(summary.content).toContain(rule);
+    }
+    expect(summary.content).toContain('Не сохраняй каждую фразу');
+    for (const title of MEMORY_SECTION_TITLES) {
+      expect(summary.content).toContain(title);
+    }
+  });
+
+  it('extracts roleplay actions into the structured editable summary', () => {
+    const summary = buildDeterministicSummary({
+      mode: 'FULL',
+      messages: [
+        { id: 'user', role: 'USER', content: 'Пойдём к озеру?' },
+        {
+          id: 'assistant',
+          role: 'ASSISTANT',
+          content: '*Лена закрывает книгу и улыбается.* Пойдём.',
+        },
+      ],
+    });
+    expect(summary.content).toContain('Действия персонажей:\n- Лена закрывает книгу');
+    expect(summary.content).toContain('Активные персонажи:\n- Пользователь\n- Персонаж');
   });
 
   it('covers early and late history in a 500-message branch within the hard limit', () => {

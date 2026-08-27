@@ -1,0 +1,7 @@
+
+Running 2 tests using 2 workers
+
+  ok 1 [iphone] › tests\e2e\foundation.spec.ts:3093:1 › authenticated shell and heavy workspaces load from separate chunks (1.8s)
+  ok 2 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (2.4m)
+
+  2 passed (2.5m)

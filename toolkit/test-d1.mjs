@@ -21,6 +21,7 @@ function run(argumentsList) {
       cwd: apiRoot,
       encoding: 'utf8',
       shell: false,
+      maxBuffer: 16 * 1024 * 1024,
     },
   );
   if (result.status !== 0) {

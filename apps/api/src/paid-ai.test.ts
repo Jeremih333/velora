@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPaidAiEnabled, isPaidAiReady } from './paid-ai';
+import { isGenerationTierEnabled, isPaidAiEnabled, isPaidAiReady } from './paid-ai';
 
 describe('paid AI deployment gate', () => {
   it('fails closed unless the environment explicitly enables paid roleplay', () => {
@@ -9,13 +9,26 @@ describe('paid AI deployment gate', () => {
     expect(isPaidAiEnabled({ PAID_AI_ENABLED: 'true' })).toBe(true);
   });
 
+  it('keeps sponsored Free generation independent from paid generation', () => {
+    expect(isGenerationTierEnabled({}, 'free')).toBe(false);
+    expect(isGenerationTierEnabled({}, 'standard')).toBe(false);
+    expect(isGenerationTierEnabled({ SPONSORED_FREE_AI_ENABLED: 'true' }, 'free')).toBe(true);
+    expect(isGenerationTierEnabled({ SPONSORED_FREE_AI_ENABLED: 'true' }, 'standard')).toBe(false);
+    expect(isGenerationTierEnabled({ PAID_AI_ENABLED: 'true' }, 'free')).toBe(false);
+    expect(isGenerationTierEnabled({ PAID_AI_ENABLED: 'true' }, 'standard')).toBe(true);
+    expect(isGenerationTierEnabled({ PAID_AI_ENABLED: 'true' }, 'premium')).toBe(true);
+  });
+
   it('requires successful V3 and current model capability even after explicit enablement', async () => {
     let databaseReads = 0;
     const database = {
       prepare: () => {
         databaseReads += 1;
         return {
-          bind: () => ({ first: () => Promise.resolve({ ready: 1 }) }),
+          bind: (...values: readonly unknown[]) => {
+            expect(values).toEqual(['deepseek-chat-v3.1', 'deepseek-chat-v3.1']);
+            return { first: () => Promise.resolve({ ready: 1 }) };
+          },
         };
       },
     } as unknown as D1Database;

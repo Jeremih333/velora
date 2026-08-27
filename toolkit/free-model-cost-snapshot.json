@@ -1,0 +1,61 @@
+﻿{
+  "checkedAt": "2026-08-24T22:00:43.824Z",
+  "publicCatalogUrl": "https://bothub.ru/models",
+  "keyScopedCount": null,
+  "candidates": [
+    {
+      "id": "mistral-nemo",
+      "publicListed": true,
+      "keyScopedListed": null,
+      "context": 128000,
+      "maximumOutput": 16384,
+      "inputRubPerMillion": 2.24,
+      "outputRubPerMillion": 3.54
+    },
+    {
+      "id": "l3-lunaris-8b",
+      "publicListed": true,
+      "keyScopedListed": null,
+      "context": 8192,
+      "maximumOutput": 16384,
+      "inputRubPerMillion": 4.71,
+      "outputRubPerMillion": 5.89
+    },
+    {
+      "id": "ling-3.0-flash",
+      "publicListed": true,
+      "keyScopedListed": null,
+      "context": 262144,
+      "maximumOutput": 32768,
+      "inputRubPerMillion": 2.48,
+      "outputRubPerMillion": 7.42
+    },
+    {
+      "id": "nex-n2-mini",
+      "publicListed": true,
+      "keyScopedListed": null,
+      "context": 262144,
+      "maximumOutput": 262144,
+      "inputRubPerMillion": 2.95,
+      "outputRubPerMillion": 11.79
+    },
+    {
+      "id": "gemini-2.5-flash-lite",
+      "publicListed": true,
+      "keyScopedListed": null,
+      "context": 1048576,
+      "maximumOutput": 65535,
+      "inputRubPerMillion": 2.95,
+      "outputRubPerMillion": 11.79
+    },
+    {
+      "id": "mythomax-l2-13b",
+      "publicListed": true,
+      "keyScopedListed": null,
+      "context": 4096,
+      "maximumOutput": 4096,
+      "inputRubPerMillion": 7.07,
+      "outputRubPerMillion": 7.07
+    }
+  ]
+}

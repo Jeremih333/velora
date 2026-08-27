@@ -1,7 +1,8 @@
 export type MemorySource = 'AUTO_SUMMARY' | 'FULL_REGENERATION' | 'MANUAL_EDIT' | 'RESTORE';
 
 export interface MemoryVersionInput {
-  readonly content: string;
+  readonly manualContext: string;
+  readonly autoSummary: string;
   readonly source: MemorySource;
   readonly previousVersionId: string | null;
   readonly fromMessageId: string | null;
@@ -36,14 +37,52 @@ const MAX_EXCERPT_CHARACTERS = 320;
 const CHUNK_SIZE = 50;
 const HIERARCHICAL_THRESHOLD = 500;
 
+export const MEMORY_SECTION_TITLES = [
+  'Активные персонажи:',
+  'Действия персонажей:',
+  'Краткая сводка диалога:',
+  'Сюжет действий:',
+  'Характеры:',
+  'Отношения персонажей:',
+] as const;
+
+export const MEMORY_SUMMARY_RETENTION_RULES = [
+  'ключевые события',
+  'отношения и чувства',
+  'обещания и конфликты',
+  'важные факты, персонажи, локации и предметы',
+  'текущие цели и незакрытые сюжетные линии',
+  'изменения характера',
+] as const;
+
+export const MEMORY_SUMMARY_INSTRUCTIONS = [
+  'Сохраняй только сюжетно значимые сведения:',
+  ...MEMORY_SUMMARY_RETENTION_RULES.map((rule) => `- ${rule};`),
+  'Не сохраняй каждую фразу и не добавляй факты, которых нет в истории.',
+].join('\n');
+
 export function validateMemoryVersion(input: MemoryVersionInput): void {
-  if (input.content.length > 64_000) throw new RangeError('Memory exceeds 64,000 characters.');
+  if (input.manualContext.length > 64_000) {
+    throw new RangeError('Manual context exceeds 64,000 characters.');
+  }
+  if (input.autoSummary.length > 64_000) {
+    throw new RangeError('Automatic summary exceeds 64,000 characters.');
+  }
   if (input.source === 'AUTO_SUMMARY' && input.toMessageId === null) {
     throw new Error('Automatic summary must identify its final covered message.');
   }
   if (input.source === 'RESTORE' && input.previousVersionId === null) {
     throw new Error('Restore must reference a previous version.');
   }
+}
+
+export function composePersistentMemory(manualContext: string, autoSummary: string): string {
+  return [
+    manualContext.trim() ? `PINNED_MANUAL_CONTEXT:\n${manualContext.trim()}` : '',
+    autoSummary.trim() ? `AUTO_SUMMARY:\n${autoSummary.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 export function isMemoryStale(
@@ -72,6 +111,7 @@ export function buildDeterministicSummary(input: DeterministicSummaryInput): Det
   const messages = input.messages
     .map((message) => ({ ...message, content: normalize(message.content) }))
     .filter((message) => message.content.length > 0);
+  const structuredSections = renderStructuredMemorySections(messages);
   const header =
     input.mode === 'FULL'
       ? 'Полная детерминированная сводка активной ветки'
@@ -79,7 +119,9 @@ export function buildDeterministicSummary(input: DeterministicSummaryInput): Det
   const prefix = [
     header,
     'Сводка составлена только из фрагментов реальных сообщений; домыслы не добавлялись.',
+    MEMORY_SUMMARY_INSTRUCTIONS,
     preserved ? `\nТекущая память (сохранена при обновлении):\n${preserved}` : '',
+    `\n${structuredSections}`,
     messages.length > 0 ? '\nХронология:' : '\nХронология пока пуста.',
   ]
     .filter(Boolean)
@@ -110,6 +152,34 @@ export function buildDeterministicSummary(input: DeterministicSummaryInput): Det
   };
 }
 
+function renderStructuredMemorySections(messages: readonly MemoryMessage[]): string {
+  const roles = [
+    messages.some(({ role }) => role === 'USER') ? '- Пользователь' : '',
+    messages.some(({ role }) => role === 'ASSISTANT') ? '- Персонаж' : '',
+  ].filter(Boolean);
+  const actions = messages
+    .flatMap(({ content }) => [...content.matchAll(/(?<!\*)\*([^*]+?)\*(?!\*)/gsu)])
+    .map((match) => normalize(match[1] ?? ''))
+    .filter(Boolean)
+    .slice(-12)
+    .map((action) => `- ${action}`);
+  const latest = messages
+    .slice(-8)
+    .map(
+      ({ role, content }) =>
+        `- ${role === 'USER' ? 'Пользователь' : 'Персонаж'}: ${excerpt(content, 220)}`,
+    );
+  const empty = '- Пока нет подтверждённых сведений.';
+  return [
+    `Активные персонажи:\n${roles.length > 0 ? roles.join('\n') : empty}`,
+    `Действия персонажей:\n${actions.length > 0 ? actions.join('\n') : empty}`,
+    `Краткая сводка диалога:\n${latest.length > 0 ? latest.join('\n') : empty}`,
+    `Сюжет действий:\n${actions.length > 0 ? actions.join('\n') : empty}`,
+    `Характеры:\n${empty}`,
+    `Отношения персонажей:\n${empty}`,
+  ].join('\n\n');
+}
+
 /**
  * Compacts every chronological episode instead of slicing the final string.
  * The fallback remains extractive: every excerpt comes from a real message.
@@ -128,13 +198,16 @@ export function buildHierarchicalDeterministicSummary(
   const messages = input.messages
     .map((message) => ({ ...message, content: normalize(message.content) }))
     .filter((message) => message.content.length > 0);
+  const structuredSections = renderStructuredMemorySections(messages);
   const chunks = Array.from({ length: Math.ceil(messages.length / CHUNK_SIZE) }, (_, index) =>
     messages.slice(index * CHUNK_SIZE, (index + 1) * CHUNK_SIZE),
   );
   const header = [
     'Иерархическая сводка активной ветки',
     'Каждый эпизод составлен только из фрагментов реальных сообщений; домыслы не добавлялись.',
+    MEMORY_SUMMARY_INSTRUCTIONS,
     preserved ? `\nТекущая память (сохранена при обновлении):\n${preserved}` : '',
+    `\n${structuredSections}`,
     '\nХронология эпизодов:',
   ]
     .filter(Boolean)

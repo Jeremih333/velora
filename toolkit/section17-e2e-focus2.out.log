@@ -1,0 +1,38 @@
+
+Running 1 test using 1 worker
+
+  x  1 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (15.1m)
+
+
+  1) [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 
+
+    Test timeout of 900000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 900000ms exceeded.
+    Call log:
+      - waiting for getByRole('article').filter({ has: getByRole('heading', { name: 'Лира' }) }).getByLabel('Причина жалобы')
+
+
+      2660 |   ).toHaveText('Очень атмосферный персонаж.');
+      2661 |   await liraCharacter.getByRole('button', { name: /Пожаловаться/u }).click();
+    > 2662 |   await liraCharacter.getByLabel('Причина жалобы').selectOption('SPAM');
+           |                                                    ^
+      2663 |   await liraCharacter.getByLabel('Описание жалобы').fill('Повторяющийся рекламный контент.');
+      2664 |   await liraCharacter.getByRole('button', { name: 'Отправить жалобу' }).click();
+      2665 |   await expect(page.getByText('Жалоба отправлена в очередь модерации.')).toBeVisible();
+        at C:\Users\User\Desktop\бот для ролплея с нейросетями\tests\e2e\foundation.spec.ts:2662:52
+
+    Error Context: test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Slow test file: [iphone] › tests\e2e\foundation.spec.ts (15.1m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 failed
+    [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 

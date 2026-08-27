@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ok 1 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (4.7m)
+
+  1 passed (4.8m)

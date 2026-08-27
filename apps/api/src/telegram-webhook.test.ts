@@ -110,7 +110,7 @@ describe('Telegram webhook protocol', () => {
     const englishRequest = JSON.parse(englishBody) as {
       reply_markup: { inline_keyboard: readonly (readonly { text: string }[])[] };
     };
-    expect(englishRequest.reply_markup.inline_keyboard[0]?.[0]?.text).toBe('Open Velora');
+    expect(englishRequest.reply_markup.inline_keyboard[0]?.[0]?.text).toBe('Open VeloraAI');
 
     const failedFetch = vi
       .fn<typeof fetch>()

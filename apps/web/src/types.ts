@@ -28,6 +28,22 @@ export interface MeResponse {
   readonly creditBalanceMicros: number;
 }
 
+export interface UserNotification {
+  readonly id: string;
+  readonly kind: 'WELCOME' | 'SYSTEM' | 'BILLING' | 'MODERATION';
+  readonly title: string;
+  readonly body: string;
+  readonly actionTab:
+    'discover' | 'chats' | 'characters' | 'billing' | 'settings' | 'profile' | null;
+  readonly readAt: number | null;
+  readonly createdAt: number;
+}
+
+export interface NotificationList {
+  readonly items: readonly UserNotification[];
+  readonly unreadCount: number;
+}
+
 export interface AccountDeletionStatus {
   readonly id: string;
   readonly state: 'PENDING' | 'PROCESSING' | 'CANCELLED' | 'COMPLETED' | 'FAILED';
@@ -110,6 +126,10 @@ export interface PlanDefinition {
   readonly entitlements: MeResponse['planEntitlements'];
 }
 
+export interface PlanCatalog {
+  readonly items: readonly PlanDefinition[];
+}
+
 export interface OwnerUserGrant {
   readonly id: string;
   readonly target: {
@@ -150,9 +170,20 @@ export interface PaymentHistoryItem {
   readonly accessDurationDays: number | null;
   readonly amount: number;
   readonly creditAmountMicros: number | null;
-  readonly state: string;
+  readonly state:
+    | 'CREATED'
+    | 'INVOICE_SENT'
+    | 'PENDING'
+    | 'PAID'
+    | 'GRANTED'
+    | 'FAILED'
+    | 'CANCELLED'
+    | 'EXPIRED'
+    | 'REFUNDED';
   readonly createdAt: number;
   readonly paidAt: number | null;
+  readonly validUntil: number | null;
+  readonly autoRenew: false;
 }
 
 export interface OwnerPayment {
@@ -185,6 +216,7 @@ export interface Persona {
   readonly shortDescription: string;
   readonly longDescription: string;
   readonly personality: string;
+  readonly personalityVisible?: boolean;
   readonly appearance: string;
   readonly speakingStyle: string;
   readonly background: string;
@@ -199,15 +231,19 @@ export interface Persona {
 export interface Character {
   readonly id: string;
   readonly avatarFileId: string | null;
+  readonly avatarFocalX: number;
+  readonly avatarFocalY: number;
   readonly visibility: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
   readonly publishState: 'DRAFT' | 'MODERATION_PENDING' | 'PUBLISHED' | 'REJECTED' | 'HIDDEN';
   readonly contentRating: 'SAFE' | 'MATURE';
-  readonly language: 'ru' | 'en';
+  readonly language: CharacterLanguageCode;
+  readonly groupSize: CharacterGroupSize;
   readonly version: number;
   readonly name: string;
   readonly tagline: string;
   readonly description: string;
   readonly personality: string;
+  readonly personalityVisible?: boolean;
   readonly scenario: string;
   readonly firstMessage: string;
   readonly exampleDialogues: string;
@@ -227,16 +263,22 @@ export interface Character {
 export interface DiscoveryCharacter {
   readonly id: string;
   readonly avatarFileId: string | null;
+  readonly avatarFocalX: number;
+  readonly avatarFocalY: number;
   readonly contentRating: 'SAFE' | 'MATURE';
-  readonly language: 'ru' | 'en';
+  readonly language: CharacterLanguageCode;
+  readonly groupSize: CharacterGroupSize;
   readonly updatedAt: number;
   readonly name: string;
   readonly tagline: string;
   readonly description: string;
+  readonly personality?: string | null;
   readonly firstMessage: string;
   readonly alternateGreetings: readonly string[];
   readonly creatorId: string;
   readonly creatorName: string;
+  readonly creatorRole: string;
+  readonly avatarBotUsername: string | null;
   readonly likeCount: number;
   readonly bookmarkCount: number;
   readonly reviewCount: number;
@@ -272,6 +314,7 @@ export interface PublicFeatureFlags {
     readonly new_model: boolean;
     readonly public_reviews: boolean;
     readonly experimental_renderer: boolean;
+    readonly groups: boolean;
   };
 }
 
@@ -306,10 +349,71 @@ export interface OperationsDashboard {
   readonly moderationBacklog: number;
   readonly jobBacklog: number;
   readonly productEvents24h: number;
+  readonly jobsCreated24h: number;
+  readonly mediaObjectsCreated24h: number;
+  readonly mediaBytesCreated24h: number;
+  readonly mediaBytesTotal: number;
   readonly providerLastSuccessAt: number | null;
   readonly providerLastFailureAt: number | null;
+  readonly ownerAiUsage: OwnerAiUsage | null;
   readonly planDistribution: Readonly<Record<string, number>>;
+  readonly capacityProjection: CloudflareCapacityProjection;
   readonly generatedAt: number;
+}
+
+export interface OwnerAiUsage {
+  readonly daily: AiUsageWindow;
+  readonly weekly: AiUsageWindow;
+  readonly lifetime: AiUsageWindow;
+  readonly perModelWeekly: readonly (AiUsageWindow & { readonly model: string })[];
+  readonly configuredBudgetMicros: {
+    readonly daily: number;
+    readonly monthly: number;
+    readonly lifetime: number;
+    readonly remainingLifetime: number;
+  };
+  readonly capsBalance: {
+    readonly estimatedRemainingCaps: null;
+    readonly status: 'PROVIDER_BALANCE_API_UNAVAILABLE';
+  };
+}
+
+export interface AiUsageWindow {
+  readonly requests: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly costMicros: number;
+}
+
+export interface CloudflareCapacityProjection {
+  readonly safetyMarginPercent: number;
+  readonly basisWindowHours: number;
+  readonly metrics: readonly CloudflareCapacityMetric[];
+  readonly exceedsFreePlan: boolean;
+  readonly automaticUpgradeEnabled: false;
+  readonly runtimePolicy: {
+    readonly status: 'OK' | 'WARNING' | 'CRITICAL' | 'EMERGENCY' | 'EXCEEDED';
+    readonly analyticsEnabled: boolean;
+    readonly cacheTtlMultiplier: 1 | 2 | 3 | 6;
+    readonly backgroundJobsEnabled: boolean;
+    readonly coreChatEnabled: true;
+  };
+}
+
+export interface CloudflareCapacityMetric {
+  readonly key:
+    | 'workerRequests'
+    | 'd1RowsRead'
+    | 'd1RowsWritten'
+    | 'queueOperations'
+    | 'r2Storage'
+    | 'r2ClassAOperations'
+    | 'r2ClassBOperations';
+  readonly period: 'DAY' | 'MONTH' | 'TOTAL';
+  readonly projected: number;
+  readonly freeLimit: number;
+  readonly utilizationPercent: number;
+  readonly status: 'OK' | 'WARNING' | 'CRITICAL' | 'EMERGENCY' | 'EXCEEDED';
 }
 
 export interface AiSmokeRun {
@@ -340,6 +444,112 @@ export interface BotHubModelCapabilities {
   readonly checkedAt: number;
 }
 
+export interface RoleplayModelEvalCatalogItem {
+  readonly modelProfileId: string;
+  readonly displayName: string;
+  readonly providerModelId: string;
+  readonly tier: 'free' | 'standard' | 'premium';
+  readonly enabled: boolean;
+}
+
+export interface RoleplayModelEvalRun {
+  readonly runKey: string;
+  readonly modelProfileId: string;
+  readonly displayName: string;
+  readonly provider: 'BOTHUB';
+  readonly model: string;
+  readonly state: 'RUNNING' | 'COMPLETED' | 'FAILED';
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly providerReportedCostMicros: number;
+  readonly conservativeCostMicros: number;
+  readonly latencyMs: number | null;
+  readonly outputLength: number;
+  readonly errorCode: string | null;
+  readonly httpStatus: number | null;
+  readonly startedAt: number;
+  readonly completedAt: number | null;
+  readonly alreadyAttempted: boolean;
+}
+
+export type RoleplayBenchmarkCriterion =
+  | 'character_adherence'
+  | 'persona_adherence'
+  | 'narrative_quality'
+  | 'russian_quality'
+  | 'english_quality'
+  | 'emotional_continuity'
+  | 'memory_use'
+  | 'lore_use'
+  | 'formatting'
+  | 'repetition_control'
+  | 'verbosity_control'
+  | 'latency'
+  | 'cost'
+  | 'consensual_mature_fictional_compatibility';
+
+export interface RoleplayBenchmarkSample {
+  readonly scenarioId: string;
+  readonly output: string;
+  readonly outputSha256: string;
+  readonly outputLength: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly conservativeCostMicros: number;
+  readonly latencyMs: number;
+}
+
+export interface RoleplayBenchmarkRun {
+  readonly runKey: string;
+  readonly benchmarkVersion: string;
+  readonly modelProfileId: string;
+  readonly providerModelId: string;
+  readonly state: 'RUNNING' | 'AWAITING_REVIEW' | 'APPROVED' | 'REJECTED' | 'FAILED';
+  readonly scenarioCount: number;
+  readonly completedScenarioCount: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly conservativeCostMicros: number;
+  readonly latencyMs: number | null;
+  readonly errorCode: string | null;
+  readonly startedAt: number;
+  readonly completedAt: number | null;
+  readonly reviewedAt: number | null;
+  readonly alreadyAttempted: boolean;
+  readonly samples?: readonly RoleplayBenchmarkSample[];
+  readonly scores?: Readonly<Record<RoleplayBenchmarkCriterion, number>>;
+}
+
+export interface RoleplayModelControlHealth {
+  readonly windowHours: 24;
+  readonly requestCount: number;
+  readonly successRatePercent: number | null;
+  readonly failureRatePercent: number | null;
+  readonly averageLatencyMs: number | null;
+  readonly averageTtftMs: number | null;
+  readonly recentErrors: readonly {
+    readonly errorCode: string;
+    readonly completedAt: number | null;
+  }[];
+}
+
+export interface RoleplayModelControlItem {
+  readonly modelProfileId: string;
+  readonly displayName: string;
+  readonly descriptionRu: string;
+  readonly tier: 'free' | 'standard' | 'premium';
+  readonly enabled: boolean;
+  readonly fallbackIds: readonly string[];
+  readonly updatedAt: number | null;
+  readonly updatedBy: string | null;
+  readonly health: RoleplayModelControlHealth;
+}
+
+export interface RoleplayModelControls {
+  readonly defaultModelProfileId: string;
+  readonly items: readonly RoleplayModelControlItem[];
+}
+
 export interface ModerationCaseSummary {
   readonly id: string;
   readonly reportId: string | null;
@@ -367,6 +577,8 @@ export interface Settings {
   readonly defaultPersonaId: string | null;
   readonly generationProfile: 'BALANCED' | 'CREATIVE' | 'PREMIUM';
   readonly nsfwVisible: boolean;
+  readonly safeSearch: boolean;
+  readonly matureImageBlur: boolean;
   readonly preferences: Readonly<Record<string, unknown>>;
 }
 
@@ -391,12 +603,25 @@ export interface MediaFile {
   readonly mimeType: string;
   readonly originalName: string | null;
   readonly byteSize: number;
+  readonly width: number | null;
+  readonly height: number | null;
   readonly moderationState: 'PENDING' | 'APPROVED' | 'REJECTED';
   readonly contentUrl: string;
 }
 
+export interface MediaLibraryResponse {
+  readonly items: readonly MediaFile[];
+  readonly capabilities: {
+    readonly directUpload: boolean;
+    readonly acceptedMimeTypes: readonly string[];
+    readonly maxBytes: number;
+    readonly maxOutputDimension: number;
+  };
+}
+
 export interface UserProfile {
   readonly userId: string;
+  readonly username: string | null;
   readonly displayName: string;
   readonly bio: string;
   readonly avatarFileId: string | null;
@@ -412,6 +637,8 @@ export interface UserProfile {
   readonly characters: readonly {
     readonly id: string;
     readonly avatarFileId: string | null;
+    readonly avatarFocalX: number;
+    readonly avatarFocalY: number;
     readonly name: string;
     readonly tagline: string;
     readonly contentRating: 'SAFE' | 'MATURE';
@@ -432,18 +659,81 @@ export interface ConversationSummary {
   readonly memoryStale: boolean;
   readonly characterName: string;
   readonly characterAvatarFileId: string | null;
+  readonly characterAvatarFocalX: number;
+  readonly characterAvatarFocalY: number;
+  readonly personaName: string | null;
   readonly lastMessage: string | null;
+  readonly messageCount: number;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
 
+export interface ChatCharacterProfile {
+  readonly id: string;
+  readonly avatarFileId: string | null;
+  readonly avatarFocalX: number;
+  readonly avatarFocalY: number;
+  readonly contentRating: 'SAFE' | 'MATURE';
+  readonly language: string;
+  readonly groupSize: string;
+  readonly visibility: string;
+  readonly publishState: string;
+  readonly updatedAt: number;
+  readonly name: string;
+  readonly tagline: string;
+  readonly description: string;
+  readonly personality: string | null;
+  readonly firstMessage: string;
+  readonly alternateGreetings: readonly string[];
+  readonly creatorId: string;
+  readonly creatorName: string;
+  readonly creatorRole: string;
+  readonly avatarBotUsername: string | null;
+  readonly likeCount: number;
+  readonly bookmarkCount: number;
+  readonly reviewCount: number;
+  readonly averageRating: number | null;
+  readonly liked: boolean;
+  readonly bookmarked: boolean;
+  readonly tags: readonly string[];
+  readonly isOwner: boolean;
+  readonly interactable: boolean;
+  readonly estimatedTokens: number;
+}
+
 export interface ConversationSettings {
   readonly modelProfile: 'BALANCED' | 'CREATIVE' | 'PREMIUM';
+  readonly modelProfileId: string;
   readonly temperature: number;
   readonly maxOutputTokens: number;
-  readonly responseLength: 'SHORT' | 'MEDIUM' | 'LONG';
+  readonly responseLength: 'SHORT' | 'MEDIUM' | 'DETAILED' | 'LONG';
   readonly customInstructions: string;
   readonly personaMode: 'SNAPSHOT' | 'LIVE';
+}
+
+export interface RoleplayModelCatalogItem {
+  readonly id: string;
+  readonly displayName: string;
+  readonly descriptionRu: string;
+  readonly bestForRu: string;
+  readonly speedLabel: string;
+  readonly qualityLabel: string;
+  readonly roleplayLabel: string;
+  readonly memoryLabel: string;
+  readonly providerLabel: 'BotHub';
+  readonly costLabelRu: string;
+  readonly contextWindow: number;
+  readonly maxOutput: number;
+  readonly tier: 'free' | 'standard' | 'premium';
+  readonly experimental: boolean;
+  readonly supportsStreaming: boolean;
+  readonly available: boolean;
+  readonly allowed: boolean;
+}
+
+export interface RoleplayModelCatalog {
+  readonly selectedProviderCatalogCheckedAt: number | null;
+  readonly items: readonly RoleplayModelCatalogItem[];
 }
 
 export interface ConversationDetail extends ConversationSummary {
@@ -451,13 +741,35 @@ export interface ConversationDetail extends ConversationSummary {
     readonly name: string;
     readonly tagline: string;
     readonly avatarFileId: string | null;
+    readonly avatarFocalX: number;
+    readonly avatarFocalY: number;
     readonly contentRating: 'SAFE' | 'MATURE';
   };
   readonly settings: ConversationSettings;
+  readonly group: {
+    readonly id: string;
+    readonly name: string;
+    readonly avatarFileId: string | null;
+    readonly routingMode: 'CONTEXTUAL' | 'MANUAL';
+    readonly activeCharacterId: string;
+    readonly members: readonly {
+      readonly characterId: string;
+      readonly position: number;
+      readonly name: string;
+      readonly tagline: string;
+      readonly avatarFileId: string | null;
+      readonly avatarFocalX: number;
+      readonly avatarFocalY: number;
+    }[];
+  } | null;
   readonly promptInspectorAvailable: boolean;
 }
 
 export interface PromptInspectorResponse {
+  readonly selectedModel: {
+    readonly profileId: string;
+    readonly providerModelId: string;
+  };
   readonly character: {
     readonly name: string;
     readonly description: string;
@@ -495,15 +807,24 @@ export interface PromptInspectorResponse {
 export interface ConversationMessage {
   readonly id: string;
   readonly conversationId: string;
-  readonly role: 'USER' | 'ASSISTANT' | 'SYSTEM_INTERNAL';
+  readonly role: 'USER' | 'ASSISTANT' | 'INTERNAL';
   readonly content: string;
-  readonly status: 'PENDING' | 'STREAMING' | 'COMPLETED' | 'STOPPED' | 'FAILED' | 'MODERATED';
+  readonly contentFormat: 'PLAIN_TEXT' | 'MARKDOWN';
+  readonly status:
+    'PENDING' | 'STREAMING' | 'COMPLETED' | 'STOPPED' | 'FAILED' | 'DELETED' | 'MODERATED';
+  readonly isGreeting: boolean;
+  readonly editedByUser: boolean;
+  readonly origin:
+    'LEGACY' | 'USER_INPUT' | 'CHARACTER_GREETING' | 'AI_GENERATION' | 'USER_EDIT' | 'INTERNAL';
   readonly parentMessageId: string | null;
   readonly generationGroupId: string | null;
+  readonly generationId: string | null;
+  readonly reaction: 'POSITIVE' | 'NEGATIVE' | 'EXCEPTIONAL' | null;
   readonly model: string | null;
   readonly provider: string | null;
   readonly metadata: Readonly<Record<string, unknown>>;
   readonly createdAt: number;
+  readonly updatedAt: number;
   readonly editedAt: number | null;
   readonly variantIndex: number;
   readonly variantCount: number;
@@ -513,10 +834,14 @@ export interface ConversationMessage {
 export interface MemoryVersion {
   readonly id: string;
   readonly content: string;
+  readonly manualContext: string;
+  readonly autoSummary: string;
   readonly sourceType: 'AUTO_SUMMARY' | 'FULL_REGENERATION' | 'MANUAL_EDIT' | 'RESTORE';
   readonly fromMessageId: string | null;
   readonly toMessageId: string | null;
   readonly createdAt: number;
+  readonly provider: string | null;
+  readonly model: string | null;
   readonly previousVersionId: string | null;
 }
 
@@ -531,10 +856,25 @@ export interface MemoryJob {
 
 export interface ConversationMemory {
   readonly active: MemoryVersion | null;
+  readonly manualContext: string;
+  readonly autoSummary: string;
   readonly stale: boolean;
+  readonly staleSinceMessageId: string | null;
   readonly lastSummarizedMessageId: string | null;
   readonly estimatedTokens: number;
   readonly pendingJob: MemoryJob | null;
+}
+
+export interface MemoryRegenerationPreview {
+  readonly currentAutoSummary: string;
+  readonly generatedAutoSummary: string;
+  readonly manualContext: string;
+  readonly fromMessageId: string | null;
+  readonly toMessageId: string | null;
+  readonly messageCount: number;
+  readonly estimatedTokens: number;
+  readonly provider: string;
+  readonly model: string;
 }
 
 export interface LoreEntry {
@@ -558,6 +898,7 @@ export interface LoreEntry {
 export interface Lorebook {
   readonly id: string;
   readonly ownerId: string;
+  readonly coverMediaFileId: string | null;
   readonly name: string;
   readonly description: string;
   readonly visibility: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
@@ -573,3 +914,4 @@ export interface LorebookTransfer {
   readonly book: Pick<Lorebook, 'name' | 'description' | 'visibility'>;
   readonly entries: readonly Omit<LoreEntry, 'id' | 'lorebookId' | 'createdAt' | 'updatedAt'>[];
 }
+import type { CharacterGroupSize, CharacterLanguageCode } from '@velora/shared';

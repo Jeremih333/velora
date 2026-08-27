@@ -7,7 +7,7 @@
     "dev": "wrangler dev --env local",
     "build": "wrangler deploy --dry-run --env=\"\" --outdir dist-worker",
     "cf:types": "wrangler types src/worker-configuration.d.ts",
-    "db:migrate:local": "wrangler d1 migrations apply velora-local --local",
+    "db:migrate:local": "wrangler d1 migrations apply velora-local --local --env local",
     "db:migrate:preview": "wrangler d1 migrations apply velora-staging --remote --env staging",
     "db:migrate:production": "wrangler d1 migrations apply velora-production --remote --env=\"\""
   },

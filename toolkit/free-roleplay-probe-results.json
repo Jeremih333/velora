@@ -1,0 +1,125 @@
+{
+  "checkedAt": "2026-08-24T21:59:00.6878496+00:00",
+  "results": [
+    {
+      "model": "mistral-nemo",
+      "listedForKey": true,
+      "scenarios": [
+        {
+          "id": "voice-and-action",
+          "status": 200,
+          "latencyMs": 8289,
+          "finishReason": "stop",
+          "promptTokens": 100,
+          "completionTokens": 123,
+          "hasAction": true,
+          "paragraphCount": 1,
+          "characterCount": 361,
+          "excerpt": "*Приняв протянутую струну и осмотрев её, я хмыкнула* Да, здорово с ней обращались. Ладно, посмотрим, что можно сделать. *Начала сворачивать её, пытаясь придумать, как можно использовать* Не переживай, я придумаю, как это заставить заработать. А пока давай-ка посидим у костра, пов"
+        },
+        {
+          "id": "character-trigger",
+          "status": 200,
+          "latencyMs": 19426,
+          "finishReason": "stop",
+          "promptTokens": 112,
+          "completionTokens": 98,
+          "hasAction": true,
+          "paragraphCount": 1,
+          "characterCount": 320,
+          "excerpt": "*Смерив вопрошающего оценивающим взглядом, Алиса медленно вытащила свою гитару из чехла, посвятив этому процессу столько же времени, сколько обычно нужна для приготовления обеда. Ее пальцы нежно погладили гриф, как будто приветствуя старого друга. Затем она подняла глаза и бросил"
+        }
+      ]
+    },
+    {
+      "model": "l3-lunaris-8b",
+      "listedForKey": true,
+      "scenarios": [
+        {
+          "id": "voice-and-action",
+          "status": 200,
+          "latencyMs": 7706,
+          "finishReason": "stop",
+          "promptTokens": 123,
+          "completionTokens": 180,
+          "hasAction": true,
+          "paragraphCount": 1,
+          "characterCount": 505,
+          "excerpt": "*Я смотрю на тебя, злобно улыбаясь, и беру сломанную струну, липкую от крови.*  \n«Выгляди, как бедный дурачок, пришедший с повинной» - шепчу я и начинаю разматывать нитку на гитаре, перетягивая обрывок на новую. Моя рука движется с характерной для меня уверенностью и быстротой, к"
+        },
+        {
+          "id": "character-trigger",
+          "status": 200,
+          "latencyMs": 5325,
+          "finishReason": "stop",
+          "promptTokens": 130,
+          "completionTokens": 143,
+          "hasAction": true,
+          "paragraphCount": 2,
+          "characterCount": 430,
+          "excerpt": "*Алиса хмурилась, сделав несколько отвлекающих движений руками, но не взяла гитару.* Нам? Какие нам? Я не филиал для общественного исполнения, а кто вы такие, чтобы просить?\n\n*Вдруг она схватила инструмент, начала стачивать струны и кричать.* Если хотите, что-то слушать, лучше са"
+        }
+      ]
+    },
+    {
+      "model": "ling-3.0-flash",
+      "listedForKey": true,
+      "scenarios": [
+        {
+          "id": "voice-and-action",
+          "status": 200,
+          "latencyMs": 3640,
+          "finishReason": "length",
+          "promptTokens": 130,
+          "completionTokens": 320,
+          "hasAction": true,
+          "paragraphCount": 2,
+          "characterCount": 529,
+          "excerpt": "*Я откидываю волосы с лица, не отрывая взгляда от струны, и провожу пальцем по оборванному концу* Ты опять опоздал, и я уже думала, что придётся играть в одиночку до самого рассвета. *Берусь за струну, сгибаю её между пальцами, оцениваю излом* Хмм, не всякая струна ещё годится — "
+        },
+        {
+          "id": "character-trigger",
+          "status": 200,
+          "latencyMs": 5172,
+          "finishReason": "length",
+          "promptTokens": 138,
+          "completionTokens": 320,
+          "hasAction": true,
+          "paragraphCount": 2,
+          "characterCount": 570,
+          "excerpt": "*резко отрывает наушники от ушей и резко поворачивается* Ага, «ДваЧе» — вот так меня все зовут, да? Как будто я какой-то товар на витрине мегафона! Я — Алиса, гитаристка, а не чей-то забавный никнейм для переписки в чате! *дёрнулась за струны гитары, из которых донесся резкий, лу"
+        }
+      ]
+    },
+    {
+      "model": "mythomax-l2-13b",
+      "listedForKey": true,
+      "scenarios": [
+        {
+          "id": "voice-and-action",
+          "status": 200,
+          "latencyMs": 4783,
+          "finishReason": "stop",
+          "promptTokens": 134,
+          "completionTokens": 114,
+          "hasAction": true,
+          "paragraphCount": 1,
+          "characterCount": 271,
+          "excerpt": " Алиса: *смеётся и отнимает сломанную струну у персонажа* Ну что, ты думаешь, что я магазин аксессуаров для гитар? Вставай и начинай замену, пока я чувствую у себя руки. *переводит гитару на колени, начинает петь что-то под гитару и начинает встряхиваться в ритме музыки*"
+        },
+        {
+          "id": "character-trigger",
+          "status": 200,
+          "latencyMs": 3645,
+          "finishReason": "stop",
+          "promptTokens": 137,
+          "completionTokens": 24,
+          "hasAction": false,
+          "paragraphCount": 1,
+          "characterCount": 51,
+          "excerpt": " Нет, не настрою гитару, если не увижу новых валют."
+        }
+      ]
+    }
+  ]
+}

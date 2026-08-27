@@ -5,6 +5,7 @@ interface ContractOperation {
   readonly operationId?: unknown;
   readonly security?: unknown;
   readonly parameters?: unknown;
+  readonly requestBody?: unknown;
   readonly responses?: Readonly<Record<string, unknown>>;
 }
 
@@ -40,10 +41,16 @@ describe('OpenAPI route contract', () => {
       ['post', '/api/v1/onboarding/complete'],
       ['get', '/api/v1/discovery'],
       ['post', '/api/v1/conversations/{conversationId}/generate'],
+      ['put', '/api/v1/conversations/{conversationId}/generations/{generationId}/reaction'],
+      ['delete', '/api/v1/conversations/{conversationId}/generations/{generationId}/reaction'],
       ['get', '/api/v1/conversations/{conversationId}/prompt-inspector'],
       ['post', '/api/v1/reports'],
       ['post', '/api/v1/billing/invoices'],
       ['post', '/api/v1/admin/operations/ai-smoke'],
+      ['get', '/api/v1/admin/operations/model-evals'],
+      ['post', '/api/v1/admin/operations/model-evals'],
+      ['get', '/api/v1/admin/operations/models'],
+      ['patch', '/api/v1/admin/operations/models/{modelProfileId}'],
       ['post', '/api/v1/admin/billing/user-grants'],
       ['get', '/api/v1/admin/billing/payments'],
       ['post', '/api/v1/admin/billing/payments/{paymentId}/refund'],
@@ -118,5 +125,35 @@ describe('OpenAPI route contract', () => {
         '200'
       ],
     ).toMatchObject({ content: { 'text/event-stream': { schema: { type: 'string' } } } });
+  });
+
+  it('documents direct image upload as bounded binary content rather than JSON or base64', async () => {
+    const document = await readContract();
+    const upload = operation(document, 'post', '/api/v1/media');
+    expect(upload.parameters).toContainEqual({
+      name: 'x-upload-name',
+      in: 'header',
+      required: false,
+      schema: { type: 'string', maxLength: 768 },
+      description: 'Display-only filename. The server always generates the R2 object key.',
+    });
+    expect(upload.requestBody).toMatchObject({
+      required: true,
+      content: {
+        'image/jpeg': { schema: { type: 'string', format: 'binary', maxLength: 10_000_000 } },
+        'image/png': { schema: { type: 'string', format: 'binary', maxLength: 10_000_000 } },
+        'image/webp': { schema: { type: 'string', format: 'binary', maxLength: 10_000_000 } },
+      },
+    });
+    expect(upload.responses?.['201']).toBeDefined();
+    expect(
+      operation(document, 'get', '/api/v1/media/{mediaId}/content').responses?.['200'],
+    ).toMatchObject({
+      content: {
+        'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+        'image/png': { schema: { type: 'string', format: 'binary' } },
+        'image/webp': { schema: { type: 'string', format: 'binary' } },
+      },
+    });
   });
 });

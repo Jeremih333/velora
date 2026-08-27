@@ -14,7 +14,7 @@ function requireArray(value: unknown, label: string): readonly unknown[] {
 }
 
 describe('deployment paid-feature boundaries', () => {
-  it('enables paid roleplay only in staging while payments stay disabled everywhere', async () => {
+  it('keeps production Stars owner-enabled while non-production payment gates stay closed', async () => {
     const source = await readFile(
       new URL('../../apps/api/wrangler.jsonc', import.meta.url),
       'utf8',
@@ -39,6 +39,7 @@ describe('deployment paid-feature boundaries', () => {
     expect(telegramTestVars['ENVIRONMENT']).toBe('telegram-test');
     expect(telegramTestVars['TELEGRAM_API_ENVIRONMENT']).toBe('test');
     expect(telegramTestVars['PAID_AI_ENABLED']).toBe('false');
+    expect(telegramTestVars['SPONSORED_FREE_AI_ENABLED']).toBe('false');
     expect(telegramTestVars['PAYMENTS_ENABLED']).toBe('false');
     expect(telegramTestVars['TELEGRAM_BOT_USERNAME']).not.toBe(
       stagingVars['TELEGRAM_BOT_USERNAME'],
@@ -52,15 +53,26 @@ describe('deployment paid-feature boundaries', () => {
     expect(telegramTestD1['database_id']).not.toBe(productionD1['database_id']);
     const localVars = requireRecord(local['vars'], 'local vars');
 
-    expect(production['PAID_AI_ENABLED']).toBe('false');
+    expect(production['PAID_AI_ENABLED']).toBe('true');
+    expect(Number(production['PER_USER_DAILY_AI_BUDGET_USD'])).toBeGreaterThan(0);
+    expect(Number(production['PER_USER_DAILY_AI_BUDGET_USD'])).toBeLessThanOrEqual(
+      Number(production['DAILY_AI_BUDGET_USD']),
+    );
+    expect(production['SPONSORED_FREE_AI_ENABLED']).toBe('true');
     expect(production['TELEGRAM_RECONCILIATION_ENABLED']).toBe('false');
     expect(production['OWNER_TELEGRAM_ID']).toBe('1040929628');
     expect(stagingVars['PAID_AI_ENABLED']).toBe('true');
-    expect(stagingVars['TELEGRAM_RECONCILIATION_ENABLED']).toBe('true');
+    expect(Number(stagingVars['PER_USER_DAILY_AI_BUDGET_USD'])).toBeLessThanOrEqual(
+      Number(stagingVars['DAILY_AI_BUDGET_USD']),
+    );
+    expect(stagingVars['SPONSORED_FREE_AI_ENABLED']).toBe('true');
+    expect(stagingVars['TELEGRAM_RECONCILIATION_ENABLED']).toBe('false');
+    expect(stagingVars['TELEGRAM_BOT_USERNAME']).toBe(production['TELEGRAM_BOT_USERNAME']);
     expect(localVars['PAID_AI_ENABLED']).toBe('false');
+    expect(localVars['SPONSORED_FREE_AI_ENABLED']).toBe('true');
     expect(localVars['TELEGRAM_RECONCILIATION_ENABLED']).toBe('false');
     expect(telegramTestVars['TELEGRAM_RECONCILIATION_ENABLED']).toBe('false');
-    expect(production['PAYMENTS_ENABLED']).toBe('false');
+    expect(production['PAYMENTS_ENABLED']).toBe('true');
     expect(stagingVars['PAYMENTS_ENABLED']).toBe('false');
     expect(localVars['PAYMENTS_ENABLED']).toBe('false');
   });

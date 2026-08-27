@@ -1,0 +1,38 @@
+
+Running 2 tests using 2 workers
+
+  ok 2 [iphone] › tests\e2e\foundation.spec.ts:3266:1 › authenticated shell and heavy workspaces load from separate chunks (2.2s)
+  x  1 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (5.1m)
+
+
+  1) [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 
+
+    Test timeout of 300000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 300000ms exceeded.
+    Call log:
+      - waiting for getByRole('article').filter({ has: getByRole('heading', { name: 'Лира' }) }).getByLabel('Причина жалобы')
+
+
+      2360 |   ).toHaveText('Очень атмосферный персонаж.');
+      2361 |   await liraCharacter.getByRole('button', { name: /Пожаловаться/u }).click();
+    > 2362 |   await liraCharacter.getByLabel('Причина жалобы').selectOption('SPAM');
+           |                                                    ^
+      2363 |   await liraCharacter.getByLabel('Описание жалобы').fill('Повторяющийся рекламный контент.');
+      2364 |   await liraCharacter.getByRole('button', { name: 'Отправить жалобу' }).click();
+      2365 |   await expect(page.getByText('Жалоба отправлена в очередь модерации.')).toBeVisible();
+        at C:\Users\User\Desktop\бот для ролплея с нейросетями\tests\e2e\foundation.spec.ts:2362:52
+
+    Error Context: test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 
+  1 passed (5.4m)

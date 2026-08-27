@@ -10,6 +10,7 @@ import {
 } from '@velora/domain';
 import { AppError, asError, createId, nowMs } from '@velora/shared';
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { requireOwnedConversation } from './conversation-routes';
 import { readActiveLore } from './lore-runtime';
 import { sha256 } from './telegram-auth';
@@ -23,6 +24,7 @@ interface LorebookEnvironment {
 interface LorebookRow {
   readonly id: string;
   readonly ownerId: string;
+  readonly coverMediaFileId: string | null;
   readonly name: string;
   readonly description: string;
   readonly visibility: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
@@ -48,7 +50,8 @@ interface LoreEntryRow {
   readonly updatedAt: number;
 }
 
-const lorebookProjection = `id, owner_id AS ownerId, name, description, visibility,
+const lorebookProjection = `id, owner_id AS ownerId, cover_media_file_id AS coverMediaFileId,
+  name, description, visibility,
   created_at AS createdAt, updated_at AS updatedAt`;
 const entryProjection = `id, lorebook_id AS lorebookId, title, content, keys_json AS keysJson,
   secondary_keys_json AS secondaryKeysJson, enabled, priority, position,
@@ -58,30 +61,46 @@ const entryProjection = `id, lorebook_id AS lorebookId, title, content, keys_jso
 
 export const lorebookRoutes = new Hono<LorebookEnvironment>();
 
+const ownedLorebookQuerySchema = z.object({
+  q: z.string().trim().max(80).default(''),
+  sort: z.enum(['newest', 'oldest']).default('newest'),
+});
+
 lorebookRoutes.get('/lorebooks', async (context) => {
+  const query = ownedLorebookQuerySchema.parse(context.req.query());
+  const order = query.sort === 'oldest' ? 'ASC' : 'DESC';
+  const searchCondition = query.q ? 'AND (instr(name, ?) > 0 OR instr(description, ?) > 0)' : '';
+  const values = query.q
+    ? [context.get('principal').userId, query.q, query.q]
+    : [context.get('principal').userId];
   const result = await context.env.DB.prepare(
     `SELECT ${lorebookProjection},
      (SELECT COUNT(*) FROM lorebook_entries e WHERE e.lorebook_id = l.id) AS entryCount
      FROM lorebooks l WHERE owner_id = ? AND deleted_at IS NULL
-     ORDER BY updated_at DESC LIMIT 100`,
+     ${searchCondition} ORDER BY updated_at ${order}, id ${order} LIMIT 100`,
   )
-    .bind(context.get('principal').userId)
+    .bind(...values)
     .all<LorebookRow & { entryCount: number }>();
   return context.json({ items: result.results });
 });
 
 lorebookRoutes.post('/lorebooks', async (context) => {
   const input = lorebookInputSchema.parse(await context.req.json());
+  const principal = context.get('principal');
+  if (input.coverMediaFileId) {
+    await requireOwnedCoverMedia(context.env.DB, principal.userId, input.coverMediaFileId);
+  }
   const id = createId();
   const timestamp = nowMs();
   await context.env.DB.prepare(
     `INSERT INTO lorebooks
-     (id, owner_id, name, description, visibility, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+     (id, owner_id, cover_media_file_id, name, description, visibility, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
-      context.get('principal').userId,
+      principal.userId,
+      input.coverMediaFileId,
       input.name,
       input.description,
       input.visibility,
@@ -189,14 +208,21 @@ lorebookRoutes.patch('/lorebooks/:lorebookId', async (context) => {
     context.req.param('lorebookId'),
   );
   const input = lorebookPatchSchema.parse(await context.req.json());
+  const coverMediaFileId =
+    input.coverMediaFileId === undefined ? current.coverMediaFileId : input.coverMediaFileId;
+  if (coverMediaFileId) {
+    await requireOwnedCoverMedia(context.env.DB, principal.userId, coverMediaFileId);
+  }
   await context.env.DB.prepare(
-    `UPDATE lorebooks SET name = ?, description = ?, visibility = ?, updated_at = ?
+    `UPDATE lorebooks SET name = ?, description = ?, visibility = ?, cover_media_file_id = ?,
+     updated_at = ?
      WHERE id = ? AND owner_id = ? AND deleted_at IS NULL`,
   )
     .bind(
       input.name ?? current.name,
       input.description ?? current.description,
       input.visibility ?? current.visibility,
+      coverMediaFileId,
       nowMs(),
       current.id,
       principal.userId,
@@ -204,6 +230,24 @@ lorebookRoutes.patch('/lorebooks/:lorebookId', async (context) => {
     .run();
   return context.json(await getOwnedLorebook(context.env.DB, principal.userId, current.id));
 });
+
+async function requireOwnedCoverMedia(
+  database: D1Database,
+  ownerId: string,
+  mediaId: string,
+): Promise<void> {
+  const row = await database
+    .prepare(
+      `SELECT 1 AS found FROM file_objects
+       WHERE id = ? AND owner_id = ? AND deleted_at IS NULL
+         AND mime_type IN ('image/jpeg', 'image/png', 'image/webp')`,
+    )
+    .bind(mediaId, ownerId)
+    .first<{ found: number }>();
+  if (!row) {
+    throw new AppError('MEDIA_NOT_FOUND', 'Изображение обложки не найдено.', 404);
+  }
+}
 
 lorebookRoutes.get('/lorebooks/:lorebookId/attachments', async (context) => {
   const principal = context.get('principal');

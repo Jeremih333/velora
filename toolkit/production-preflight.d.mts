@@ -4,8 +4,9 @@ export interface ProductionConfigReport {
   readonly databaseName: string;
   readonly databaseId: string;
   readonly ownerTelegramId: string;
-  readonly paidAiEnabled: false;
-  readonly paymentsEnabled: false;
+  readonly paidAiEnabled: true;
+  readonly sponsoredFreeAiEnabled: true;
+  readonly paymentsEnabled: true;
   readonly sharedTelegramBotWithStaging: boolean;
   readonly telegramWebhookCutoverRequired: boolean;
 }

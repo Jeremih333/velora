@@ -1,0 +1,136 @@
+# Cold Embrace source inventory
+
+- RPY files: 23
+- Source lines: 166795
+- Named speakers: 166
+- Labels: 652
+- Dialogue lines: 15678
+- Katya dialogue lines: 520
+- Menu choices: 0
+- Scene/show statements: 20380
+
+## Most active speakers
+
+- Дима: 6776
+- Денис: 1460
+- Вика: 799
+- Саша: 767
+- Роза: 745
+- Настя: 658
+- Гриша: 602
+- Катя: 520
+- Маша: 509
+- Марина Владимировна: 487
+- Ваня: 415
+- Жанна Адамовна: 312
+- Голос: 278
+- Женя: 208
+- Наталья: 157
+- Рома: 149
+- Олег: 101
+- Безымянный: 97
+- ???: 75
+- Толик: 54
+- Человек: 29
+- Пионер: 26
+- Макс: 25
+- Мужчина: 23
+- Девушка: 23
+- Блондинка: 19
+- Миша: 19
+- Женщина: 17
+- Брюнет: 15
+- Александра: 14
+- Заведующая: 14
+- {color=#32CD32}Денис{/color} {color=#F2F2F2}|{/color} {color=#66CDAA}Саша{/color}: 13
+- Красноволосая: 12
+- Повариха: 12
+- Девочка: 12
+- Жнец: 12
+- Русоволосая: 12
+- Заведующий: 12
+- {color=#FF8000}Дима{/color} {color=#F2F2F2}|{/color} {color=#04B4AE}Гриша{/color}: 11
+- Вожатый: 11
+
+## Most referenced scene assets
+
+- black: 1475
+- screen: 1269
+- CE_inv: 1256
+- CE_sost_80: 1104
+- den: 1006
+- CE_location_pionerlager: 709
+- vk: 701
+- ss: 589
+- sn: 564
+- rz: 508
+- gr: 506
+- ma: 412
+- kt: 342
+- mv: 313
+- CE_sost_40: 286
+- CE_hard_rain_r: 238
+- CE_time_00_00: 235
+- CE_time_22_00: 215
+- cg: 208
+- vn: 201
+- prologue_dream: 179
+- sz: 160
+- CE_time_14_00: 158
+- CE_time_16_00: 153
+- CE_location_les: 149
+- CE_time_18_00: 148
+- CE_location_catacombs: 148
+- ro: 146
+- CE_blood_light: 145
+- CE_location_dom: 123
+- CE_time_12_00: 121
+- nat: 112
+- CE_time_20_00: 100
+- CE_snow_layer3_anim: 98
+- CE_snow_layer2_anim: 98
+- CE_snow_layer1_anim: 98
+- CE_snow_layer0_anim: 98
+- snow: 98
+- zm: 84
+- CE_sost_100: 77
+- CE_blood: 76
+- CE_ext_houses_fog: 72
+- CE_ext_square_fog: 72
+- expression: 70
+- CE_time_10_00: 70
+- CE_ext_houses_night2: 63
+- CE_nadpis10: 62
+- CE_sost_60: 61
+- ext_path_night: 60
+- CE_chair: 58
+- tl: 55
+- CE_location_stolovaya: 54
+- ol: 54
+- CE_nadpis9: 53
+- CE_time_8_00: 51
+- CE_ball: 50
+- CE_ext_path_fog: 44
+- CE_int_house_clubs_fog3: 41
+- CE_fog_anim2: 41
+- CE_int_house_clubs_fog2: 41
+- CE_ext_clubs_fog: 38
+- ext_path2_night: 37
+- cs: 36
+- CE_int_house_of_mt_fog3: 35
+- CE_fog_anim: 35
+- CE_int_house_of_mt_fog2: 35
+- CE_fog_anim4: 34
+- blink: 33
+- unblink: 33
+- CE_hard_rain_l: 32
+- CE_int_dining_hall_full_fog3: 32
+- CE_int_dining_hall_full_fog2: 32
+- CE_ext_house_of_mt_fog: 31
+- mm: 31
+- fr: 30
+- CE_belizna_eff: 29
+- CE_chair2: 28
+- ext_beach_night: 27
+- ext_square_night: 27
+- CE_sost_20: 26

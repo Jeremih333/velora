@@ -240,6 +240,106 @@ moderationRoutes.use('/admin/*', async (context, next) => {
   await next();
 });
 
+const moderationDirectoryQuerySchema = z.object({
+  q: z.string().trim().max(80).default(''),
+});
+
+moderationRoutes.get('/admin/moderation/users', async (context) => {
+  const principal = context.get('principal');
+  const { q } = moderationDirectoryQuerySchema.parse(context.req.query());
+  const pattern = `%${q}%`;
+  const result = await context.env.DB.prepare(
+    `SELECT u.id, CAST(u.telegram_id AS TEXT) AS telegramId, u.username,
+      COALESCE(p.display_name, u.display_name) AS displayName, u.role,
+      u.moderation_state AS moderationState, u.created_at AS createdAt
+     FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id
+     WHERE u.deleted_at IS NULL AND
+       (? = '' OR CAST(u.telegram_id AS TEXT) LIKE ? OR COALESCE(u.username, '') LIKE ?
+        OR COALESCE(p.display_name, u.display_name) LIKE ?)
+     ORDER BY u.created_at DESC LIMIT 100`,
+  )
+    .bind(q, pattern, pattern, pattern)
+    .all<{
+      id: string;
+      telegramId: string;
+      username: string | null;
+      displayName: string;
+      role: ModerationRole;
+      moderationState: string;
+      createdAt: number;
+    }>();
+  return context.json({
+    items: result.results.filter(
+      (user) => user.id !== principal.userId && canModerateRole(principal.role, user.role),
+    ),
+  });
+});
+
+moderationRoutes.patch('/admin/moderation/users/:userId/state', async (context) => {
+  const principal = context.get('principal');
+  const input = z.object({ state: z.enum(['ACTIVE', 'BANNED']) }).parse(await context.req.json());
+  const target = await context.env.DB.prepare(
+    `SELECT id, role, moderation_state AS moderationState FROM users
+     WHERE id = ? AND deleted_at IS NULL`,
+  )
+    .bind(context.req.param('userId'))
+    .first<{ id: string; role: ModerationRole; moderationState: string }>();
+  if (!target) throw new AppError('USER_NOT_FOUND', 'Пользователь не найден.', 404);
+  if (target.id === principal.userId || !canModerateRole(principal.role, target.role)) {
+    throw new AppError('PROTECTED_ACCOUNT', 'Этот аккаунт защищён от ваших действий.', 403);
+  }
+  const timestamp = nowMs();
+  await context.env.DB.batch([
+    context.env.DB.prepare(
+      'UPDATE users SET moderation_state = ?, updated_at = ? WHERE id = ?',
+    ).bind(input.state, timestamp, target.id),
+    context.env.DB.prepare(
+      `INSERT INTO audit_logs
+       (id, actor_id, action, target_type, target_id, request_id, metadata_json, created_at)
+       VALUES (?, ?, 'MODERATION_USER_STATE_CHANGED', 'USER', ?, ?, ?, ?)`,
+    ).bind(
+      createId(),
+      principal.userId,
+      target.id,
+      context.get('requestId'),
+      JSON.stringify({ previousState: target.moderationState, state: input.state }),
+      timestamp,
+    ),
+  ]);
+  return context.json({ id: target.id, moderationState: input.state });
+});
+
+moderationRoutes.get('/admin/moderation/characters', async (context) => {
+  const principal = context.get('principal');
+  const { q } = moderationDirectoryQuerySchema.parse(context.req.query());
+  const pattern = `%${q}%`;
+  const result = await context.env.DB.prepare(
+    `SELECT c.id, v.name, c.publish_state AS publishState, c.visibility,
+      c.owner_id AS ownerId, u.role AS ownerRole,
+      COALESCE(p.display_name, u.display_name) AS ownerName, c.updated_at AS updatedAt
+     FROM characters c JOIN character_versions v ON v.id = c.active_version_id
+     JOIN users u ON u.id = c.owner_id LEFT JOIN user_profiles p ON p.user_id = u.id
+     WHERE c.deleted_at IS NULL AND (? = '' OR v.name LIKE ? OR c.id LIKE ?)
+     ORDER BY c.updated_at DESC LIMIT 100`,
+  )
+    .bind(q, pattern, pattern)
+    .all<{
+      id: string;
+      name: string;
+      publishState: string;
+      visibility: string;
+      ownerId: string;
+      ownerRole: ModerationRole;
+      ownerName: string;
+      updatedAt: number;
+    }>();
+  return context.json({
+    items: result.results.filter((character) =>
+      canModerateRole(principal.role, character.ownerRole),
+    ),
+  });
+});
+
 moderationRoutes.get('/admin/moderation/cases', async (context) => {
   const principal = context.get('principal');
   const state = caseStateSchema.optional().parse(context.req.query('state'));
@@ -930,8 +1030,8 @@ async function buildTargetMutation(
     return {
       statements: [
         database
-          .prepare(`UPDATE messages SET status = 'MODERATED' WHERE id = ?`)
-          .bind(moderationCase.targetId),
+          .prepare(`UPDATE messages SET status = 'MODERATED', updated_at = ? WHERE id = ?`)
+          .bind(nowMs(), moderationCase.targetId),
       ],
       previousState: { kind: 'MESSAGE', id: moderationCase.targetId, status: state.status },
       newState: { kind: 'MESSAGE', id: moderationCase.targetId, status: 'MODERATED' },
@@ -994,8 +1094,8 @@ function restoreTarget(
   ) {
     return [
       database
-        .prepare('UPDATE messages SET status = ? WHERE id = ?')
-        .bind(state['status'], state['id']),
+        .prepare('UPDATE messages SET status = ?, updated_at = ? WHERE id = ?')
+        .bind(state['status'], nowMs(), state['id']),
     ];
   }
   if (

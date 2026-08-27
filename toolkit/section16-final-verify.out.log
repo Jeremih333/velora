@@ -1,0 +1,154 @@
+Secret scan passed.
+Running pnpm format:check
+Checking formatting...
+All matched files use Prettier code style!
+Running pnpm docs:check
+Documentation link check passed.
+Running pnpm lint
+Running pnpm typecheck
+Running pnpm test
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  53 passed (53)
+      Tests  216 passed (216)
+   Start at  08:33:29
+   Duration  12.48s (transform 7.09s, setup 0ms, import 38.89s, tests 17.60s, environment 20.10s)
+
+Running pnpm test:roleplay-quality
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  08:33:43
+   Duration  401ms (transform 63ms, setup 0ms, import 177ms, tests 11ms, environment 0ms)
+
+Running pnpm test:contract
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  08:33:44
+   Duration  2.61s (transform 788ms, setup 0ms, import 2.34s, tests 61ms, environment 0ms)
+
+Running pnpm test:integration
+[36mvite v8.2.1 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 2198 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                   0.64 kB │ gzip:   0.40 kB
+dist/.vite/manifest.json                                          5.01 kB │ gzip:   0.65 kB
+dist/assets/noto-sans-cyrillic-wght-normal-B2hlT84T.woff2        20.08 kB
+dist/assets/noto-serif-cyrillic-wght-normal-CeZyc_3Q.woff2       24.57 kB
+dist/assets/noto-sans-latin-wght-normal-BYSzYMf3.woff2           35.82 kB
+dist/assets/noto-serif-latin-wght-normal-DKWgU5qY.woff2          36.75 kB
+dist/assets/noto-sans-cyrillic-standard-italic-CIdpxP6v.woff2    42.04 kB
+dist/assets/noto-serif-cyrillic-standard-italic-DWmDwZzK.woff2   59.14 kB
+dist/assets/noto-sans-latin-standard-italic-D4-s32zN.woff2       68.67 kB
+dist/assets/noto-serif-latin-standard-italic-B3Z0LVD7.woff2      85.23 kB
+dist/assets/index-eR5DRh4n.css                                  110.55 kB │ gzip:  17.94 kB
+dist/assets/LorebooksView-kdaXvCDX.js                            14.30 kB │ gzip:   3.60 kB │ map:    40.14 kB
+dist/assets/ChatsView-CyqcQPNJ.js                                42.48 kB │ gzip:  10.19 kB │ map:   135.40 kB
+dist/assets/SafeMarkdown-BHYw6F_J.js                            158.97 kB │ gzip:  47.66 kB │ map:   951.35 kB
+dist/assets/AuthenticatedApp-Bezmu3Ji.js                        216.25 kB │ gzip:  53.23 kB │ map:   826.57 kB
+dist/assets/index-BVm1lUBH.js                                   343.61 kB │ gzip: 107.58 kB │ map: 1,179.33 kB
+
+[32m✓ built in 595ms[39m
+Web bundle budget passed: initial=343612 B; assets/index-BVm1lUBH.js=343612 B, assets/AuthenticatedApp-Bezmu3Ji.js=216257 B, assets/ChatsView-CyqcQPNJ.js=42482 B, assets/LorebooksView-kdaXvCDX.js=14305 B, assets/SafeMarkdown-BHYw6F_J.js=158975 B.
+Local D1 migration, idempotent quality seed and integrity checks passed.
+Local load smoke passed: users=40@p50=479.0ms/p95=853.6ms/max=858.4ms, D1=40@p50=412.2ms/p95=412.8ms/max=412.8ms, search=40@p50=1227.7ms/p95=1228.1ms/max=1228.2ms, AI=4@p50=945.2ms/p95=949.1ms/max=949.1ms.
+Local Worker auth/settings/persona/character/discovery/media/conversation/moderation integration passed.
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  11 passed (11)
+      Tests  86 passed (86)
+   Start at  08:35:45
+   Duration  785ms (transform 449ms, setup 0ms, import 1.20s, tests 994ms, environment 2ms)
+
+Running pnpm build
+[36mvite v8.2.1 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 2198 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                   0.64 kB │ gzip:   0.40 kB
+dist/.vite/manifest.json                                          5.01 kB │ gzip:   0.65 kB
+dist/assets/noto-sans-cyrillic-wght-normal-B2hlT84T.woff2        20.08 kB
+dist/assets/noto-serif-cyrillic-wght-normal-CeZyc_3Q.woff2       24.57 kB
+dist/assets/noto-sans-latin-wght-normal-BYSzYMf3.woff2           35.82 kB
+dist/assets/noto-serif-latin-wght-normal-DKWgU5qY.woff2          36.75 kB
+dist/assets/noto-sans-cyrillic-standard-italic-CIdpxP6v.woff2    42.04 kB
+dist/assets/noto-serif-cyrillic-standard-italic-DWmDwZzK.woff2   59.14 kB
+dist/assets/noto-sans-latin-standard-italic-D4-s32zN.woff2       68.67 kB
+dist/assets/noto-serif-latin-standard-italic-B3Z0LVD7.woff2      85.23 kB
+dist/assets/index-eR5DRh4n.css                                  110.55 kB │ gzip:  17.94 kB
+dist/assets/LorebooksView-kdaXvCDX.js                            14.30 kB │ gzip:   3.60 kB │ map:    40.14 kB
+dist/assets/ChatsView-CyqcQPNJ.js                                42.48 kB │ gzip:  10.19 kB │ map:   135.40 kB
+dist/assets/SafeMarkdown-BHYw6F_J.js                            158.97 kB │ gzip:  47.66 kB │ map:   951.35 kB
+dist/assets/AuthenticatedApp-Bezmu3Ji.js                        216.25 kB │ gzip:  53.23 kB │ map:   826.57 kB
+dist/assets/index-BVm1lUBH.js                                   343.61 kB │ gzip: 107.58 kB │ map: 1,179.33 kB
+
+[32m✓ built in 655ms[39m
+Web bundle budget passed: initial=343612 B; assets/index-BVm1lUBH.js=343612 B, assets/AuthenticatedApp-Bezmu3Ji.js=216257 B, assets/ChatsView-CyqcQPNJ.js=42482 B, assets/LorebooksView-kdaXvCDX.js=14305 B, assets/SafeMarkdown-BHYw6F_J.js=158975 B.
+
+ ⛅️ wrangler 4.120.0 (update available 4.123.0)
+───────────────────────────────────────────────
+✨ Read 24 files from the assets directory C:\Users\User\Desktop\бот для ролплея с нейросетями\apps\web\dist
+Total Upload: 1201.44 KiB / gzip: 210.69 KiB
+Your Worker has access to the following bindings:
+Binding                                                                               Resource                  
+env.DB (velora-production)                                                            D1 Database               
+env.ASSETS                                                                            Assets                    
+env.ENVIRONMENT ("production")                                                        Environment Variable      
+env.APP_NAME ("Velora")                                                               Environment Variable      
+env.TELEGRAM_BOT_USERNAME ("aivel0ra_bot")                                            Environment Variable      
+env.TELEGRAM_RECONCILIATION_ENABLED ("false")                                         Environment Variable      
+env.OWNER_TELEGRAM_ID ("1040929628")                                                  Environment Variable      
+env.PUBLIC_APP_URL ("https://velora-app.carreljeremih.work...")                       Environment Variable      
+env.MAX_INIT_DATA_AGE_SECONDS ("900")                                                 Environment Variable      
+env.DAILY_AI_BUDGET_USD ("0.80")                                                      Environment Variable      
+env.MONTHLY_AI_BUDGET_USD ("24")                                                      Environment Variable      
+env.LIFETIME_AI_BUDGET_USD ("350")                                                    Environment Variable      
+env.PAID_AI_ENABLED ("false")                                                         Environment Variable      
+env.SPONSORED_FREE_AI_ENABLED ("false")                                               Environment Variable      
+env.PAYMENTS_ENABLED ("false")                                                        Environment Variable      
+
+--dry-run: exiting now.
+Running pnpm test:e2e
+
+Running 5 tests using 1 worker
+
+  ok 1 [iphone] › tests\e2e\foundation.spec.ts:78:1 › renders the isolated Velora shell without pretending standalone auth (960ms)
+  ok 2 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (2.7m)
+  ok 3 [iphone] › tests\e2e\foundation.spec.ts:3602:1 › authenticated shell and Telegram host events load heavy workspaces safely (27.9s)
+  ok 4 [iphone] › tests\e2e\foundation.spec.ts:4116:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (7.2s)
+  ok 5 [iphone] › tests\e2e\foundation.spec.ts:4308:1 › owner manages moderator appointments without exposing the control to staff (7.8s)
+
+  5 passed (3.5m)
+
+Running 5 tests using 1 worker
+
+  ok 1 [android] › tests\e2e\foundation.spec.ts:78:1 › renders the isolated Velora shell without pretending standalone auth (782ms)
+  ok 2 [android] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (42.0s)
+  ok 3 [android] › tests\e2e\foundation.spec.ts:3602:1 › authenticated shell and Telegram host events load heavy workspaces safely (4.2s)
+  ok 4 [android] › tests\e2e\foundation.spec.ts:4116:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (3.2s)
+  ok 5 [android] › tests\e2e\foundation.spec.ts:4308:1 › owner manages moderator appointments without exposing the control to staff (3.0s)
+
+  5 passed (1.0m)
+
+Running 5 tests using 1 worker
+
+  ok 1 [desktop] › tests\e2e\foundation.spec.ts:78:1 › renders the isolated Velora shell without pretending standalone auth (791ms)
+  ok 2 [desktop] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (45.3s)
+  ok 3 [desktop] › tests\e2e\foundation.spec.ts:3602:1 › authenticated shell and Telegram host events load heavy workspaces safely (4.0s)
+  ok 4 [desktop] › tests\e2e\foundation.spec.ts:4116:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (3.6s)
+  ok 5 [desktop] › tests\e2e\foundation.spec.ts:4308:1 › owner manages moderator appointments without exposing the control to staff (3.3s)
+
+  5 passed (1.1m)
+Velora quality gate passed.

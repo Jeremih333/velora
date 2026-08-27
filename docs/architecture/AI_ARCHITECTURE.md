@@ -12,6 +12,15 @@ Initial routing:
 - Memory/moderation: Workers AI free allowance or deterministic degraded mode; prepaid roleplay
   funds are not silently consumed for auxiliary tasks.
 
+Creator assistance is also isolated from paid roleplay generation. Avatar generation uses the
+Workers AI `flux-1-schnell` binding and character-field assistance uses
+`llama-3.1-8b-instruct-fast`. Both have per-user plan-aware daily limits plus a separate global
+allowance guard. Generated avatar bytes are not written to D1 and enter the same validated private
+media upload path as local files. Text assistance accepts only four allowlisted targets, treats all
+author content as untrusted reference data, caps input/output, and returns a proposal without
+mutating a draft. The web client requires an explicit “Apply” action, after which ordinary form
+validation, token accounting, autosave and immutable character versioning remain authoritative.
+
 Every request reserves the most expensive configured candidate against user credits and the sum
 of every allowed retry/fallback attempt against the owner's provider budget before provider
 contact. It has an idempotency key, records provider spend separately from the billable successful
@@ -27,8 +36,10 @@ fee for every successful LLM request; the current `0.02 USD` value deliberately 
 catalogue's `1 ₽` fee at the planning exchange rate. A live balance delta must still be reconciled
 before enabling paid generation.
 
-Prompt precedence: platform safety → platform policy → character snapshot → creator instructions
-→ persistent memory → active lore → user chat instructions → recent branch → latest message.
+Prompt precedence: platform safety → platform generation instructions → immutable character version
+→ creator instructions → Persona snapshot/live context → pinned manual context → automatic summary
+→ relevant active Lorebook entries → conversation instructions → recent active branch → latest user
+message. Optional post-history creator instructions remain an explicitly labelled final system block.
 
 Documented variables are expanded by an application-owned, non-evaluating template renderer.
 Escaped variables remain literal and unknown variables are reported instead of executed. Parsed

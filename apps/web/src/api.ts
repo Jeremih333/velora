@@ -50,6 +50,11 @@ export interface SseEvent {
   readonly data: unknown;
 }
 
+interface SseErrorPayload {
+  readonly code?: string;
+  readonly message?: string;
+}
+
 export async function apiSse(
   url: string,
   body: unknown,
@@ -99,7 +104,18 @@ export async function apiSse(
           .filter((line) => line.startsWith('data:'))
           .map((line) => line.slice(5).trimStart())
           .join('\n');
-        if (event && data) onEvent({ event, data: JSON.parse(data) as unknown });
+        if (event && data) {
+          const parsed: unknown = JSON.parse(data);
+          if (event === 'error') {
+            const payload = parsed as SseErrorPayload;
+            throw new ApiError(
+              payload.code ?? 'GENERATION_FAILED',
+              payload.message ?? 'The generation could not be completed.',
+              502,
+            );
+          }
+          onEvent({ event, data: parsed });
+        }
         boundary = buffer.indexOf('\n\n');
       }
       if (result.done) break;

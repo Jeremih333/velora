@@ -1,6 +1,6 @@
 import { publicConfigSchema } from '@velora/config';
 import { AppError, asError, createId, nowMs } from '@velora/shared';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
 import { secureHeaders } from 'hono/secure-headers';
 import { z } from 'zod';
@@ -8,6 +8,9 @@ import { sha256, verifyTelegramInitData } from './telegram-auth';
 import { authenticateSession, verifyCsrfToken } from './session';
 import { personaRoutes } from './persona-routes';
 import { characterRoutes } from './character-routes';
+import { characterGroupRoutes } from './character-group-routes';
+import { characterBotRoutes } from './character-bot-routes';
+import { processCharacterBotWebhook } from './character-bot-webhook';
 import { discoveryRoutes } from './discovery-routes';
 import { mediaRoutes } from './media-routes';
 import { conversationRoutes } from './conversation-routes';
@@ -31,16 +34,24 @@ import {
 } from './reliability';
 import { upsertTelegramUser } from './telegram-user';
 import { reconcileTelegramConfiguration } from './telegram-configuration';
+import { telegramWebAppUrl } from './telegram-web-app-url';
 import { reconcileBotHubProvider } from './bothub-reconciliation';
-import { parseTelegramUpdate, processTelegramUpdate, secretsEqual } from './telegram-webhook';
+import {
+  parseBotCommand,
+  parseTelegramUpdate,
+  processTelegramUpdate,
+  secretsEqual,
+} from './telegram-webhook';
 import type { Env, Variables } from './types';
 import { runOperationalAlertCycle } from './operational-alerts';
+import { refreshCapacityRuntimeState } from './capacity-runtime';
 import { onboardingRoutes } from './onboarding-routes';
 import { supportRoutes } from './support-routes';
 import { profileRoutes } from './profile-routes';
 import { readEffectivePlan, requireModelProfile as requirePlanModelProfile } from './plans';
 import { createOpenApiDocument } from './openapi';
 import { telegramApiLocation } from './telegram-api';
+import { notificationRoutes } from './notification-routes';
 
 interface AppEnvironment {
   Bindings: Env;
@@ -56,6 +67,8 @@ const settingsPatchSchema = z
     defaultPersonaId: z.uuid().nullable().optional(),
     generationProfile: z.enum(['BALANCED', 'CREATIVE', 'PREMIUM']).optional(),
     nsfwVisible: z.boolean().optional(),
+    safeSearch: z.boolean().optional(),
+    matureImageBlur: z.boolean().optional(),
     preferences: z.record(z.string().max(80), z.unknown()).optional(),
   })
   .refine((body) => Object.keys(body).length > 0, 'At least one setting is required.')
@@ -109,12 +122,59 @@ app.use(
   }),
 );
 
-app.get('/health', (context) => context.json({ status: 'ok', service: 'velora-app' }));
+const healthHandler = (context: Context<AppEnvironment>) =>
+  context.json({ status: 'ok', service: 'velora-app' });
 
-app.get('/ready', async (context) => {
+const readyHandler = async (context: Context<AppEnvironment>) => {
   const result = await context.env.DB.prepare('SELECT 1 AS ok').first<{ ok: number }>();
   if (result?.ok !== 1) throw new AppError('DEPENDENCY_UNAVAILABLE', 'База данных не готова.', 503);
   return context.json({ status: 'ready', dependencies: { d1: true } });
+};
+
+app.get('/health', healthHandler);
+app.get('/ready', readyHandler);
+app.get('/api/health', healthHandler);
+app.get('/api/ready', readyHandler);
+
+type MaintenanceEnvironment = Pick<
+  Env,
+  'MAINTENANCE_MODE' | 'MAINTENANCE_START_AT' | 'MAINTENANCE_END_AT'
+>;
+
+function parseMaintenanceBoundary(value: string | undefined): number | undefined {
+  const normalized = value?.trim();
+  if (!normalized) return undefined;
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? timestamp : undefined;
+}
+
+export function isMaintenanceMode(
+  env: MaintenanceEnvironment | undefined,
+  timestamp = Date.now(),
+): boolean {
+  if (!env) return false;
+  if (env.MAINTENANCE_MODE?.trim().toLowerCase() === 'true') return true;
+
+  const startsAt = parseMaintenanceBoundary(env.MAINTENANCE_START_AT);
+  const endsAt = parseMaintenanceBoundary(env.MAINTENANCE_END_AT);
+  if (startsAt === undefined || endsAt === undefined || endsAt <= startsAt) return false;
+  return timestamp >= startsAt && timestamp < endsAt;
+}
+
+app.use('*', async (context, next) => {
+  if (!isMaintenanceMode(context.env)) {
+    await next();
+    return;
+  }
+  context.header('retry-after', '120');
+  const configuredMessage = context.env.MAINTENANCE_MESSAGE?.trim();
+  throw new AppError(
+    'MAINTENANCE_MODE',
+    configuredMessage && configuredMessage.length > 0
+      ? configuredMessage
+      : 'VeloraAI обновляется. Мы уже переносим сервис и скоро вернёмся — данные в безопасности.',
+    503,
+  );
 });
 
 app.get('/api/v1/config', async (context) => {
@@ -165,12 +225,43 @@ app.post('/api/v1/auth/telegram', async (context) => {
   )
     .bind(verified.hash, nowMs())
     .first<{ found: number }>();
-  if (replay !== null)
+  if (replay !== null) {
+    try {
+      const existing = await authenticateSession(
+        context.env,
+        context.req.header('cookie'),
+        nowMs(),
+      );
+      if (existing.telegramId === verified.user.id) {
+        const csrfToken = randomToken();
+        const csrfHash = await sha256(`${context.env.SESSION_SIGNING_KEY}:${csrfToken}`);
+        await context.env.DB.prepare('UPDATE sessions SET csrf_hash = ? WHERE id = ?')
+          .bind(csrfHash, existing.sessionId)
+          .run();
+        return context.json({
+          user: {
+            id: existing.userId,
+            displayName: existing.displayName,
+            username: existing.username,
+            role: existing.role,
+          },
+          csrfToken,
+        });
+      }
+    } catch (error) {
+      if (
+        !(error instanceof AppError) ||
+        !['UNAUTHENTICATED', 'SESSION_EXPIRED'].includes(error.code)
+      ) {
+        throw error;
+      }
+    }
     throw new AppError(
       'INIT_DATA_REPLAYED',
       'Эта ссылка входа уже использована. Откройте приложение заново.',
       409,
     );
+  }
 
   const user = await upsertTelegramUser(
     context.env.DB,
@@ -249,12 +340,44 @@ app.post('/telegram/webhook', async (context) => {
   );
   if (!authorized) throw new AppError('UNAUTHORIZED_WEBHOOK', 'Webhook не авторизован.', 401);
   const update = parseTelegramUpdate(await context.req.json());
+  const command = parseBotCommand(update.message?.text, context.env.TELEGRAM_BOT_USERNAME);
   const result = await processTelegramUpdate(context.env.DB, update, {
     botUsername: context.env.TELEGRAM_BOT_USERNAME,
     botToken: TELEGRAM_BOT_TOKEN,
-    publicAppUrl: context.env.PUBLIC_APP_URL,
+    publicAppUrl: telegramWebAppUrl(context.env),
     ownerTelegramId: context.env.OWNER_TELEGRAM_ID,
+    childBotEncryptionKey: context.env.CHILD_BOT_ENCRYPTION_KEY,
     telegramApiLocation: telegramApiLocation(context.env),
+  });
+  if (command === 'start' || command === 'app') {
+    context.executionCtx.waitUntil(
+      reconcileTelegramConfiguration(context.env, nowMs(), fetch, true),
+    );
+  }
+  return context.json({ ok: true, result });
+});
+
+app.post('/telegram/character-bots/:botId', async (context) => {
+  if (!context.env.CHILD_BOT_ENCRYPTION_KEY || !context.env.BOTHUB_API_KEY) {
+    throw new AppError('CHILD_BOT_SERVICE_UNAVAILABLE', 'AI-аватары временно недоступны.', 503);
+  }
+  const result = await processCharacterBotWebhook({
+    database: context.env.DB,
+    botId: context.req.param('botId'),
+    receivedSecret: context.req.header('x-telegram-bot-api-secret-token'),
+    encryptionKey: context.env.CHILD_BOT_ENCRYPTION_KEY,
+    bothubApiKey: context.env.BOTHUB_API_KEY,
+    budgetLimits: {
+      dailyUsd: context.env.DAILY_AI_BUDGET_USD,
+      perUserDailyUsd: context.env.PER_USER_DAILY_AI_BUDGET_USD ?? context.env.DAILY_AI_BUDGET_USD,
+      monthlyUsd: context.env.MONTHLY_AI_BUDGET_USD,
+      lifetimeUsd: context.env.LIFETIME_AI_BUDGET_USD,
+    },
+    update: await context.req.json(),
+    telegramApiLocation: telegramApiLocation(context.env),
+    ...(context.env.ENVIRONMENT === 'local' && context.env.BOTHUB_BASE_URL
+      ? { bothubEndpoint: context.env.BOTHUB_BASE_URL }
+      : {}),
   });
   return context.json({ ok: true, result });
 });
@@ -390,7 +513,10 @@ authenticated.patch('/settings', async (context) => {
       body.generationProfile,
     );
   }
-  if (body.nsfwVisible === true && principal.ageGateAcceptedAt === null) {
+  if (
+    (body.nsfwVisible === true || body.safeSearch === false) &&
+    principal.ageGateAcceptedAt === null
+  ) {
     throw new AppError('AGE_GATE_REQUIRED', 'Сначала подтвердите совершеннолетие.', 403);
   }
   if (body.defaultPersonaId) {
@@ -410,12 +536,21 @@ authenticated.patch('/settings', async (context) => {
     ),
     context.env.DB.prepare(
       `UPDATE user_settings SET theme = ?, default_persona_id = ?, generation_profile = ?,
-          nsfw_visible = ?, preferences_json = ?, updated_at = ? WHERE user_id = ?`,
+          nsfw_visible = ?, safe_search = ?, mature_image_blur = ?, preferences_json = ?,
+          updated_at = ? WHERE user_id = ?`,
     ).bind(
       body.theme ?? current.theme,
       body.defaultPersonaId === undefined ? current.defaultPersonaId : body.defaultPersonaId,
       body.generationProfile ?? current.generationProfile,
       body.nsfwVisible === undefined ? (current.nsfwVisible ? 1 : 0) : body.nsfwVisible ? 1 : 0,
+      body.safeSearch === undefined ? (current.safeSearch ? 1 : 0) : body.safeSearch ? 1 : 0,
+      body.matureImageBlur === undefined
+        ? current.matureImageBlur
+          ? 1
+          : 0
+        : body.matureImageBlur
+          ? 1
+          : 0,
       body.preferences === undefined
         ? JSON.stringify(current.preferences)
         : JSON.stringify(body.preferences),
@@ -454,6 +589,8 @@ authenticated.post('/auth/logout', async (context) => {
 authenticated.route('/personas', personaRoutes);
 authenticated.route('/onboarding', onboardingRoutes);
 authenticated.route('/characters', characterRoutes);
+authenticated.route('/character-groups', characterGroupRoutes);
+authenticated.route('/', characterBotRoutes);
 authenticated.route('/discovery', discoveryRoutes);
 authenticated.route('/public', publicRoutes);
 authenticated.route('/media', mediaRoutes);
@@ -466,6 +603,7 @@ authenticated.route('/', operationsRoutes);
 authenticated.route('/', accountControlRoutes);
 authenticated.route('/', supportRoutes);
 authenticated.route('/', profileRoutes);
+authenticated.route('/', notificationRoutes);
 
 app.route('/api/v1', authenticated);
 
@@ -480,6 +618,8 @@ interface SettingsRow {
   readonly defaultPersonaId: string | null;
   readonly generationProfile: 'BALANCED' | 'CREATIVE' | 'PREMIUM';
   readonly nsfwVisible: number;
+  readonly safeSearch: number;
+  readonly matureImageBlur: number;
   readonly preferencesJson: string;
 }
 
@@ -488,6 +628,7 @@ async function readSettings(database: D1Database, userId: string) {
     .prepare(
       `SELECT theme, default_persona_id AS defaultPersonaId,
         generation_profile AS generationProfile, nsfw_visible AS nsfwVisible,
+        safe_search AS safeSearch, mature_image_blur AS matureImageBlur,
         preferences_json AS preferencesJson FROM user_settings WHERE user_id = ?`,
     )
     .bind(userId)
@@ -507,6 +648,8 @@ async function readSettings(database: D1Database, userId: string) {
     defaultPersonaId: row.defaultPersonaId,
     generationProfile: row.generationProfile,
     nsfwVisible: row.nsfwVisible === 1,
+    safeSearch: row.safeSearch === 1,
+    matureImageBlur: row.matureImageBlur === 1,
     preferences,
   };
 }
@@ -581,19 +724,25 @@ export default {
   ): Response | Promise<Response> {
     return app.fetch(request, env, executionContext);
   },
-  scheduled(_controller: ScheduledController, env: Env, executionContext: ExecutionContext): void {
-    executionContext.waitUntil(
-      Promise.all([
-        processDueMemoryJobs(env.DB, 3),
-        processDueAccountDeletions(env.DB, 1),
-        cleanupReliabilityData(env.DB),
-        runOperationalAlertCycle(env),
-        reconcileTelegramConfiguration(env),
-        reconcileBotHubProvider(env),
-      ]).then(() => undefined),
-    );
+  scheduled(controller: ScheduledController, env: Env, executionContext: ExecutionContext): void {
+    if (isMaintenanceMode(env, controller.scheduledTime)) return;
+    executionContext.waitUntil(runScheduledMaintenance(env));
   },
 } satisfies ExportedHandler<Env>;
+
+async function runScheduledMaintenance(env: Env): Promise<void> {
+  const capacity = await refreshCapacityRuntimeState(env.DB);
+  const tasks: Promise<unknown>[] = [
+    processDueMemoryJobs(env.DB, 3),
+    processDueAccountDeletions(env.DB, 1, nowMs(), env.MEDIA_BUCKET),
+    runOperationalAlertCycle(env),
+    reconcileTelegramConfiguration(env),
+  ];
+  if (capacity.backgroundJobsEnabled) {
+    tasks.push(cleanupReliabilityData(env.DB), reconcileBotHubProvider(env));
+  }
+  await Promise.all(tasks);
+}
 
 function writeRequestLog(
   level: 'info' | 'error',

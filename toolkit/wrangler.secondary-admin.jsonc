@@ -1,0 +1,13 @@
+{
+  "name": "velora-secondary-admin",
+  "compatibility_date": "2026-08-26",
+  "account_id": "aa0a32cd6c75f48ff223c0e3458139d7",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "velora-production",
+      "database_id": "ced93395-f8f9-43ae-9306-950fb7de0c52",
+      "migrations_dir": "../migrations",
+    },
+  ],
+}

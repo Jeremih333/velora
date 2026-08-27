@@ -64,6 +64,17 @@ function responseFor(path: string): OpenApiObject {
       },
     };
   }
+  if (path === '/api/v1/media/:mediaId/content') {
+    const binary = { schema: { type: 'string', format: 'binary' } };
+    return {
+      description: 'Validated image bytes from the configured private media store.',
+      content: {
+        'image/jpeg': binary,
+        'image/png': binary,
+        'image/webp': binary,
+      },
+    };
+  }
   return {
     description: 'Successful response.',
     content: {
@@ -74,6 +85,7 @@ function responseFor(path: string): OpenApiObject {
 
 function operationFor(method: string, path: string): OpenApiObject {
   const mutation = method !== 'GET';
+  const directMediaUpload = method === 'POST' && path === '/api/v1/media';
   const parameters: OpenApiObject[] = [...pathParameters(path)];
   if (mutation && path.startsWith('/api/v1/')) {
     parameters.push({
@@ -84,6 +96,15 @@ function operationFor(method: string, path: string): OpenApiObject {
       description: 'Required by operations documented as idempotent.',
     });
   }
+  if (directMediaUpload) {
+    parameters.push({
+      name: 'x-upload-name',
+      in: 'header',
+      required: false,
+      schema: { type: 'string', maxLength: 768 },
+      description: 'Display-only filename. The server always generates the R2 object key.',
+    });
+  }
   return {
     operationId: operationId(method, path),
     tags: [tagFor(path)],
@@ -91,16 +112,26 @@ function operationFor(method: string, path: string): OpenApiObject {
     security: securityFor(method, path),
     ...(mutation
       ? {
-          requestBody: {
-            required: path !== '/telegram/webhook',
-            content: {
-              'application/json': { schema: { type: 'object' } },
-            },
-          },
+          requestBody: directMediaUpload
+            ? {
+                required: true,
+                content: Object.fromEntries(
+                  ['image/jpeg', 'image/png', 'image/webp'].map((contentType) => [
+                    contentType,
+                    { schema: { type: 'string', format: 'binary', maxLength: 10_000_000 } },
+                  ]),
+                ),
+              }
+            : {
+                required: path !== '/telegram/webhook',
+                content: {
+                  'application/json': { schema: { type: 'object' } },
+                },
+              },
         }
       : {}),
     responses: {
-      '200': responseFor(path),
+      [directMediaUpload ? '201' : '200']: responseFor(path),
       '400': { $ref: '#/components/responses/ApiError' },
       '401': { $ref: '#/components/responses/ApiError' },
       '403': { $ref: '#/components/responses/ApiError' },
@@ -129,7 +160,7 @@ export function createOpenApiDocument(routes: readonly HonoRouteDescriptor[]): O
   return {
     openapi: '3.1.0',
     info: {
-      title: 'Velora Worker API',
+      title: 'VeloraAI Worker API',
       version: '0.0.1',
       description:
         'Generated route-level contract. Runtime request payloads are validated by strict Zod schemas.',

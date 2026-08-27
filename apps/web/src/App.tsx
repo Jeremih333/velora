@@ -1,10 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { GitFork, LibraryBig, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { apiRequest, setCsrfToken } from './api';
 import { detectWebLocale, I18nProvider, useI18n, type Locale } from './i18n';
 import { OfflineBanner, useOnlineStatus } from './online-status';
 import { initializeTelegram } from './telegram';
+import {
+  useTelegramLifecycle,
+  useTelegramSafeArea,
+  useTelegramTheme,
+  useTelegramViewport,
+} from './telegram-hooks';
 import type { AuthResponse, MeResponse } from './types';
+import { AppErrorBoundary } from './AppErrorBoundary';
+import { BrandMark } from './BrandMark';
 
 interface HealthResponse {
   readonly status: string;
@@ -27,18 +36,38 @@ export function App() {
   const [locale, setLocale] = useState<Locale>(detectWebLocale);
   return (
     <I18nProvider locale={locale}>
-      <AppContent onLocaleResolved={setLocale} />
+      <LocalizedRootBoundary>
+        <AppContent onLocaleResolved={setLocale} />
+      </LocalizedRootBoundary>
     </I18nProvider>
+  );
+}
+
+function LocalizedRootBoundary({ children }: { readonly children: ReactNode }) {
+  const { messages } = useI18n();
+  return (
+    <AppErrorBoundary
+      title={messages.shell.recoveryTitle}
+      description={messages.shell.recoveryText}
+      retryLabel={messages.common.retry}
+    >
+      {children}
+    </AppErrorBoundary>
   );
 }
 
 function AppContent({ onLocaleResolved }: { readonly onLocaleResolved: (locale: Locale) => void }) {
   const { messages } = useI18n();
   const telegram = useMemo(() => initializeTelegram(), []);
+  useTelegramViewport();
+  useTelegramSafeArea();
+  useTelegramTheme();
+  useTelegramLifecycle();
   const online = useOnlineStatus();
   const [authState, setAuthState] = useState<AuthState>({ status: 'checking' });
   const [authAttempt, setAuthAttempt] = useState(0);
   const authenticatedRef = useRef(false);
+  const authenticationPromiseRef = useRef<Promise<MeResponse> | null>(null);
   const health = useQuery({
     queryKey: ['health'],
     queryFn: () => apiRequest<HealthResponse>('/health'),
@@ -68,35 +97,15 @@ function AppContent({ onLocaleResolved }: { readonly onLocaleResolved: (locale: 
       }
       if (active) setAuthState({ status: 'checking' });
       try {
-        const storedCsrf = sessionStorage.getItem(csrfStorageKey);
-        if (storedCsrf) {
-          setCsrfToken(storedCsrf);
-          try {
-            const user = await apiRequest<MeResponse>('/api/v1/me');
-            if (active) {
-              authenticatedRef.current = true;
-              onLocaleResolved(user.locale);
-              setAuthState({ status: 'ready', user });
-            }
-            return;
-          } catch {
-            sessionStorage.removeItem(csrfStorageKey);
-          }
-        }
-        const auth = await apiRequest<AuthResponse>('/api/v1/auth/telegram', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ initData: telegram.initData }),
-        });
-        setCsrfToken(auth.csrfToken);
-        sessionStorage.setItem(csrfStorageKey, auth.csrfToken);
-        const user = await apiRequest<MeResponse>('/api/v1/me');
+        authenticationPromiseRef.current ??= authenticateTelegramSession(telegram.initData);
+        const user = await authenticationPromiseRef.current;
         if (active) {
           authenticatedRef.current = true;
           onLocaleResolved(user.locale);
           setAuthState({ status: 'ready', user });
         }
       } catch (error) {
+        authenticationPromiseRef.current = null;
         const message = error instanceof Error ? error.message : messages.shell.authFailed;
         if (active) setAuthState({ status: 'error', message });
       }
@@ -132,9 +141,9 @@ function AppContent({ onLocaleResolved }: { readonly onLocaleResolved: (locale: 
       <div className="ambient ambient-two" aria-hidden="true" />
       <header className="topbar">
         <a className="brand" href="#top" aria-label={messages.shell.homeLabel}>
-          <span className="brand-mark">V</span>
+          <BrandMark />
           <span>
-            <strong>Velora</strong>
+            <strong>VeloraAI</strong>
             <small>stories that remember</small>
           </span>
         </a>
@@ -170,34 +179,54 @@ function AppContent({ onLocaleResolved }: { readonly onLocaleResolved: (locale: 
         ) : null}
         {authState.status === 'standalone' ? (
           <div className="standalone" role="status">
-            <span>◈</span>
+            <X aria-hidden="true" focusable="false" />
             <p>{messages.shell.standalone}</p>
           </div>
         ) : null}
       </section>
       <section className="principles" aria-label={messages.shell.capabilities}>
         <article>
-          <span>∞</span>
+          <LibraryBig aria-hidden="true" focusable="false" />
           <h2>{messages.shell.memory}</h2>
           <p>{messages.shell.memoryText}</p>
         </article>
         <article>
-          <span>✦</span>
+          <Sparkles aria-hidden="true" focusable="false" />
           <h2>{messages.shell.characters}</h2>
           <p>{messages.shell.charactersText}</p>
         </article>
         <article>
-          <span>◒</span>
+          <GitFork aria-hidden="true" focusable="false" />
           <h2>{messages.shell.control}</h2>
           <p>{messages.shell.controlText}</p>
         </article>
       </section>
       <aside className="security-note">
-        <span>⌁</span>
+        <ShieldCheck aria-hidden="true" focusable="false" />
         <p>{messages.shell.secure}</p>
       </aside>
     </main>
   );
+}
+
+async function authenticateTelegramSession(initData: string): Promise<MeResponse> {
+  const storedCsrf = sessionStorage.getItem(csrfStorageKey);
+  if (storedCsrf) {
+    setCsrfToken(storedCsrf);
+    try {
+      return await apiRequest<MeResponse>('/api/v1/me');
+    } catch {
+      sessionStorage.removeItem(csrfStorageKey);
+    }
+  }
+  const auth = await apiRequest<AuthResponse>('/api/v1/auth/telegram', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ initData }),
+  });
+  setCsrfToken(auth.csrfToken);
+  sessionStorage.setItem(csrfStorageKey, auth.csrfToken);
+  return apiRequest<MeResponse>('/api/v1/me');
 }
 
 function AuthenticatedShellFallback() {

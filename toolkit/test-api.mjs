@@ -67,7 +67,7 @@ const accessPackCode = `plus-${randomUUID().slice(0, 12)}`;
 const mediaId = randomUUID();
 const opaqueCharacterId = 'seed-character-integration';
 const opaqueCharacterVersionId = 'seed-character-version-integration';
-const characterName = `Элиас ${randomUUID()}`;
+const characterName = 'Мира';
 const matureCharacterName = `Ночная история ${randomUUID()}`;
 const telegramId = String(8_000_000_000 + Math.floor(Math.random() * 999_999_999));
 const firstRunTelegramId = String(Number(telegramId) + 10_000);
@@ -75,6 +75,8 @@ const now = Date.now();
 const telegramRequests = [];
 const aiRequests = [];
 let aiSmokeRequests = 0;
+let modelEvalRequests = 0;
+let benchmarkRequests = 0;
 let requiredAiModelAvailable = true;
 let creativeTransientAttempts = 0;
 const telegramConfigurationMutations = [];
@@ -117,6 +119,7 @@ function runWrangler(argumentsList) {
       cwd: apiRoot,
       encoding: 'utf8',
       shell: false,
+      maxBuffer: 16 * 1024 * 1024,
     },
   );
   if (result.status !== 0) {
@@ -126,6 +129,26 @@ function runWrangler(argumentsList) {
     process.exit(result.status ?? 1);
   }
   return `${result.stdout}\n${result.stderr}`;
+}
+
+function localR2ObjectStatus(objectPath) {
+  return spawnSync(
+    process.execPath,
+    [
+      wranglerEntry,
+      'r2',
+      'object',
+      'get',
+      objectPath,
+      '--local',
+      '--env',
+      'local',
+      '--pipe',
+      '--persist-to',
+      persistenceRoot,
+    ],
+    { cwd: apiRoot, encoding: 'buffer', shell: false },
+  ).status;
 }
 
 runWrangler(['d1', 'migrations', 'apply', 'velora-local', '--local', '--env', 'local']);
@@ -215,6 +238,13 @@ const setupSql = `
   VALUES ('BOTHUB_INITIAL_ROLEPLAY_V1', '${userId}', 'BOTHUB',
     'deepseek-v3.2-speciale', 'FAILED', 'legacy-smoke-request', 'BOTHUB_HTTP_ERROR', 1815,
     ${now - 2000}, ${now - 185});
+  INSERT INTO provider_smoke_runs
+    (run_key, actor_id, provider, model, state, request_id, input_tokens, output_tokens,
+     conservative_cost_micros, latency_ms, output_length, started_at, completed_at,
+     protocol_variant, http_status, response_started)
+  VALUES ('BOTHUB_FREE_CONTEXT_EVAL_V1', '${userId}', 'BOTHUB', 'mistral-nemo',
+    'COMPLETED', 'free-context-eval', 20, 10, 20001, 100, 20, ${now - 1000}, ${now - 900},
+    'BOTHUB_DOCUMENTED', 200, 1);
   UPDATE model_profiles
   SET model = 'deepseek-chat-v3.1',
       cost_policy_json =
@@ -224,7 +254,7 @@ const setupSql = `
   WHERE name = 'CREATIVE';
   INSERT INTO provider_model_capabilities
     (provider, catalog_sha256, available_candidates_json, selected_model, checked_at)
-  VALUES ('BOTHUB', '${'0'.repeat(64)}', '["deepseek-chat-v3.1"]',
+  VALUES ('BOTHUB', '${'0'.repeat(64)}', '["deepseek-chat-v3.1","l3-lunaris-8b","mistral-nemo"]',
     'deepseek-chat-v3.1', ${now});
   INSERT INTO integration_reconciliations
     (integration_key, desired_hash, state, attempts, next_attempt_at, verified_at, updated_at)
@@ -274,7 +304,9 @@ const providerServer = createServer(async (request, response) => {
     aiHealthChecks += 1;
     respondJson(response, {
       object: 'list',
-      data: [{ id: requiredAiModelAvailable ? 'deepseek-chat-v3.1' : 'other-model' }],
+      data: requiredAiModelAvailable
+        ? [{ id: 'deepseek-chat-v3.1' }, { id: 'l3-lunaris-8b' }, { id: 'mistral-nemo' }]
+        : [{ id: 'other-model' }],
     });
     return;
   }
@@ -397,16 +429,35 @@ const providerServer = createServer(async (request, response) => {
         typeof message.content === 'string' &&
         message.content.includes('ночной сад'),
     );
+  const modelEvalRequest =
+    ['l3-lunaris-8b', 'mistral-nemo'].includes(body.model) && body.max_tokens === 64;
+  const benchmarkRequest =
+    ['l3-lunaris-8b', 'mistral-nemo'].includes(body.model) && body.max_tokens === 120;
   if (
     request.method !== 'POST' ||
     request.url !== '/chat/completions' ||
     request.headers.authorization !== 'Bearer integration-ai-key' ||
     body.stream !== true ||
-    (smokeRequest
+    (smokeRequest || modelEvalRequest || benchmarkRequest
       ? body.stream_options !== undefined
       : body.stream_options?.include_usage !== true) ||
     !Array.isArray(body.messages) ||
     (!smokeRequest &&
+      !modelEvalRequest &&
+      !benchmarkRequest &&
+      body.model !== 'mistral-nemo' &&
+      !body.messages.some(
+        (message) =>
+          typeof message.content === 'string' && message.content.includes('MODEL_SWITCH_TEST'),
+      ) &&
+      !body.messages.some(
+        (message) =>
+          typeof message.content === 'string' && message.content.includes('CONTENT_POLICY_TEST'),
+      ) &&
+      !body.messages.some(
+        (message) =>
+          typeof message.content === 'string' && message.content.includes('PARTIAL_FAILURE_TEST'),
+      ) &&
       !body.messages.some(
         (message) => message.role === 'system' && message.content.includes('секретный проход'),
       ))
@@ -417,6 +468,8 @@ const providerServer = createServer(async (request, response) => {
   }
   aiRequests.push(body);
   if (smokeRequest) aiSmokeRequests += 1;
+  if (modelEvalRequest) modelEvalRequests += 1;
+  if (benchmarkRequest) benchmarkRequests += 1;
   if (
     body.messages.some(
       (message) => typeof message.content === 'string' && message.content.includes('FAIL_ALL_TEST'),
@@ -424,6 +477,31 @@ const providerServer = createServer(async (request, response) => {
   ) {
     response.writeHead(503, { 'content-type': 'application/json' });
     response.end('{"error":"forced integration provider outage"}');
+    return;
+  }
+  if (
+    body.messages.some(
+      (message) =>
+        typeof message.content === 'string' && message.content.includes('PARTIAL_FAILURE_TEST'),
+    )
+  ) {
+    response.writeHead(200, { 'content-type': 'text/event-stream' });
+    response.write('data: {"choices":[{"delta":{"content":"Partial answer retained."}}]}\n\n');
+    response.end(
+      'data: {"error":{"code":"forced_partial_failure","message":"forced integration partial failure"}}\n\n',
+    );
+    return;
+  }
+  if (
+    body.messages.some(
+      (message) =>
+        typeof message.content === 'string' && message.content.includes('CONTENT_POLICY_TEST'),
+    )
+  ) {
+    response.writeHead(422, { 'content-type': 'application/json' });
+    response.end(
+      '{"error":{"code":"content_policy","message":"private provider diagnostic must not escape"}}',
+    );
     return;
   }
   if (
@@ -440,10 +518,15 @@ const providerServer = createServer(async (request, response) => {
     (message) =>
       typeof message.content === 'string' && message.content.includes('SLOW_DELETE_TEST'),
   );
+  const slowConcurrencyTest = body.messages.some(
+    (message) =>
+      typeof message.content === 'string' && message.content.includes('Параллельная история'),
+  );
   response.writeHead(200, { 'content-type': 'text/event-stream' });
   response.write(': processing\n\n');
   response.write('data: {"choices":[{"delta":{"content":"Архив "}}]}\n\n');
-  if (slowDeletionTest) await new Promise((resolve) => setTimeout(resolve, 350));
+  if (slowDeletionTest || slowConcurrencyTest)
+    await new Promise((resolve) => setTimeout(resolve, 350));
   response.write(
     'data: {"choices":[{"delta":{"content":"открылся."},"finish_reason":"stop"}],"usage":{"prompt_tokens":240,"completion_tokens":12,"cost":0.0002,"prompt_tokens_details":{"cached_tokens":0}}}\n\n',
   );
@@ -485,8 +568,11 @@ const worker = spawn(
     'PAYMENTS_ENABLED:true',
     '--var',
     'PAID_AI_ENABLED:true',
+    'SPONSORED_FREE_AI_ENABLED:true',
     '--var',
     'DAILY_AI_BUDGET_USD:1',
+    '--var',
+    'PER_USER_DAILY_AI_BUDGET_USD:0.50',
     '--var',
     'MONTHLY_AI_BUDGET_USD:10',
     '--var',
@@ -501,10 +587,10 @@ const worker = spawn(
 );
 let workerOutput = '';
 worker.stdout.on('data', (chunk) => {
-  workerOutput = `${workerOutput}${String(chunk)}`.slice(-8_000);
+  workerOutput = `${workerOutput}${String(chunk)}`.slice(-64_000);
 });
 worker.stderr.on('data', (chunk) => {
-  workerOutput = `${workerOutput}${String(chunk)}`.slice(-8_000);
+  workerOutput = `${workerOutput}${String(chunk)}`.slice(-64_000);
 });
 
 const headers = { cookie: `velora_session=${sessionToken}` };
@@ -526,24 +612,23 @@ try {
     throw new Error('Published OpenAPI contract is incomplete or malformed.');
   }
   const publicConfig = await cachedPublicRequest('/api/v1/config', 'MISS');
-  if (publicConfig.body.appName !== 'Velora' || 'dailyAiBudgetUsd' in publicConfig.body) {
+  if (publicConfig.body.appName !== 'VeloraAI' || 'dailyAiBudgetUsd' in publicConfig.body) {
     throw new Error('Public config cache is incomplete or exposes internal budget controls.');
   }
   await waitForPublicCacheHit('/api/v1/config');
+  const firstRunInitData = signTelegramInitData(
+    {
+      id: firstRunTelegramId,
+      first_name: 'First Run',
+      username: `first_run_${firstRunTelegramId}`,
+      language_code: 'en-US',
+    },
+    'integration-bot-token',
+  );
   const firstRunAuthResponse = await fetch(`${baseUrl}/api/v1/auth/telegram`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      initData: signTelegramInitData(
-        {
-          id: firstRunTelegramId,
-          first_name: 'First Run',
-          username: `first_run_${firstRunTelegramId}`,
-          language_code: 'en-US',
-        },
-        'integration-bot-token',
-      ),
-    }),
+    body: JSON.stringify({ initData: firstRunInitData }),
   });
   const firstRunAuth = await firstRunAuthResponse.json();
   const firstRunCookie = firstRunAuthResponse.headers.get('set-cookie')?.split(';', 1)[0];
@@ -564,6 +649,36 @@ try {
   ) {
     throw new Error('A new Telegram user was not initialized with safe first-run defaults.');
   }
+  const resumedAuthResponse = await fetch(`${baseUrl}/api/v1/auth/telegram`, {
+    method: 'POST',
+    headers: { ...firstRunHeaders, 'content-type': 'application/json' },
+    body: JSON.stringify({ initData: firstRunInitData }),
+  });
+  const resumedAuth = await resumedAuthResponse.json();
+  if (
+    resumedAuthResponse.status !== 200 ||
+    resumedAuth.user?.id !== firstRunAuth.user.id ||
+    typeof resumedAuth.csrfToken !== 'string' ||
+    resumedAuth.csrfToken === firstRunAuth.csrfToken
+  ) {
+    throw new Error(
+      `A valid Telegram session could not recover after sessionStorage loss: ${JSON.stringify(resumedAuth)}.`,
+    );
+  }
+  const firstRunCsrfToken = resumedAuth.csrfToken;
+  const staleCsrfResponse = await fetch(`${baseUrl}/api/v1/settings`, {
+    method: 'PATCH',
+    headers: {
+      ...firstRunHeaders,
+      'content-type': 'application/json',
+      'x-csrf-token': firstRunAuth.csrfToken,
+    },
+    body: JSON.stringify({ theme: 'dark' }),
+  });
+  const staleCsrfBody = await staleCsrfResponse.json();
+  if (staleCsrfResponse.status !== 403 || staleCsrfBody.error?.code !== 'INVALID_CSRF') {
+    throw new Error('Session recovery did not revoke the previous CSRF token.');
+  }
   const firstRunCompletion = await request(
     '/api/v1/onboarding/complete',
     {
@@ -571,7 +686,7 @@ try {
       headers: {
         ...firstRunHeaders,
         'content-type': 'application/json',
-        'x-csrf-token': firstRunAuth.csrfToken,
+        'x-csrf-token': firstRunCsrfToken,
       },
       body: JSON.stringify({
         idempotencyKey: randomUUID(),
@@ -589,7 +704,7 @@ try {
     throw new Error('First-run onboarding did not create the selected persona.');
   }
   const firstRunDiscovery = await request(
-    '/api/v1/discovery?sort=trending&limit=3&rating=SAFE',
+    '/api/v1/discovery?sort=newest&limit=3&rating=SAFE',
     { headers: firstRunHeaders },
     200,
   );
@@ -603,7 +718,7 @@ try {
       headers: {
         ...firstRunHeaders,
         'content-type': 'application/json',
-        'x-csrf-token': firstRunAuth.csrfToken,
+        'x-csrf-token': firstRunCsrfToken,
       },
       body: JSON.stringify({
         characterId: opaqueCharacterId,
@@ -808,6 +923,72 @@ try {
   if (settings.theme !== 'amoled' || settings.locale !== 'en') {
     throw new Error('Settings mutation was not persisted.');
   }
+
+  const directImage = Buffer.alloc(24);
+  directImage.set([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10], 0);
+  directImage.write('IHDR', 12, 'ascii');
+  directImage.writeUInt32BE(1_600, 16);
+  directImage.writeUInt32BE(1_000, 20);
+  const directUpload = await request(
+    '/api/v1/media',
+    {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'content-type': 'image/png',
+        'x-csrf-token': csrfToken,
+        'x-upload-name': encodeURIComponent('../../unsafe/avatar.png'),
+      },
+      body: directImage,
+    },
+    201,
+  );
+  if (
+    directUpload.storageProvider !== 'R2' ||
+    directUpload.originalName !== 'avatar.png' ||
+    directUpload.width !== 1_600 ||
+    directUpload.height !== 1_000
+  ) {
+    throw new Error('Direct R2 upload did not normalize its name or inspected geometry.');
+  }
+  const directContent = await fetch(`${baseUrl}${directUpload.contentUrl}`, { headers });
+  if (
+    directContent.status !== 200 ||
+    directContent.headers.get('content-type') !== 'image/png' ||
+    !directContent.headers.get('etag') ||
+    Buffer.compare(Buffer.from(await directContent.arrayBuffer()), directImage) !== 0
+  ) {
+    throw new Error('Direct R2 media bytes were not served intact.');
+  }
+  const mimeMismatch = await request(
+    '/api/v1/media',
+    {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'content-type': 'image/jpeg',
+        'x-csrf-token': csrfToken,
+      },
+      body: directImage,
+    },
+    415,
+  );
+  if (mimeMismatch.error?.code !== 'MEDIA_MIME_MISMATCH') {
+    throw new Error('Direct upload MIME spoofing was not rejected.');
+  }
+  const directLibrary = await request('/api/v1/media', { headers }, 200);
+  if (
+    directLibrary.capabilities?.directUpload !== true ||
+    !directLibrary.items.some((item) => item.id === directUpload.id)
+  ) {
+    throw new Error('R2 media library capability or uploaded object is missing.');
+  }
+  await request(
+    `/api/v1/media/${directUpload.id}`,
+    { method: 'DELETE', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
+  await request(`/api/v1/media/${directUpload.id}/content`, { headers }, 404);
 
   await request(
     '/telegram/webhook',
@@ -1129,7 +1310,12 @@ try {
     throw new Error('A server-issued opaque character ID could not start a conversation.');
   }
   const initialProfile = await request('/api/v1/profiles/me', { headers }, 200);
-  if (!initialProfile.isOwn || initialProfile.displayName !== 'Integration User') {
+  if (
+    !initialProfile.isOwn ||
+    initialProfile.displayName !== 'Integration User' ||
+    !Object.hasOwn(initialProfile, 'username') ||
+    initialProfile.username !== null
+  ) {
     throw new Error('Telegram user fallback did not initialize an owned product profile.');
   }
   await request(
@@ -1373,10 +1559,43 @@ try {
   );
   if (
     operationsDashboard.users < 4 ||
+    operationsDashboard.ownerAiUsage !== null ||
     operationsDashboard.planDistribution.FREE !== operationsDashboard.users ||
-    typeof operationsDashboard.aiCostMicros24h !== 'number'
+    typeof operationsDashboard.aiCostMicros24h !== 'number' ||
+    operationsDashboard.capacityProjection?.metrics?.length !== 7 ||
+    operationsDashboard.capacityProjection.automaticUpgradeEnabled !== false ||
+    operationsDashboard.capacityProjection.runtimePolicy?.coreChatEnabled !== true ||
+    operationsDashboard.capacityProjection.runtimePolicy?.status !== 'OK' ||
+    !operationsDashboard.capacityProjection.metrics.some(
+      (metric) => metric.key === 'workerRequests' && metric.freeLimit === 100_000,
+    ) ||
+    !operationsDashboard.capacityProjection.metrics.some(
+      (metric) => metric.key === 'd1RowsRead' && metric.freeLimit === 5_000_000,
+    ) ||
+    !operationsDashboard.capacityProjection.metrics.some(
+      (metric) => metric.key === 'd1RowsWritten' && metric.freeLimit === 100_000,
+    ) ||
+    !operationsDashboard.capacityProjection.metrics.some(
+      (metric) => metric.key === 'queueOperations' && metric.freeLimit === 10_000,
+    )
   ) {
-    throw new Error('Privacy-safe operations dashboard aggregates are inconsistent.');
+    throw new Error('Privacy-safe operations dashboard or Free capacity forecast is inconsistent.');
+  }
+  const ownerOperationsDashboard = await request(
+    '/api/v1/admin/operations/dashboard',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (
+    !ownerOperationsDashboard.ownerAiUsage ||
+    ownerOperationsDashboard.ownerAiUsage.capsBalance?.estimatedRemainingCaps !== null ||
+    ownerOperationsDashboard.ownerAiUsage.capsBalance?.status !==
+      'PROVIDER_BALANCE_API_UNAVAILABLE' ||
+    ownerOperationsDashboard.ownerAiUsage.configuredBudgetMicros.lifetime !== 100_000_000 ||
+    ownerOperationsDashboard.ownerAiUsage.configuredBudgetMicros.remainingLifetime > 100_000_000 ||
+    !Array.isArray(ownerOperationsDashboard.ownerAiUsage.perModelWeekly)
+  ) {
+    throw new Error('Owner-only AI usage or honest CAPS availability state is inconsistent.');
   }
   await request('/api/v1/admin/operations/ai-smoke', { headers }, 403);
   await request('/api/v1/admin/operations/ai-smoke', { headers: adminHeaders }, 403);
@@ -1385,11 +1604,14 @@ try {
     { headers: ownerHeaders },
     200,
   );
+  const preservedV1 = emptySmoke.history?.find(
+    (run) => run.runKey === 'BOTHUB_INITIAL_ROLEPLAY_V1',
+  );
   if (
     emptySmoke.run !== null ||
-    emptySmoke.history?.length !== 1 ||
-    emptySmoke.history[0]?.runKey !== 'BOTHUB_INITIAL_ROLEPLAY_V1' ||
-    emptySmoke.history[0]?.state !== 'FAILED'
+    !preservedV1 ||
+    preservedV1.state !== 'FAILED' ||
+    emptySmoke.history?.some((run) => run.runKey === 'BOTHUB_INITIAL_ROLEPLAY_V3')
   ) {
     throw new Error('V1 evidence was not preserved while V3 remained available for consent.');
   }
@@ -1423,7 +1645,7 @@ try {
   if (aiSmokeRequests !== 0) {
     throw new Error('Missing required model reached the paid Chat Completions endpoint.');
   }
-  const blockedSmoke = runWrangler([
+  const blockedSmoke = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -1484,7 +1706,7 @@ try {
   ) {
     throw new Error('Repeated provider smoke caused another paid provider request.');
   }
-  const smokeAudit = runWrangler([
+  const smokeAudit = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -1507,11 +1729,381 @@ try {
       throw new Error(`Provider smoke audit is missing ${expected}.`);
     }
   }
+
+  await request('/api/v1/admin/operations/model-evals', { headers }, 403);
+  await request('/api/v1/admin/operations/model-evals', { headers: adminHeaders }, 403);
+  const emptyModelEvals = await request(
+    '/api/v1/admin/operations/model-evals',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (!Array.isArray(emptyModelEvals.items) || emptyModelEvals.items.length !== 0) {
+    throw new Error('Roleplay model eval list exposed unrelated historical smoke rows.');
+  }
+  await request(
+    '/api/v1/admin/operations/model-evals',
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        modelProfileId: 'provider-model-id-must-not-be-accepted',
+        confirmation: 'ПОТРАТИТЬ 1 ЗАПРОС НА ПРОВЕРКУ МОДЕЛИ',
+      }),
+    },
+    409,
+  );
+  if (modelEvalRequests !== 0) {
+    throw new Error('Unknown stable model profile reached the paid provider endpoint.');
+  }
+  const modelEval = await request(
+    '/api/v1/admin/operations/model-evals',
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        modelProfileId: 'velora-free-roleplay',
+        confirmation: 'ПОТРАТИТЬ 1 ЗАПРОС НА ПРОВЕРКУ МОДЕЛИ',
+      }),
+    },
+    201,
+  );
+  if (
+    modelEval.run?.modelProfileId !== 'velora-free-roleplay' ||
+    modelEval.run.displayName !== 'Lunaris Roleplay' ||
+    modelEval.run.model !== 'l3-lunaris-8b' ||
+    modelEval.run.state !== 'COMPLETED' ||
+    modelEval.run.alreadyAttempted !== false ||
+    'output' in modelEval.run ||
+    modelEvalRequests !== 1
+  ) {
+    throw new Error('Bounded roleplay model eval result is inconsistent.');
+  }
+  const repeatedModelEval = await request(
+    '/api/v1/admin/operations/model-evals',
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        modelProfileId: 'velora-free-roleplay',
+        confirmation: 'ПОТРАТИТЬ 1 ЗАПРОС НА ПРОВЕРКУ МОДЕЛИ',
+      }),
+    },
+    200,
+  );
+  if (repeatedModelEval.run?.alreadyAttempted !== true || modelEvalRequests !== 1) {
+    throw new Error('Repeated model eval caused another paid provider request.');
+  }
+  await request('/api/v1/admin/operations/model-benchmarks', { headers }, 403);
+  await request('/api/v1/admin/operations/model-benchmarks', { headers: adminHeaders }, 403);
+  const emptyBenchmarks = await request(
+    '/api/v1/admin/operations/model-benchmarks',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (!Array.isArray(emptyBenchmarks.items) || emptyBenchmarks.items.length !== 0) {
+    throw new Error('Roleplay benchmark list was not initially empty.');
+  }
+  const benchmark = await request(
+    '/api/v1/admin/operations/model-benchmarks',
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        modelProfileId: 'velora-free-roleplay',
+        confirmation: 'ПОТРАТИТЬ 7 ЗАПРОСОВ НА RP-БЕНЧМАРК',
+      }),
+    },
+    201,
+  );
+  if (
+    benchmark.run?.state !== 'AWAITING_REVIEW' ||
+    benchmark.run.modelProfileId !== 'velora-free-roleplay' ||
+    benchmark.run.samples?.length !== 7 ||
+    benchmark.run.completedScenarioCount !== 7 ||
+    benchmark.run.alreadyAttempted !== false ||
+    benchmarkRequests !== 7 ||
+    benchmark.run.samples.some(
+      (sample) =>
+        typeof sample.output !== 'string' ||
+        sample.output.length < 12 ||
+        sample.outputSha256.length !== 64,
+    )
+  ) {
+    throw new Error('Roleplay benchmark did not return seven transient review samples.');
+  }
+  const repeatedBenchmark = await request(
+    '/api/v1/admin/operations/model-benchmarks',
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        modelProfileId: 'velora-free-roleplay',
+        confirmation: 'ПОТРАТИТЬ 7 ЗАПРОСОВ НА RP-БЕНЧМАРК',
+      }),
+    },
+    200,
+  );
+  if (
+    repeatedBenchmark.run?.alreadyAttempted !== true ||
+    'samples' in repeatedBenchmark.run ||
+    benchmarkRequests !== 7
+  ) {
+    throw new Error('Repeated roleplay benchmark caused provider spend or exposed stored prose.');
+  }
+  const benchmarkScores = Object.fromEntries(
+    [
+      'character_adherence',
+      'persona_adherence',
+      'narrative_quality',
+      'russian_quality',
+      'english_quality',
+      'emotional_continuity',
+      'memory_use',
+      'lore_use',
+      'formatting',
+      'repetition_control',
+      'verbosity_control',
+      'latency',
+      'cost',
+      'consensual_mature_fictional_compatibility',
+    ].map((criterion) => [criterion, 4]),
+  );
+  const reviewedBenchmark = await request(
+    `/api/v1/admin/operations/model-benchmarks/${encodeURIComponent(benchmark.run.runKey)}/review`,
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ decision: 'APPROVED', scores: benchmarkScores }),
+    },
+    200,
+  );
+  if (
+    reviewedBenchmark.run?.state !== 'APPROVED' ||
+    Object.keys(reviewedBenchmark.run.scores ?? {}).length !== 14
+  ) {
+    throw new Error('Owner benchmark review did not persist all required scores.');
+  }
+  await request(
+    `/api/v1/admin/operations/model-benchmarks/${encodeURIComponent(benchmark.run.runKey)}/review`,
+    {
+      method: 'POST',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ decision: 'REJECTED', scores: benchmarkScores }),
+    },
+    409,
+  );
+  const benchmarkAudit = await runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `SELECT state, completed_scenario_count,
+       json_array_length(scenario_evidence_json) AS evidence_count,
+       instr(scenario_evidence_json, 'Архив') AS leaked_output,
+       (SELECT COUNT(*) FROM roleplay_benchmark_scores scores
+         WHERE scores.run_key = roleplay_benchmark_runs.run_key) AS score_count
+     FROM roleplay_benchmark_runs
+     WHERE run_key = 'BOTHUB_RP_BENCH_V1_velora-free-roleplay';`,
+  ]);
+  for (const expected of [
+    '"state": "APPROVED"',
+    '"completed_scenario_count": 7',
+    '"evidence_count": 7',
+    '"leaked_output": 0',
+    '"score_count": 14',
+  ]) {
+    if (!benchmarkAudit.includes(expected)) {
+      throw new Error(`Roleplay benchmark audit is missing ${expected}.`);
+    }
+  }
+  await request('/api/v1/admin/operations/models', { headers }, 403);
+  await request('/api/v1/admin/operations/models', { headers: adminHeaders }, 403);
+  const modelControls = await request(
+    '/api/v1/admin/operations/models',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (
+    modelControls.defaultModelProfileId !== 'velora-balanced' ||
+    modelControls.items?.length !== 5 ||
+    !['velora-deepseek-v3-0324'].every((id) =>
+      modelControls.items.some((item) => item.modelProfileId === id),
+    ) ||
+    !modelControls.items.every(
+      (item) =>
+        item.health?.windowHours === 24 &&
+        typeof item.health.requestCount === 'number' &&
+        Array.isArray(item.health.recentErrors),
+    )
+  ) {
+    throw new Error('Owner model controls or health metrics are incomplete.');
+  }
+  const updatedModel = await request(
+    '/api/v1/admin/operations/models/velora-free-roleplay',
+    {
+      method: 'PATCH',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        displayName: 'Qwen RP Preview',
+        descriptionRu: 'Экономичная ролевая модель для знакомства с Velora.',
+        isDefault: true,
+      }),
+    },
+    200,
+  );
+  if (!updatedModel.isDefault || updatedModel.displayName !== 'Qwen RP Preview') {
+    throw new Error('Owner model update did not persist the requested fields.');
+  }
+  const updatedCatalog = await request('/api/v1/conversations/models/catalog', { headers }, 200);
+  if (
+    updatedCatalog.items?.find((item) => item.id === 'velora-free-roleplay')?.displayName !==
+    'Qwen RP Preview'
+  ) {
+    throw new Error('Runtime model catalog did not use the D1 override.');
+  }
+  await request(
+    '/api/v1/admin/operations/models/velora-free-context',
+    {
+      method: 'PATCH',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ fallbackIds: ['velora-free-roleplay'] }),
+    },
+    409,
+  );
+  await request(
+    '/api/v1/admin/operations/models/velora-balanced',
+    {
+      method: 'PATCH',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ isDefault: true }),
+    },
+    200,
+  );
+  await request(
+    '/api/v1/admin/operations/models/velora-free-context',
+    {
+      method: 'PATCH',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ enabled: false }),
+    },
+    200,
+  );
+  const catalogWithDisabledModel = await request(
+    '/api/v1/conversations/models/catalog',
+    { headers },
+    200,
+  );
+  if (
+    catalogWithDisabledModel.items?.find((item) => item.id === 'velora-free-context')?.available !==
+    false
+  ) {
+    throw new Error('A disabled owner model remained selectable in the catalog.');
+  }
+  await request(
+    '/api/v1/admin/operations/models/velora-free-context',
+    {
+      method: 'PATCH',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({ enabled: true }),
+    },
+    200,
+  );
+  await request(
+    '/api/v1/admin/operations/models/velora-free-roleplay',
+    {
+      method: 'PATCH',
+      headers: {
+        ...ownerHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': ownerCsrfToken,
+      },
+      body: JSON.stringify({
+        displayName: 'Lunaris Roleplay',
+        descriptionRu:
+          'Очень экономичная ролевая модель для коротких и средних сцен. Память Velora помогает сохранять важный контекст истории.',
+      }),
+    },
+    200,
+  );
+  const modelEvalAudit = await runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `SELECT state, LENGTH(output_sha256) AS output_hash_length, output_length,
+       (SELECT COUNT(*) FROM audit_logs WHERE target_id = run_key) AS audit_events
+     FROM provider_smoke_runs
+     WHERE run_key = 'BOTHUB_ROLEPLAY_EVAL_V3_velora-free-roleplay';`,
+  ]);
+  for (const expected of [
+    '"state": "COMPLETED"',
+    '"output_hash_length": 64',
+    '"audit_events": 2',
+  ]) {
+    if (!modelEvalAudit.includes(expected)) {
+      throw new Error(`Roleplay model eval audit is missing ${expected}.`);
+    }
+  }
   await request('/api/v1/admin/feature-flags', { headers: adminHeaders }, 403);
   const ownerFlags = await request('/api/v1/admin/feature-flags', { headers: ownerHeaders }, 200);
   if (
-    ownerFlags.items.length !== 4 ||
-    !ownerFlags.items.some((flag) => flag.key === 'public_reviews')
+    ownerFlags.items.length !== 5 ||
+    !ownerFlags.items.some((flag) => flag.key === 'public_reviews') ||
+    !ownerFlags.items.some((flag) => flag.key === 'groups')
   ) {
     throw new Error('Owner feature flag catalog is incomplete.');
   }
@@ -1588,6 +2180,68 @@ try {
   if (appointedModerator.role !== 'MODERATOR') {
     throw new Error('Owner staff appointment did not update server-side RBAC.');
   }
+  const moderatorUsers = await request(
+    '/api/v1/admin/moderation/users',
+    {
+      headers: reporterHeaders,
+    },
+    200,
+  );
+  if (
+    !moderatorUsers.items.some((item) => item.id === userId) ||
+    moderatorUsers.items.some((item) => [ownerId, adminId, reporterId].includes(item.id))
+  ) {
+    throw new Error('Moderator user directory ignored the protected-role visibility boundary.');
+  }
+  const moderatorCharacters = await request(
+    '/api/v1/admin/moderation/characters',
+    {
+      headers: reporterHeaders,
+    },
+    200,
+  );
+  if (moderatorCharacters.items.some((item) => item.id === opaqueCharacterId)) {
+    throw new Error('Moderator character directory exposed a protected creator.');
+  }
+  await request(
+    `/api/v1/admin/moderation/users/${userId}/state`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...reporterHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': reporterCsrfToken,
+      },
+      body: JSON.stringify({ state: 'BANNED' }),
+    },
+    200,
+  );
+  await request(
+    `/api/v1/admin/moderation/users/${userId}/state`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...reporterHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': reporterCsrfToken,
+      },
+      body: JSON.stringify({ state: 'ACTIVE' }),
+    },
+    200,
+  );
+  await request(
+    `/api/v1/admin/moderation/users/${ownerId}/state`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...reporterHeaders,
+        'content-type': 'application/json',
+        'x-csrf-token': reporterCsrfToken,
+      },
+      body: JSON.stringify({ state: 'BANNED' }),
+    },
+    403,
+  );
   await request('/api/v1/admin/staff', { headers: reporterHeaders }, 403);
   const staff = await request('/api/v1/admin/staff', { headers: ownerHeaders }, 200);
   if (
@@ -1741,6 +2395,23 @@ try {
   const plusPlan = ownerPlans.items.find((item) => item.code === 'PLUS');
   if (!plusPlan || !plusPlan.entitlements.modelProfiles.includes('CREATIVE')) {
     throw new Error('Owner plan catalog is missing the typed Plus entitlements.');
+  }
+  const publicPlans = await request('/api/v1/billing/plans', { headers }, 200);
+  const publicPlusPlan = publicPlans.items.find((item) => item.code === 'PLUS');
+  if (
+    !publicPlusPlan ||
+    publicPlusPlan.entitlements.characterLimit !== plusPlan.entitlements.characterLimit
+  ) {
+    throw new Error('User pricing catalog does not expose the configured plan benefits.');
+  }
+  const publicAccessPacks = await request('/api/v1/billing/access-packs', { headers }, 200);
+  const publicAccessPack = publicAccessPacks.items.find((item) => item.code === accessPackCode);
+  if (
+    !publicAccessPack ||
+    publicAccessPack.starsAmount !== 120 ||
+    publicAccessPack.recurring !== false
+  ) {
+    throw new Error('User pricing catalog does not expose the configured one-time Stars pack.');
   }
   const updatedPlusPlan = await request(
     '/api/v1/admin/billing/plans/PLUS',
@@ -1909,8 +2580,8 @@ try {
   const englishReply = commandReplies.at(-1)?.body;
   if (
     commandReplies.length !== commandRepliesBefore + 1 ||
-    !englishReply?.text?.includes('Welcome to Velora') ||
-    englishReply?.reply_markup?.inline_keyboard?.[0]?.[0]?.text !== 'Open Velora'
+    !englishReply?.text?.includes('Welcome to VeloraAI') ||
+    englishReply?.reply_markup?.inline_keyboard?.[0]?.[0]?.text !== 'Open VeloraAI'
   ) {
     throw new Error('English Telegram locale did not produce a localized command reply.');
   }
@@ -1958,7 +2629,7 @@ try {
     },
     200,
   );
-  const productionSmokeAudit = runWrangler([
+  const productionSmokeAudit = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -2314,6 +2985,19 @@ try {
   ) {
     throw new Error('Paid non-renewing plan access was not reflected by /me.');
   }
+  const grantedAccessHistory = await request('/api/v1/billing/payments', { headers }, 200);
+  const grantedAccessPayment = grantedAccessHistory.items.find(
+    (item) => item.id === accessInvoice.id,
+  );
+  if (
+    grantedAccessPayment?.state !== 'GRANTED' ||
+    grantedAccessPayment.validUntil !== plusMe.planAccessUntil ||
+    grantedAccessPayment.autoRenew !== false
+  ) {
+    throw new Error(
+      `Fixed-term access history does not expose GRANTED, validUntil and autoRenew=false: ${JSON.stringify(grantedAccessPayment)}`,
+    );
+  }
   const secondAccessInvoice = await request(
     '/api/v1/billing/access-invoices',
     {
@@ -2437,7 +3121,7 @@ try {
       method: 'POST',
       headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
       body: JSON.stringify({
-        name: 'Лея',
+        name: 'Алекс',
         avatarFileId: mediaId,
         personality: 'Спокойная и наблюдательная',
       }),
@@ -2487,13 +3171,24 @@ try {
       method: 'POST',
       headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
       body: JSON.stringify({
-        name: 'Лея',
+        name: 'Алекс',
         shortDescription: '{{user}} исследует архив вместе с {{char}}.',
         personality: 'Спокойная и наблюдательная',
       }),
     },
     201,
   );
+
+  await runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `UPDATE file_objects SET moderation_state = 'APPROVED' WHERE id = '${mediaId}';`,
+  ]);
 
   const character = await request(
     '/api/v1/characters',
@@ -2502,6 +3197,9 @@ try {
       headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
       body: JSON.stringify({
         name: characterName,
+        avatarFileId: mediaId,
+        avatarFocalX: 22,
+        avatarFocalY: 78,
         tagline: 'Хранитель забытого архива',
         description: 'Хранитель, который знает слишком много забытых историй.',
         personality: 'Спокойный, внимательный и немного ироничный собеседник.',
@@ -2510,7 +3208,9 @@ try {
         exampleDialogues: '{{user}}: Я готова, {{char}}.\n{{char}}: Тогда откроем архив.',
         systemInstructions: 'Всегда называй собеседника {{user}} и не выходи из роли.',
         postHistoryInstructions: 'Продолжи сцену для {{user}} без метакомментариев.',
-        alternateGreetings: ['Другой путь тоже привёл тебя сюда, {{user}}. Я {{char}}.'],
+        alternateGreetings: [
+          '{{scenario}} Другой путь тоже привёл тебя сюда, {{user}}. Я {{char}}.',
+        ],
         language: 'ru',
         contentRating: 'SAFE',
         tags: ['Архив', 'архив', 'Мистика'],
@@ -2518,7 +3218,12 @@ try {
     },
     201,
   );
-  if (character.version !== 1 || character.tags.length !== 2) {
+  if (
+    character.version !== 1 ||
+    character.tags.length !== 2 ||
+    character.avatarFocalX !== 22 ||
+    character.avatarFocalY !== 78
+  ) {
     throw new Error('Versioned character or normalized tags were not created.');
   }
   const changedCharacter = await request(
@@ -2526,16 +3231,76 @@ try {
     {
       method: 'PATCH',
       headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
-      body: JSON.stringify({ baseVersion: 1, speechStyle: 'Неспешная образная речь' }),
+      body: JSON.stringify({
+        baseVersion: 1,
+        speechStyle: 'Неспешная образная речь',
+        avatarFocalX: 31,
+        avatarFocalY: 69,
+      }),
     },
     200,
   );
   if (
     changedCharacter.version !== 2 ||
-    changedCharacter.speechStyle !== 'Неспешная образная речь'
+    changedCharacter.speechStyle !== 'Неспешная образная речь' ||
+    changedCharacter.avatarFocalX !== 31 ||
+    changedCharacter.avatarFocalY !== 69
   ) {
     throw new Error('Character version edit was not persisted.');
   }
+  const characterGroup = await request(
+    '/api/v1/character-groups',
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        name: 'Архивная экспедиция',
+        avatarFileId: mediaId,
+        routingMode: 'MANUAL',
+        characterIds: [character.id],
+      }),
+    },
+    201,
+  );
+  if (
+    characterGroup.members.length !== 1 ||
+    characterGroup.members[0]?.characterId !== character.id
+  ) {
+    throw new Error('Character group members were not persisted.');
+  }
+  const groupList = await request('/api/v1/character-groups', { headers }, 200);
+  if (!groupList.items.some((item) => item.id === characterGroup.id)) {
+    throw new Error('Created character group is missing from the owner list.');
+  }
+  const groupConversation = await request(
+    `/api/v1/character-groups/${characterGroup.id}/conversations`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'x-csrf-token': csrfToken },
+    },
+    201,
+  );
+  const groupConversationDetail = await request(
+    `/api/v1/conversations/${groupConversation.conversationId}`,
+    { headers },
+    200,
+  );
+  if (
+    groupConversationDetail.group?.id !== characterGroup.id ||
+    groupConversationDetail.group.activeCharacterId !== character.id ||
+    groupConversationDetail.characterName !== characterGroup.name
+  ) {
+    throw new Error('Group conversation did not expose its stable group snapshot.');
+  }
+  await request(
+    `/api/v1/character-groups/${characterGroup.id}/conversations/${groupConversation.conversationId}/speaker`,
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ characterId: character.id }),
+    },
+    200,
+  );
   await request(
     `/api/v1/characters/${character.id}`,
     {
@@ -2591,9 +3356,95 @@ try {
   if (previewConversation.isPreview !== true || !previewConversation.title.startsWith('Тест · ')) {
     throw new Error('Owner draft preview was not explicitly labelled as a private test chat.');
   }
+  const previewCharacterProfile = await request(
+    `/api/v1/conversations/${previewConversation.id}/character`,
+    { headers },
+    200,
+  );
+  if (
+    previewCharacterProfile.id !== character.id ||
+    typeof previewCharacterProfile.name !== 'string' ||
+    typeof previewCharacterProfile.firstMessage !== 'string' ||
+    !Array.isArray(previewCharacterProfile.tags) ||
+    !Array.isArray(previewCharacterProfile.alternateGreetings) ||
+    previewCharacterProfile.isOwner !== true ||
+    typeof previewCharacterProfile.estimatedTokens !== 'number' ||
+    'alternateGreetingsJson' in previewCharacterProfile
+  ) {
+    throw new Error('Chat character profile did not expose the owned character it is bound to.');
+  }
+  await request(
+    `/api/v1/conversations/${previewConversation.id}/character`,
+    { headers: reporterHeaders },
+    404,
+  );
   const previewList = await request('/api/v1/conversations', { headers }, 200);
   if (!previewList.items.some((item) => item.id === previewConversation.id && item.isPreview)) {
     throw new Error('Draft preview is missing its test-chat marker in the conversation list.');
+  }
+  const previewSummary = previewList.items.find((item) => item.id === previewConversation.id);
+  if (
+    previewList.totalCount !== previewList.items.length ||
+    previewSummary?.personaName !== storyPersona.name ||
+    previewSummary?.messageCount !== 1 ||
+    previewSummary?.characterAvatarFocalX !== 31 ||
+    previewSummary?.characterAvatarFocalY !== 69
+  ) {
+    throw new Error('Conversation list count, persona snapshot, or message count is inconsistent.');
+  }
+  const searchedPreviewList = await request(
+    `/api/v1/conversations?q=${encodeURIComponent('Тест')}&sort=oldest&state=ALL`,
+    { headers },
+    200,
+  );
+  if (
+    searchedPreviewList.totalCount !== 1 ||
+    searchedPreviewList.items[0]?.id !== previewConversation.id
+  ) {
+    throw new Error('Server-backed conversation search did not return the matching preview chat.');
+  }
+  const escapedConversationSearch = await request(
+    `/api/v1/conversations?q=${encodeURIComponent('%_')}`,
+    { headers },
+    200,
+  );
+  if (escapedConversationSearch.totalCount !== 0 || escapedConversationSearch.items.length !== 0) {
+    throw new Error('Conversation search treated escaped LIKE metacharacters as wildcards.');
+  }
+  const archivedPreview = await request(
+    `/api/v1/conversations/${previewConversation.id}`,
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ state: 'ARCHIVED' }),
+    },
+    200,
+  );
+  if (archivedPreview.state !== 'ARCHIVED') {
+    throw new Error('Conversation was not archived through its supported mutation.');
+  }
+  const archivedConversationList = await request(
+    `/api/v1/conversations?state=ARCHIVED&q=${encodeURIComponent('Тест')}`,
+    { headers },
+    200,
+  );
+  if (
+    archivedConversationList.totalCount !== 1 ||
+    archivedConversationList.items[0]?.id !== previewConversation.id
+  ) {
+    throw new Error('Archived conversation is missing from the server-backed management view.');
+  }
+  const restoredPreview = await request(
+    `/api/v1/conversations/${previewConversation.id}`,
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ state: 'ACTIVE' }),
+    },
+    200,
+  );
+  if (restoredPreview.state !== 'ACTIVE') {
+    throw new Error('Conversation was not restored after archive verification.');
   }
   const previewStats = await request('/api/v1/discovery/creator-stats/me', { headers }, 200);
   if (previewStats.chatsStarted !== 0) {
@@ -2639,6 +3490,144 @@ try {
   );
   if (!Array.isArray(discovery.items) || discovery.items[0]?.id !== character.id) {
     throw new Error('Published character is missing from filtered discovery.');
+  }
+  if (discovery.items[0]?.avatarFocalX !== 31 || discovery.items[0]?.avatarFocalY !== 69) {
+    throw new Error('Published discovery did not preserve the creator-selected focal point.');
+  }
+  if (discovery.totalCount !== 1) {
+    throw new Error('Filtered discovery did not return the exact total result count.');
+  }
+  const tagCatalogue = await request(
+    '/api/v1/discovery/tags/catalog?language=ru&rating=SAFE',
+    { headers },
+    200,
+  );
+  if (
+    !tagCatalogue.items.some((item) => item.slug === 'архив' && item.usageCount === 1) ||
+    !tagCatalogue.items.some((item) => item.slug === 'мистика' && item.usageCount === 1)
+  ) {
+    throw new Error('The D1-backed discovery tag catalogue or usage counts are incomplete.');
+  }
+  const includedTagDiscovery = await request(
+    `/api/v1/discovery?includeTags=${encodeURIComponent('архив,мистика')}`,
+    { headers },
+    200,
+  );
+  if (includedTagDiscovery.totalCount !== 1 || includedTagDiscovery.items[0]?.id !== character.id) {
+    throw new Error('Included discovery tags did not require every selected tag.');
+  }
+  const excludedTagDiscovery = await request(
+    `/api/v1/discovery?excludeTags=${encodeURIComponent('мистика')}`,
+    { headers },
+    200,
+  );
+  if (
+    excludedTagDiscovery.items.some((item) => item.id === character.id) ||
+    !excludedTagDiscovery.items.some((item) => item.id === opaqueCharacterId)
+  ) {
+    throw new Error('Excluded discovery tags did not remove only matching characters.');
+  }
+  await request(
+    `/api/v1/discovery?includeTags=${encodeURIComponent('архив')}&excludeTags=${encodeURIComponent('архив')}`,
+    { headers },
+    400,
+  );
+  const arabicCharacter = await request(
+    `/api/v1/characters/${character.id}`,
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ baseVersion: 3, language: 'ar' }),
+    },
+    200,
+  );
+  if (arabicCharacter.version !== 4 || arabicCharacter.language !== 'ar') {
+    throw new Error('Expanded character language was not persisted through the supported API.');
+  }
+  const languageCatalogue = await request(
+    '/api/v1/discovery/languages/catalog?rating=SAFE',
+    { headers },
+    200,
+  );
+  const expectedLanguageEntries = [
+    ['ru', 'Русский', 'ltr'],
+    ['en', 'English', 'ltr'],
+    ['de', 'Deutsch', 'ltr'],
+    ['fr', 'Français', 'ltr'],
+    ['es', 'Español', 'ltr'],
+    ['zh', '中文', 'ltr'],
+    ['ja', '日本語', 'ltr'],
+    ['ko', '한국어', 'ltr'],
+    ['ar', 'العربية', 'rtl'],
+    ['hi', 'हिन्दी', 'ltr'],
+    ['other', 'Другой', 'ltr'],
+  ];
+  if (
+    !expectedLanguageEntries.every(([code, nativeName, direction]) =>
+      languageCatalogue.items.some(
+        (item) =>
+          item.code === code && item.nativeName === nativeName && item.direction === direction,
+      ),
+    ) ||
+    !languageCatalogue.items.some((item) => item.code === 'ar' && item.usageCount === 1)
+  ) {
+    throw new Error('The D1-backed Unicode language catalogue or usage counts are incomplete.');
+  }
+  const arabicDiscovery = await request('/api/v1/discovery?languages=ar', { headers }, 200);
+  if (arabicDiscovery.totalCount !== 1 || arabicDiscovery.items[0]?.id !== character.id) {
+    throw new Error('Arabic discovery filter did not return the persisted Arabic character.');
+  }
+  const multiLanguageDiscovery = await request(
+    '/api/v1/discovery?languages=ru,ar',
+    { headers },
+    200,
+  );
+  if (
+    !multiLanguageDiscovery.items.some((item) => item.id === character.id) ||
+    !multiLanguageDiscovery.items.some((item) => item.id === opaqueCharacterId)
+  ) {
+    throw new Error('Multi-language discovery did not use inclusive language semantics.');
+  }
+  await request('/api/v1/discovery?languages=ar,unknown', { headers }, 400);
+  const groupCharacter = await request(
+    `/api/v1/characters/${character.id}`,
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ baseVersion: 4, groupSize: 'small' }),
+    },
+    200,
+  );
+  if (groupCharacter.version !== 5 || groupCharacter.groupSize !== 'small') {
+    throw new Error('Character group size was not persisted through the supported API.');
+  }
+  const groupSizeCatalogue = await request(
+    '/api/v1/discovery/group-sizes/catalog?rating=SAFE',
+    { headers },
+    200,
+  );
+  if (
+    groupSizeCatalogue.enabled !== true ||
+    groupSizeCatalogue.items.length !== 4 ||
+    !groupSizeCatalogue.items.some((item) => item.code === 'small' && item.usageCount === 1)
+  ) {
+    throw new Error('The D1-backed group-size catalogue or usage counts are incomplete.');
+  }
+  const smallGroupDiscovery = await request('/api/v1/discovery?groupSizes=small', { headers }, 200);
+  if (smallGroupDiscovery.totalCount !== 1 || smallGroupDiscovery.items[0]?.id !== character.id) {
+    throw new Error('Group-size discovery filter did not return the persisted small group.');
+  }
+  await request('/api/v1/discovery?groupSizes=small,crowd', { headers }, 400);
+  const newestDiscovery = await request('/api/v1/discovery?sort=newest&limit=30', { headers }, 200);
+  const oldestDiscovery = await request('/api/v1/discovery?sort=oldest&limit=30', { headers }, 200);
+  const newestDiscoveryIds = newestDiscovery.items.map((item) => item.id);
+  const oldestDiscoveryIds = oldestDiscovery.items.map((item) => item.id);
+  if (
+    newestDiscovery.totalCount !== newestDiscoveryIds.length ||
+    oldestDiscovery.totalCount !== oldestDiscoveryIds.length ||
+    JSON.stringify(newestDiscoveryIds) !== JSON.stringify(oldestDiscoveryIds.reverse())
+  ) {
+    throw new Error('Discovery newest/oldest sort or exact total count is inconsistent.');
   }
   if (discovery.items[0]?.creatorName !== 'Независимый автор') {
     throw new Error('Discovery ignored the product-profile display name.');
@@ -2934,6 +3923,20 @@ try {
   ) {
     throw new Error('Imported lorebook was not private or lost validated entry data.');
   }
+  const newestLorebooks = await request('/api/v1/lorebooks?sort=newest', { headers }, 200);
+  const oldestLorebooks = await request('/api/v1/lorebooks?sort=oldest', { headers }, 200);
+  const searchedLorebooks = await request(
+    `/api/v1/lorebooks?q=${encodeURIComponent('Тестовая книга')}&sort=newest`,
+    { headers },
+    200,
+  );
+  if (
+    JSON.stringify(newestLorebooks.items.map((item) => item.id)) !==
+      JSON.stringify(oldestLorebooks.items.map((item) => item.id).reverse()) ||
+    searchedLorebooks.items.length !== 2
+  ) {
+    throw new Error('Lorebook search/newest/oldest query did not reach deterministic D1 ordering.');
+  }
   const beforeInvalidImport = await request('/api/v1/lorebooks', { headers }, 200);
   await request(
     '/api/v1/lorebooks/import',
@@ -3000,10 +4003,102 @@ try {
   if (
     initialBranch.items.length !== 1 ||
     initialBranch.items[0]?.role !== 'ASSISTANT' ||
+    initialBranch.items[0]?.isGreeting !== true ||
+    initialBranch.items[0]?.editedByUser !== false ||
+    initialBranch.items[0]?.origin !== 'CHARACTER_GREETING' ||
+    initialBranch.items[0]?.contentFormat !== 'MARKDOWN' ||
+    initialBranch.items[0]?.updatedAt !== initialBranch.items[0]?.createdAt ||
     initialBranch.items[0]?.content !==
-      `Другой путь тоже привёл тебя сюда, Лея. Я ${characterName}.`
+      `${characterName} встречает Алекс у входа в архив. Другой путь тоже привёл тебя сюда, Алекс. Я ${characterName}.`
   ) {
     throw new Error('Conversation did not render the selected greeting with its persona snapshot.');
+  }
+  const initialGreeting = initialBranch.items[0];
+  const greetingOverrideText = 'В этом диалоге архив встречает тебя иначе.';
+  const greetingOverride = await request(
+    `/api/v1/conversations/${conversation.id}/messages/${initialGreeting.id}/edit`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        content: greetingOverrideText,
+        idempotencyKey: `greeting-override:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  if (
+    greetingOverride.content !== greetingOverrideText ||
+    greetingOverride.isGreeting !== true ||
+    greetingOverride.editedByUser !== true ||
+    greetingOverride.origin !== 'USER_EDIT' ||
+    greetingOverride.parentMessageId !== null
+  ) {
+    throw new Error('Greeting edit was not stored as a conversation-scoped root override.');
+  }
+  const publicCharacterAfterOverride = await request(
+    `/api/v1/discovery/${character.id}`,
+    { headers },
+    200,
+  );
+  if (publicCharacterAfterOverride.firstMessage !== publicCharacter.firstMessage) {
+    throw new Error('Conversation greeting override mutated the public character version.');
+  }
+  const balanceBeforeGreetingRegeneration = await request('/api/v1/me', { headers }, 200);
+  const regeneratedGreetingResponse = await fetch(
+    `${baseUrl}/api/v1/conversations/${conversation.id}/generate`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        parentMessageId: greetingOverride.id,
+        mode: 'GREETING',
+        idempotencyKey: `regenerate-greeting:${randomUUID()}`,
+      }),
+    },
+  );
+  const regeneratedGreetingStream = await regeneratedGreetingResponse.text();
+  if (
+    regeneratedGreetingResponse.status !== 200 ||
+    !regeneratedGreetingStream.includes('event: delta') ||
+    !regeneratedGreetingStream.includes('event: done')
+  ) {
+    throw new Error(
+      `Greeting regeneration failed: ${regeneratedGreetingResponse.status} ${regeneratedGreetingStream}`,
+    );
+  }
+  const greetingBranch = await request(
+    `/api/v1/conversations/${conversation.id}/messages`,
+    { headers },
+    200,
+  );
+  const regeneratedGreeting = greetingBranch.items.at(-1);
+  if (
+    greetingBranch.items.length !== 1 ||
+    regeneratedGreeting?.isGreeting !== true ||
+    regeneratedGreeting?.origin !== 'AI_GENERATION' ||
+    regeneratedGreeting?.parentMessageId !== null ||
+    regeneratedGreeting?.variantCount !== publicCharacter.alternateGreetings.length + 3 ||
+    regeneratedGreeting?.variantIds.length !== publicCharacter.alternateGreetings.length + 3
+  ) {
+    throw new Error('Regenerated greeting was not exposed as an immutable root greeting variant.');
+  }
+  const publicCharacterAfterRegeneration = await request(
+    `/api/v1/discovery/${character.id}`,
+    { headers },
+    200,
+  );
+  if (publicCharacterAfterRegeneration.firstMessage !== publicCharacter.firstMessage) {
+    throw new Error('Greeting regeneration mutated the public character version.');
+  }
+  const balanceAfterGreetingRegeneration = await request('/api/v1/me', { headers }, 200);
+  if (
+    balanceAfterGreetingRegeneration.creditBalanceMicros !==
+    balanceBeforeGreetingRegeneration.creditBalanceMicros
+  ) {
+    throw new Error(
+      `Plan-backed generation unexpectedly changed the legacy credit ledger: before=${balanceBeforeGreetingRegeneration.creditBalanceMicros}, after=${balanceAfterGreetingRegeneration.creditBalanceMicros}.`,
+    );
   }
   const updatedConversation = await request(
     `/api/v1/conversations/${conversation.id}`,
@@ -3012,7 +4107,7 @@ try {
       headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
       body: JSON.stringify({
         modelProfile: 'CREATIVE',
-        responseLength: 'SHORT',
+        responseLength: 'DETAILED',
         temperature: 1.1,
         maxOutputTokens: 350,
         customInstructions: 'Пиши для {{user}} кинематографично.',
@@ -3023,6 +4118,7 @@ try {
   );
   if (
     updatedConversation.settings.modelProfile !== 'CREATIVE' ||
+    updatedConversation.settings.responseLength !== 'DETAILED' ||
     updatedConversation.settings.maxOutputTokens !== 350 ||
     updatedConversation.settings.customInstructions !== 'Пиши для {{user}} кинематографично.'
   ) {
@@ -3080,12 +4176,15 @@ try {
   );
   if (
     promptInspector.character.name !== characterName ||
+    promptInspector.selectedModel?.profileId !== conversationDetail.settings.modelProfileId ||
+    promptInspector.selectedModel?.providerModelId !== 'deepseek-chat-v3.1' ||
     !promptInspector.character.systemInstructions.includes(storyPersona.name) ||
     promptInspector.lore[0]?.id !== loreEntry.id ||
     !promptInspector.lore[0]?.content.includes(storyPersona.name) ||
     promptInspector.recentMessages.at(-1)?.content !== userMessage.content ||
     promptInspector.tokenEstimates.totalInput <= 0 ||
-    promptInspector.tokenEstimates.contextLimit !== 32000
+    promptInspector.tokenEstimates.contextLimit !== 32000 ||
+    !promptInspector.chatInstructions.includes('Preferred response length: detailed')
   ) {
     throw new Error('Prompt inspector does not reflect the exact active prompt assembly.');
   }
@@ -3116,7 +4215,7 @@ try {
     .map((attempt) => attempt.model);
   if (
     JSON.stringify(fallbackAttempts) !==
-    JSON.stringify(['deepseek-chat-v3.1', 'deepseek-chat-v3.1', 'kimi-k2.5'])
+    JSON.stringify(['deepseek-chat-v3.1', 'deepseek-chat-v3.1', 'deepseek-chat-v3-0324'])
   ) {
     throw new Error(
       `Transient generation did not follow the bounded fallback chain: ${JSON.stringify(fallbackAttempts)}`,
@@ -3128,13 +4227,14 @@ try {
     aiRequest?.temperature !== 1.1 ||
     !aiRequest.messages?.some(
       (message) =>
-        message.role === 'system' && message.content.includes('Пиши для Лея кинематографично.'),
+        message.role === 'system' && message.content.includes('Пиши для Алекс кинематографично.'),
     ) ||
     !aiRequest.messages?.some(
       (message) => message.role === 'user' && message.content === `Я готова, ${characterName}.`,
     ) ||
     !aiRequest.messages?.some(
-      (message) => message.role === 'system' && message.content.includes('Продолжи сцену для Лея'),
+      (message) =>
+        message.role === 'system' && message.content.includes('Продолжи сцену для Алекс'),
     )
   ) {
     throw new Error(
@@ -3150,6 +4250,9 @@ try {
     },
     409,
   );
+  if (aiRequests.length !== aiRequestCountBeforeGeneration + fallbackAttempts.length) {
+    throw new Error('Repeated generation idempotency key caused another paid provider request.');
+  }
   const generatedBranch = await request(
     `/api/v1/conversations/${conversation.id}/messages`,
     { headers },
@@ -3159,9 +4262,90 @@ try {
     generatedBranch.items.length !== 3 ||
     generatedBranch.items.at(-1)?.content !== 'Архив открылся.' ||
     generatedBranch.items.at(-1)?.status !== 'COMPLETED' ||
+    generatedBranch.items.at(-1)?.isGreeting !== false ||
+    generatedBranch.items.at(-1)?.origin !== 'AI_GENERATION' ||
     generatedBranch.items.at(-1)?.metadata?.includedLoreEntries?.[0] !== loreEntry.id
   ) {
     throw new Error('Completed AI response was not persisted on the active branch.');
+  }
+  const activeConversationList = await request(
+    '/api/v1/conversations?state=ALL&sort=active',
+    { headers },
+    200,
+  );
+  const activeConversationIndex = activeConversationList.items.findIndex(
+    (item) => item.id === conversation.id,
+  );
+  const previewConversationIndex = activeConversationList.items.findIndex(
+    (item) => item.id === previewConversation.id,
+  );
+  if (
+    activeConversationIndex < 0 ||
+    previewConversationIndex < 0 ||
+    activeConversationIndex >= previewConversationIndex ||
+    activeConversationList.items[activeConversationIndex]?.messageCount !== 3 ||
+    activeConversationList.items[previewConversationIndex]?.messageCount !== 1
+  ) {
+    throw new Error(
+      'Most-active conversation sorting did not use deterministic server-side message counts.',
+    );
+  }
+  const reactedMessage = generatedBranch.items.at(-1);
+  if (typeof reactedMessage?.generationId !== 'string' || reactedMessage.reaction !== null) {
+    throw new Error('Generated response did not expose its reaction identity and empty state.');
+  }
+  await request(
+    `/api/v1/conversations/${conversation.id}/generations/${reactedMessage.generationId}/reaction`,
+    {
+      method: 'PUT',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ reaction: 'POSITIVE' }),
+    },
+    200,
+  );
+  await request(
+    `/api/v1/conversations/${conversation.id}/generations/${reactedMessage.generationId}/reaction`,
+    {
+      method: 'PUT',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ reaction: 'POSITIVE' }),
+    },
+    200,
+  );
+  const reactedBranch = await request(
+    `/api/v1/conversations/${conversation.id}/messages`,
+    { headers },
+    200,
+  );
+  if (reactedBranch.items.at(-1)?.reaction !== 'POSITIVE') {
+    throw new Error('Saved response reaction was not restored with its generated message.');
+  }
+  const reactionCardinality = await runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `SELECT COUNT(*) AS reaction_count FROM message_generation_reactions
+     WHERE generation_id = '${reactedMessage.generationId}' AND user_id = '${me.id}';`,
+  ]);
+  if (!reactionCardinality.includes('"reaction_count": 1')) {
+    throw new Error(`Repeated response reaction created a duplicate: ${reactionCardinality}`);
+  }
+  await request(
+    `/api/v1/conversations/${conversation.id}/generations/${reactedMessage.generationId}/reaction`,
+    { method: 'DELETE', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
+  const clearedReactionBranch = await request(
+    `/api/v1/conversations/${conversation.id}/messages`,
+    { headers },
+    200,
+  );
+  if (clearedReactionBranch.items.at(-1)?.reaction !== null) {
+    throw new Error('Deleted response reaction remained attached to the generated message.');
   }
   const dashboardAfterGeneration = await request(
     '/api/v1/admin/operations/dashboard',
@@ -3171,11 +4355,28 @@ try {
   if (dashboardAfterGeneration.productEvents24h < 6) {
     throw new Error('Server-authoritative product events are missing after roleplay activity.');
   }
-  const balanceAfterGeneration = await request('/api/v1/me', { headers }, 200);
-  if (balanceAfterGeneration.creditBalanceMicros !== 979721) {
-    throw new Error('Token usage and the conservative request fee were not deducted exactly.');
+  const ownerDashboardAfterGeneration = await request(
+    '/api/v1/admin/operations/dashboard',
+    { headers: ownerHeaders },
+    200,
+  );
+  if (
+    ownerDashboardAfterGeneration.ownerAiUsage.daily.requests < 1 ||
+    ownerDashboardAfterGeneration.ownerAiUsage.weekly.requests <
+      ownerDashboardAfterGeneration.ownerAiUsage.daily.requests ||
+    ownerDashboardAfterGeneration.ownerAiUsage.lifetime.requests <
+      ownerDashboardAfterGeneration.ownerAiUsage.weekly.requests ||
+    !ownerDashboardAfterGeneration.ownerAiUsage.perModelWeekly.some(
+      (usage) => usage.inputTokens > 0 && usage.outputTokens > 0,
+    )
+  ) {
+    throw new Error('Owner AI usage windows or per-model weekly aggregates were not persisted.');
   }
-  const successfulProviderSpend = runWrangler([
+  const balanceAfterGeneration = await request('/api/v1/me', { headers }, 200);
+  if (balanceAfterGeneration.creditBalanceMicros !== 1_000_000) {
+    throw new Error('Plan-backed generation unexpectedly debited the legacy credit ledger.');
+  }
+  const successfulProviderSpend = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -3191,6 +4392,265 @@ try {
   ]);
   if (!successfulProviderSpend.includes('"provider_spend_accounted": 1')) {
     throw new Error('Retry/fallback provider spend was not kept separate from the user charge.');
+  }
+  const policyConversation = await request(
+    '/api/v1/conversations',
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        characterId: character.id,
+        personaId: storyPersona.id,
+        idempotencyKey: `content-policy-conversation:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const policyMessage = await request(
+    `/api/v1/conversations/${policyConversation.id}/messages`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        content: 'CONTENT_POLICY_TEST: explicit provider policy response.',
+        idempotencyKey: `content-policy-message:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const policyBalanceBefore = (await request('/api/v1/me', { headers }, 200)).creditBalanceMicros;
+  const policyProviderIndex = aiRequests.length;
+  const policyResponse = await fetch(
+    `${baseUrl}/api/v1/conversations/${policyConversation.id}/generate`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        parentMessageId: policyMessage.id,
+        idempotencyKey: `content-policy-generation:${randomUUID()}`,
+      }),
+    },
+  );
+  const policyStream = await policyResponse.text();
+  if (
+    policyResponse.status !== 200 ||
+    !policyStream.includes('event: error') ||
+    !policyStream.includes('BOTHUB_CONTENT_RESTRICTED') ||
+    policyStream.includes('private provider diagnostic') ||
+    policyStream.includes('event: done')
+  ) {
+    throw new Error(`Provider content restriction was not safely surfaced: ${policyStream}`);
+  }
+  if (aiRequests.length - policyProviderIndex !== 1) {
+    throw new Error('A non-retryable provider content restriction incorrectly triggered fallback.');
+  }
+  const policyBalanceAfter = (await request('/api/v1/me', { headers }, 200)).creditBalanceMicros;
+  if (policyBalanceAfter !== policyBalanceBefore) {
+    throw new Error('A blocked generation debited user credits.');
+  }
+  const policyPersistence = await runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `SELECT status, error_code AS errorCode FROM ai_requests
+     WHERE conversation_id = '${policyConversation.id}' ORDER BY created_at DESC LIMIT 1;`,
+  ]);
+  if (
+    !policyPersistence.includes('"status": "FAILED"') ||
+    !policyPersistence.includes('"errorCode": "BOTHUB_CONTENT_RESTRICTED"')
+  ) {
+    throw new Error(
+      `Provider content restriction persistence is inconsistent: ${policyPersistence}`,
+    );
+  }
+  const freeCatalog = await request('/api/v1/conversations/models/catalog', { headers }, 200);
+  const nanoCatalogItem = freeCatalog.items.find((item) => item.id === 'velora-free-context');
+  if (
+    !nanoCatalogItem?.available ||
+    !nanoCatalogItem.allowed ||
+    nanoCatalogItem.providerLabel !== 'BotHub' ||
+    nanoCatalogItem.costLabelRu !== 'Минимальный' ||
+    'providerModelId' in nanoCatalogItem ||
+    'price' in nanoCatalogItem
+  ) {
+    throw new Error('Smoke-validated Free model was not selectable in the server catalog.');
+  }
+  const freeConversation = await request(
+    '/api/v1/conversations',
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        characterId: character.id,
+        personaId: storyPersona.id,
+        idempotencyKey: `free-conversation:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const switchFirstMessage = await request(
+    `/api/v1/conversations/${freeConversation.id}/messages`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        content: 'MODEL_SWITCH_TEST: first scene before switching models.',
+        parentMessageId: freeConversation.activeMessageId,
+        idempotencyKey: `model-switch-before:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const beforeSwitchProviderIndex = aiRequests.length;
+  const beforeSwitchResponse = await fetch(
+    `${baseUrl}/api/v1/conversations/${freeConversation.id}/generate`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        parentMessageId: switchFirstMessage.id,
+        idempotencyKey: `model-switch-generation-before:${randomUUID()}`,
+      }),
+    },
+  );
+  const beforeSwitchStream = await beforeSwitchResponse.text();
+  if (
+    beforeSwitchResponse.status !== 200 ||
+    !beforeSwitchStream.includes('event: done') ||
+    aiRequests.slice(beforeSwitchProviderIndex).at(0)?.model !== 'deepseek-chat-v3.1'
+  ) {
+    throw new Error(
+      `Pre-switch generation mismatch: ${JSON.stringify({
+        status: beforeSwitchResponse.status,
+        completed: beforeSwitchStream.includes('event: done'),
+        errorCodes: [...beforeSwitchStream.matchAll(/"code":"([^"]+)"/gu)].map((match) => match[1]),
+        models: aiRequests.slice(beforeSwitchProviderIndex).map((request) => request.model),
+      })}`,
+    );
+  }
+  const branchBeforeSwitch = await request(
+    `/api/v1/conversations/${freeConversation.id}/messages`,
+    { headers },
+    200,
+  );
+  await request(
+    `/api/v1/conversations/${freeConversation.id}`,
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ modelProfileId: 'velora-free-context' }),
+    },
+    200,
+  );
+  const branchAfterSwitch = await request(
+    `/api/v1/conversations/${freeConversation.id}/messages`,
+    { headers },
+    200,
+  );
+  if (
+    JSON.stringify(branchAfterSwitch.items.map((item) => item.id)) !==
+    JSON.stringify(branchBeforeSwitch.items.map((item) => item.id))
+  ) {
+    throw new Error('Switching the model changed the existing conversation history.');
+  }
+  const freeBalanceBefore = (await request('/api/v1/me', { headers }, 200)).creditBalanceMicros;
+  let freeParentMessageId = branchAfterSwitch.items.at(-1)?.id;
+  for (let freeIndex = 0; freeIndex < 3; freeIndex += 1) {
+    const freeMessage = await request(
+      `/api/v1/conversations/${freeConversation.id}/messages`,
+      {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({
+          content: `Секретный проход и бесплатная сцена ${String(freeIndex + 1)}.`,
+          parentMessageId: freeParentMessageId,
+          idempotencyKey: `free-message:${String(freeIndex)}:${randomUUID()}`,
+        }),
+      },
+      201,
+    );
+    const freeResponse = await fetch(
+      `${baseUrl}/api/v1/conversations/${freeConversation.id}/generate`,
+      {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({
+          parentMessageId: freeMessage.id,
+          idempotencyKey: `free-generation:${String(freeIndex)}:${randomUUID()}`,
+        }),
+      },
+    );
+    const freeStream = await freeResponse.text();
+    if (freeResponse.status !== 200 || !freeStream.includes('event: done')) {
+      throw new Error(`Sponsored Free generation failed: ${freeResponse.status} ${freeStream}`);
+    }
+    if (freeIndex === 0 && aiRequests.at(-1)?.model !== 'mistral-nemo') {
+      throw new Error('The first post-switch generation did not use the newly selected model.');
+    }
+    const activeFreeBranch = await request(
+      `/api/v1/conversations/${freeConversation.id}/messages`,
+      { headers },
+      200,
+    );
+    freeParentMessageId = activeFreeBranch.items.at(-1)?.id;
+  }
+  const freeBalanceAfter = (await request('/api/v1/me', { headers }, 200)).creditBalanceMicros;
+  if (freeBalanceAfter !== freeBalanceBefore) {
+    throw new Error('Sponsored Free generation debited the user credit ledger.');
+  }
+  const sponsoredAccounting = await runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `SELECT
+       (SELECT COUNT(*) FROM ai_requests WHERE user_id = '${userId}'
+         AND model = 'mistral-nemo' AND billing_mode = 'SPONSORED_FREE'
+        AND status = 'COMPLETED') AS sponsored_requests,
+       (SELECT COUNT(*) FROM credit_transactions ct JOIN ai_requests ar
+        ON ar.id = ct.reference_id WHERE ar.user_id = '${userId}'
+         AND ar.model = 'mistral-nemo' AND ct.type = 'GENERATION_USAGE') AS user_debits;`,
+  ]);
+  if (
+    !sponsoredAccounting.includes('"sponsored_requests": 3') ||
+    !sponsoredAccounting.includes('"user_debits": 0')
+  ) {
+    throw new Error(`Sponsored Free accounting is inconsistent: ${sponsoredAccounting}`);
+  }
+  const fourthFreeMessage = await request(
+    `/api/v1/conversations/${freeConversation.id}/messages`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        content: 'Секретный проход и четвёртая бесплатная сцена.',
+        parentMessageId: freeParentMessageId,
+        idempotencyKey: `free-message:fourth:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const fourthFreeResponse = await fetch(
+    `${baseUrl}/api/v1/conversations/${freeConversation.id}/generate`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        parentMessageId: fourthFreeMessage.id,
+        idempotencyKey: `free-generation:fourth:${randomUUID()}`,
+      }),
+    },
+  );
+  const fourthFreeStream = await fourthFreeResponse.text();
+  if (fourthFreeResponse.status !== 200 || !fourthFreeStream.includes('event: done')) {
+    throw new Error('The relaxed Free fair-use policy rejected the fourth request.');
   }
   const firstAssistant = generatedBranch.items.at(-1);
   const regeneratedResponse = await fetch(
@@ -3219,7 +4679,8 @@ try {
     firstAssistant.id === secondAssistant.id ||
     secondAssistant.variantCount !== 2 ||
     secondAssistant.variantIndex !== 1 ||
-    secondAssistant.variantIds[0] !== firstAssistant.id
+    secondAssistant.variantIds[0] !== firstAssistant.id ||
+    secondAssistant.generationGroupId !== firstAssistant.generationGroupId
   ) {
     throw new Error('Regenerated responses were not exposed as immutable sibling variants.');
   }
@@ -3273,7 +4734,7 @@ try {
   if (
     !continuedAssistant ||
     continuedAssistant.parentMessageId !== firstAssistant.id ||
-    continuedBranch.items.some((item) => item.role === 'SYSTEM_INTERNAL')
+    continuedBranch.items.some((item) => item.role === 'INTERNAL')
   ) {
     throw new Error('Continuation branch is invalid or exposed an internal message.');
   }
@@ -3295,6 +4756,7 @@ try {
   if (restoredDescendantBranch.items.at(-1)?.id !== continuedAssistant.id) {
     throw new Error('Variant selection did not restore its latest existing descendant branch.');
   }
+  const aiRequestCountBeforeAssistantEdit = aiRequests.length;
   const editedAssistant = await request(
     `/api/v1/conversations/${conversation.id}/messages/${continuedAssistant.id}/edit`,
     {
@@ -3309,9 +4771,36 @@ try {
   );
   if (
     editedAssistant.role !== 'ASSISTANT' ||
+    editedAssistant.editedByUser !== true ||
+    editedAssistant.origin !== 'USER_EDIT' ||
     editedAssistant.metadata.editedFromId !== continuedAssistant.id
   ) {
     throw new Error('Assistant edit did not create an immutable sibling branch.');
+  }
+  if (aiRequests.length !== aiRequestCountBeforeAssistantEdit) {
+    throw new Error('Assistant editing unexpectedly called the LLM provider.');
+  }
+  const editedAssistantBranch = await request(
+    `/api/v1/conversations/${conversation.id}/messages`,
+    { headers },
+    200,
+  );
+  const activeEditedAssistant = editedAssistantBranch.items.at(-1);
+  if (
+    activeEditedAssistant?.id !== editedAssistant.id ||
+    activeEditedAssistant.variantCount !== 2 ||
+    !activeEditedAssistant.variantIds.includes(continuedAssistant.id) ||
+    !activeEditedAssistant.variantIds.includes(editedAssistant.id)
+  ) {
+    throw new Error('Assistant edit did not preserve its original auditable variant.');
+  }
+  const inspectorAfterAssistantEdit = await request(
+    `/api/v1/conversations/${conversation.id}/prompt-inspector`,
+    { headers },
+    200,
+  );
+  if (inspectorAfterAssistantEdit.recentMessages.at(-1)?.content !== editedAssistant.content) {
+    throw new Error('The assistant override was not selected for subsequent AI context.');
   }
   await request(
     `/api/v1/conversations/${conversation.id}/messages/${editedAssistant.id}`,
@@ -3328,8 +4817,22 @@ try {
     { headers },
     200,
   );
-  if (branchAfterDelete.items.at(-1)?.id !== firstAssistant.id) {
+  if (
+    branchAfterDelete.items.at(-1)?.id !== firstAssistant.id ||
+    branchAfterDelete.items.some((item) => item.id === editedAssistant.id)
+  ) {
     throw new Error('Deleting an active branch did not return to its nearest surviving parent.');
+  }
+  const memoryAfterBranchDelete = await request(
+    `/api/v1/conversations/${conversation.id}/memory`,
+    { headers },
+    200,
+  );
+  if (
+    memoryAfterBranchDelete.stale !== true ||
+    memoryAfterBranchDelete.staleSinceMessageId !== editedAssistant.id
+  ) {
+    throw new Error('Deleting a branch did not invalidate conversation memory.');
   }
   const editedMessage = await request(
     `/api/v1/conversations/${conversation.id}/messages/${userMessage.id}/edit`,
@@ -3357,17 +4860,37 @@ try {
   if (
     editedBranch.items.length !== 2 ||
     editedBranch.items[1]?.id !== editedMessage.id ||
-    editedBranch.items.some((item) => item.id === userMessage.id)
+    editedBranch.items.some((item) => item.id === userMessage.id) ||
+    !editedBranch.items[1]?.variantIds.includes(userMessage.id) ||
+    !editedBranch.items[1]?.variantIds.includes(editedMessage.id)
   ) {
     throw new Error('Active branch did not switch to the edited user message.');
   }
+  await request(
+    `/api/v1/conversations/${conversation.id}/active-message/${userMessage.id}?descend=1`,
+    { method: 'PUT', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
+  const originalUserBranch = await request(
+    `/api/v1/conversations/${conversation.id}/messages`,
+    { headers },
+    200,
+  );
+  if (!originalUserBranch.items.some((item) => item.id === userMessage.id)) {
+    throw new Error('The original user branch could not be restored after an immutable edit.');
+  }
+  await request(
+    `/api/v1/conversations/${conversation.id}/active-message/${editedMessage.id}`,
+    { method: 'PUT', headers: { ...headers, 'x-csrf-token': csrfToken } },
+    200,
+  );
   const memory = await request(
     `/api/v1/conversations/${conversation.id}/memory`,
     {
       method: 'PUT',
       headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
       body: JSON.stringify({
-        content: 'Пользователь вошёл в архив.',
+        manualContext: 'MANUAL_FACT: Алекс боится высоты.',
         idempotencyKey: `memory:${randomUUID()}`,
       }),
     },
@@ -3418,11 +4941,38 @@ try {
   );
   if (
     summarizedMemory.active?.sourceType !== 'AUTO_SUMMARY' ||
-    !summarizedMemory.active.content.includes(memory.content) ||
+    summarizedMemory.manualContext !== 'MANUAL_FACT: Алекс боится высоты.' ||
+    summarizedMemory.active.manualContext !== summarizedMemory.manualContext ||
+    !summarizedMemory.autoSummary.includes('Я осторожно открываю дверь архива.') ||
+    summarizedMemory.active.autoSummary !== summarizedMemory.autoSummary ||
+    !summarizedMemory.active.content.includes('PINNED_MANUAL_CONTEXT:') ||
+    !summarizedMemory.active.content.includes('AUTO_SUMMARY:') ||
     summarizedMemory.lastSummarizedMessageId !== editedMessage.id ||
     summarizedMemory.estimatedTokens < 1
   ) {
     throw new Error('Memory inspector or deterministic summary coverage is inconsistent.');
+  }
+  const inspectorAfterAutomaticMemory = await request(
+    `/api/v1/conversations/${conversation.id}/prompt-inspector`,
+    { headers },
+    200,
+  );
+  if (
+    inspectorAfterAutomaticMemory.character.name !== 'Мира' ||
+    inspectorAfterAutomaticMemory.persona?.name !== 'Алекс' ||
+    !inspectorAfterAutomaticMemory.memory.includes('MANUAL_FACT: Алекс боится высоты.') ||
+    !inspectorAfterAutomaticMemory.memory.includes('Я осторожно открываю дверь архива.') ||
+    inspectorAfterAutomaticMemory.lore[0]?.id !== loreEntry.id ||
+    inspectorAfterAutomaticMemory.recentMessages.at(-1)?.content !== editedMessage.content ||
+    !inspectorAfterAutomaticMemory.chatInstructions.includes('Пиши для Алекс кинематографично.') ||
+    !inspectorAfterAutomaticMemory.chatInstructions.includes(
+      'Preferred response length: detailed',
+    ) ||
+    inspectorAfterAutomaticMemory.selectedModel?.providerModelId !== 'deepseek-chat-v3.1'
+  ) {
+    throw new Error(
+      'Final Mira/Alex prompt inspector lost persona, manual/auto memory, style or model.',
+    );
   }
   const versionsAfterSummary = await request(
     `/api/v1/conversations/${conversation.id}/memory/versions`,
@@ -3449,7 +4999,7 @@ try {
     { headers },
     200,
   );
-  if (staleMemory.stale !== true)
+  if (staleMemory.stale !== true || staleMemory.staleSinceMessageId !== editedMessage.id)
     throw new Error('Historical branch edit did not mark memory stale.');
   await request(
     `/api/v1/conversations/${conversation.id}/memory/keep`,
@@ -3465,7 +5015,11 @@ try {
     { headers },
     200,
   );
-  if (keptMemory.stale !== false || keptMemory.active.id !== summarizedMemory.active.id) {
+  if (
+    keptMemory.stale !== false ||
+    keptMemory.staleSinceMessageId !== null ||
+    keptMemory.active.id !== summarizedMemory.active.id
+  ) {
     throw new Error(
       `Keep-current mutated the immutable memory version: ${JSON.stringify({ keptMemory, summarizedMemory })}`,
     );
@@ -3491,6 +5045,52 @@ try {
   );
   const longRootId = longInitialBranch.items[0]?.id;
   if (typeof longRootId !== 'string') throw new Error('Long-memory root was not created.');
+  const initialLongManualContext = 'PINNED_LONG_FACT: Черновой владелец печати.';
+  const longManualContext = 'PINNED_LONG_FACT: Медная печать принадлежит Мире.';
+  await request(
+    `/api/v1/conversations/${longConversation.id}/memory`,
+    {
+      method: 'PUT',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        manualContext: initialLongManualContext,
+        idempotencyKey: `long-memory-manual:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  await request(
+    `/api/v1/conversations/${longConversation.id}/memory`,
+    {
+      method: 'PUT',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        manualContext: '',
+        idempotencyKey: `long-memory-clear:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const clearedLongMemory = await request(
+    `/api/v1/conversations/${longConversation.id}/memory`,
+    { headers },
+    200,
+  );
+  if (clearedLongMemory.manualContext !== '') {
+    throw new Error('The user could not remove pinned manual context.');
+  }
+  await request(
+    `/api/v1/conversations/${longConversation.id}/memory`,
+    {
+      method: 'PUT',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        manualContext: longManualContext,
+        idempotencyKey: `long-memory-rewrite:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
   const longPrefix = `long${randomUUID().replaceAll('-', '')}`;
   const longHistorySql = `
     WITH RECURSIVE sequence(n) AS (
@@ -3504,9 +5104,9 @@ try {
       CASE WHEN n = 1 THEN '${longRootId}' ELSE '${longPrefix}' || printf('%04d', n - 1) END,
       ${now} + n
     FROM sequence;
-    UPDATE conversations SET active_message_id = '${longPrefix}1200', updated_at = ${now + 1200}
+    UPDATE conversations SET active_leaf_message_id = '${longPrefix}1200', updated_at = ${now + 1200}
       WHERE id = '${longConversation.id}';`;
-  runWrangler([
+  await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -3516,6 +5116,23 @@ try {
     '--command',
     longHistorySql,
   ]);
+  const longMemoryPreview = await request(
+    `/api/v1/conversations/${longConversation.id}/memory/regenerate/preview`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'x-csrf-token': csrfToken },
+    },
+    200,
+  );
+  if (
+    longMemoryPreview.manualContext !== longManualContext ||
+    longMemoryPreview.messageCount !== 1201 ||
+    longMemoryPreview.toMessageId !== `${longPrefix}1200` ||
+    !longMemoryPreview.generatedAutoSummary.includes('Long event 600:') ||
+    longMemoryPreview.currentAutoSummary !== ''
+  ) {
+    throw new Error('Full-memory preview mutated or omitted active-branch history.');
+  }
   const longMemoryJob = await request(
     `/api/v1/conversations/${longConversation.id}/memory/regenerate`,
     {
@@ -3540,10 +5157,12 @@ try {
   );
   if (
     longMemory.active?.sourceType !== 'FULL_REGENERATION' ||
+    longMemory.manualContext !== longManualContext ||
+    longMemory.active.manualContext !== longManualContext ||
     longMemory.active.fromMessageId !== longRootId ||
     longMemory.active.toMessageId !== `${longPrefix}1200` ||
-    !longMemory.active.content.includes('Long event 600:') ||
-    !longMemory.active.content.includes('Long event 1200:')
+    !longMemory.autoSummary.includes('Long event 600:') ||
+    !longMemory.autoSummary.includes('Long event 1200:')
   ) {
     throw new Error(
       'Hierarchical memory did not preserve full-branch coverage beyond 500 messages.',
@@ -3555,7 +5174,7 @@ try {
     200,
   );
   if (
-    tree.items.length !== 7 ||
+    tree.items.length !== 9 + publicCharacter.alternateGreetings.length ||
     tree.items.some((item) => item.id === editedAssistant.id) ||
     !tree.items.some((item) => item.id === secondAssistant.id && item.variantCount === 2)
   ) {
@@ -3612,7 +5231,7 @@ try {
   ) {
     throw new Error('Deleting a chat allowed its stopped generation to charge AI credits.');
   }
-  const stoppedProviderSpend = runWrangler([
+  const stoppedProviderSpend = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -3677,7 +5296,7 @@ try {
   ) {
     throw new Error('A failed provider chain charged the user.');
   }
-  const failedProviderSpend = runWrangler([
+  const failedProviderSpend = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -3699,6 +5318,92 @@ try {
       `Failed provider attempts escaped the global spend accounting: ${failedProviderSpend}`,
     );
   }
+
+  const partialFailureConversation = await request(
+    '/api/v1/conversations',
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        characterId: character.id,
+        personaId: storyPersona.id,
+        idempotencyKey: `partial-failure-conversation:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const partialFailureMessage = await request(
+    `/api/v1/conversations/${partialFailureConversation.id}/messages`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        content: 'PARTIAL_FAILURE_TEST',
+        idempotencyKey: `partial-failure-message:${randomUUID()}`,
+      }),
+    },
+    201,
+  );
+  const balanceBeforePartialFailure = await request('/api/v1/me', { headers }, 200);
+  const partialFailureResponse = await fetch(
+    `${baseUrl}/api/v1/conversations/${partialFailureConversation.id}/generate`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        parentMessageId: partialFailureMessage.id,
+        idempotencyKey: `partial-failure-generation:${randomUUID()}`,
+      }),
+    },
+  );
+  const partialFailureStream = await partialFailureResponse.text();
+  if (
+    partialFailureResponse.status !== 200 ||
+    !partialFailureStream.includes('event: delta') ||
+    !partialFailureStream.includes('Partial answer retained.') ||
+    !partialFailureStream.includes('event: error')
+  ) {
+    throw new Error(
+      `Partial provider failure did not stream delta then error: ${partialFailureStream}`,
+    );
+  }
+  const partialFailureBranch = await request(
+    `/api/v1/conversations/${partialFailureConversation.id}/messages?view=active`,
+    { headers },
+    200,
+  );
+  const retainedPartialMessage = partialFailureBranch.items.at(-1);
+  if (
+    retainedPartialMessage?.content !== 'Partial answer retained.' ||
+    retainedPartialMessage?.status !== 'FAILED'
+  ) {
+    throw new Error(
+      `Failed partial generation was not retained: ${JSON.stringify(retainedPartialMessage)}`,
+    );
+  }
+  const balanceAfterPartialFailure = await request('/api/v1/me', { headers }, 200);
+  if (
+    balanceAfterPartialFailure.creditBalanceMicros !==
+    balanceBeforePartialFailure.creditBalanceMicros
+  ) {
+    throw new Error('A partially failed provider response charged the user.');
+  }
+  // Keep the concurrency-lock scenario independent from the many generation
+  // cost fixtures above it. The dedicated budget-limit case below inserts its
+  // own explicit spend row and still verifies the real 429 guard.
+  runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `UPDATE ai_requests SET provider_actual_cost_micros = 0
+     WHERE user_id = '${userId}' AND status IN ('COMPLETED', 'FAILED');`,
+  ]);
+  let acceptedConcurrentStreams = 0;
+  let rejectedConcurrentStreams = 0;
   const concurrentStreamTiming = await timedBurst(4, async (index) => {
     const loadConversation = await request(
       '/api/v1/conversations',
@@ -3737,12 +5442,25 @@ try {
       },
     );
     const streamBody = await response.text();
-    if (response.status !== 200 || !streamBody.includes('event: done')) {
+    if (response.status === 200 && streamBody.includes('event: done')) {
+      acceptedConcurrentStreams += 1;
+      return;
+    }
+    if (response.status === 409 && streamBody.includes('GENERATION_IN_PROGRESS')) {
+      rejectedConcurrentStreams += 1;
+      return;
+    }
+    {
       throw new Error(
         `Concurrent stream ${String(index)} failed with ${String(response.status)}: ${streamBody}`,
       );
     }
   });
+  if (acceptedConcurrentStreams !== 1 || rejectedConcurrentStreams !== 3) {
+    throw new Error(
+      `Per-user generation lock accepted ${String(acceptedConcurrentStreams)} and rejected ${String(rejectedConcurrentStreams)} requests instead of 1/3.`,
+    );
+  }
   const sessionHeaderPool = [headers, reporterHeaders, adminHeaders, ownerHeaders];
   const concurrentUserTiming = await timedBurst(40, async (index) => {
     const requestHeaders = sessionHeaderPool[index % sessionHeaderPool.length];
@@ -3760,12 +5478,16 @@ try {
     await response.arrayBuffer();
   });
   const searchTiming = await timedBurst(40, async (index) => {
+    const requestHeaders = sessionHeaderPool[index % sessionHeaderPool.length];
     const response = await fetch(
       `${baseUrl}/api/v1/discovery?q=${encodeURIComponent(`load-${String(index % 5)}`)}`,
-      { headers: ownerHeaders },
+      { headers: requestHeaders },
     );
     if (response.status !== 200) {
-      throw new Error(`Concurrent search request failed with ${String(response.status)}.`);
+      const responseBody = await response.text();
+      throw new Error(
+        `Concurrent search request failed with ${String(response.status)}: ${responseBody.slice(0, 500)}.`,
+      );
     }
     await response.arrayBuffer();
   });
@@ -3784,6 +5506,50 @@ try {
   process.stdout.write(
     `Local load smoke passed: users=${formatTiming(concurrentUserTiming)}, D1=${formatTiming(d1Timing)}, search=${formatTiming(searchTiming)}, AI=${formatTiming(concurrentStreamTiming)}.\n`,
   );
+  runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `INSERT INTO ai_requests
+      (id, user_id, provider, model, purpose, estimated_cost_micros,
+       provider_estimated_cost_micros, actual_cost_micros, provider_actual_cost_micros,
+       status, idempotency_key, created_at, completed_at, billing_mode)
+     VALUES ('${randomUUID()}', '${userId}', 'BOTHUB', 'budget-fixture', 'ROLEPLAY',
+       0, 0, 0, 500000, 'COMPLETED', 'per-user-budget-${randomUUID()}',
+       ${Date.now()}, ${Date.now()}, 'USER_CREDITS');`,
+  ]);
+  const budgetLimitedMessage = await request(
+    `/api/v1/conversations/${conversation.id}/messages`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        content: 'Проверка отдельного дневного лимита пользователя.',
+        idempotencyKey: `per-user-budget-message:${randomUUID()}`,
+      }),
+    },
+    201,
+    { transportRetries: 2 },
+  );
+  const budgetLimitError = await request(
+    `/api/v1/conversations/${conversation.id}/generate`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({
+        parentMessageId: budgetLimitedMessage.id,
+        idempotencyKey: `per-user-budget-generation:${randomUUID()}`,
+      }),
+    },
+    429,
+  );
+  if (budgetLimitError?.error?.code !== 'USER_DAILY_AI_BUDGET_EXHAUSTED') {
+    throw new Error(`Unexpected per-user budget response: ${JSON.stringify(budgetLimitError)}`);
+  }
   await request(
     `/api/v1/conversations/${conversation.id}`,
     {
@@ -4016,7 +5782,7 @@ try {
     {
       method: 'PATCH',
       headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
-      body: JSON.stringify({ nsfwVisible: true }),
+      body: JSON.stringify({ nsfwVisible: true, safeSearch: false, matureImageBlur: true }),
     },
     200,
   );
@@ -4119,6 +5885,38 @@ try {
   if (!approvedMature.items.some((item) => item.id === matureCharacter.id)) {
     throw new Error('Approved Mature character did not enter discovery.');
   }
+  const safeSearchSettings = await request(
+    '/api/v1/settings',
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ safeSearch: true }),
+    },
+    200,
+  );
+  if (!safeSearchSettings.safeSearch || !safeSearchSettings.matureImageBlur) {
+    throw new Error('Mature discovery controls were not persisted.');
+  }
+  const safeSearchResult = await request(
+    `/api/v1/discovery?q=${encodeURIComponent(matureCharacterName)}&rating=ALL`,
+    { headers },
+    200,
+  );
+  if (safeSearchResult.items.some((item) => item.id === matureCharacter.id)) {
+    throw new Error('Safe Search did not filter Mature content at query time.');
+  }
+  if (!safeSearchResult.contentPreferences?.safeSearch) {
+    throw new Error('Discovery did not report the effective server safety preference.');
+  }
+  await request(
+    '/api/v1/settings',
+    {
+      method: 'PATCH',
+      headers: { ...headers, 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ safeSearch: false }),
+    },
+    200,
+  );
   const changedMature = await request(
     `/api/v1/characters/${matureCharacter.id}`,
     {
@@ -4290,6 +6088,25 @@ try {
   );
   await request('/api/v1/discovery', { headers: reporterHeaders }, 200);
 
+  const deletionR2Upload = await request(
+    '/api/v1/media',
+    {
+      method: 'POST',
+      headers: {
+        ...deletionHeaders,
+        'content-type': 'image/png',
+        'x-csrf-token': deletionCsrfToken,
+        'x-upload-name': 'erasure-proof.png',
+      },
+      body: directImage,
+    },
+    201,
+  );
+  const deletionR2Path = `velora-local-media/images/${deletionUserId}/${deletionR2Upload.id}.png`;
+  if (localR2ObjectStatus(deletionR2Path) !== 0) {
+    throw new Error('Account deletion R2 fixture was not persisted before erasure.');
+  }
+
   const scheduled = await fetchAfterLocalWranglerAudit(`${baseUrl}/__scheduled?cron=*+*+*+*+*`);
   const scheduledBody = await scheduled.text();
   if (!scheduled.ok) throw new Error(`Scheduled deletion trigger failed: ${scheduled.status}.`);
@@ -4323,7 +6140,24 @@ try {
       `Telegram reconciliation did not apply the exact desired configuration: ${JSON.stringify(telegramConfigurationMutations)}`,
     );
   }
-  const reconciliationAudit = runWrangler([
+  const runtimeCapacityState = await runWranglerAudit([
+    'd1',
+    'execute',
+    'velora-local',
+    '--local',
+    '--env',
+    'local',
+    '--command',
+    `SELECT core_chat_enabled, observed_at > 0 AS refreshed
+     FROM runtime_capacity_state WHERE state_key = 'cloudflare-free';`,
+  ]);
+  if (
+    !runtimeCapacityState.includes('"core_chat_enabled": 1') ||
+    !runtimeCapacityState.includes('"refreshed": 1')
+  ) {
+    throw new Error('Scheduled capacity policy did not persist a core-chat-safe runtime state.');
+  }
+  const reconciliationAudit = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -4348,7 +6182,7 @@ try {
   }
   let botHubReconciliationAudit = '';
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    botHubReconciliationAudit = runWrangler([
+    botHubReconciliationAudit = await runWranglerAudit([
       'd1',
       'execute',
       'velora-local',
@@ -4374,7 +6208,7 @@ try {
       throw new Error(`BotHub reconciliation audit is missing ${expected}.`);
     }
   }
-  const botHubCapabilityAudit = runWrangler([
+  const botHubCapabilityAudit = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -4388,7 +6222,9 @@ try {
   ]);
   for (const expected of [
     '"provider": "BOTHUB"',
-    '"available_candidates_json": "[\\"deepseek-chat-v3.1\\"]"',
+    'deepseek-chat-v3.1',
+    'l3-lunaris-8b',
+    'mistral-nemo',
     '"selected_model": "deepseek-chat-v3.1"',
     '"catalog_hash_length": 64',
     '"checked": 1',
@@ -4424,7 +6260,10 @@ try {
       { cause: error },
     );
   }
-  const deletionAudit = runWrangler([
+  if (localR2ObjectStatus(deletionR2Path) === 0) {
+    throw new Error('Account deletion left the user R2 object behind.');
+  }
+  const deletionAudit = await runWranglerAudit([
     'd1',
     'execute',
     'velora-local',
@@ -4461,8 +6300,38 @@ try {
     { method: 'POST', headers: { ...headers, 'x-csrf-token': csrfToken } },
     201,
   );
-  if (duplicate.visibility !== 'PRIVATE' || duplicate.version !== 1) {
+  if (
+    duplicate.visibility !== 'PRIVATE' ||
+    duplicate.version !== 1 ||
+    duplicate.avatarFocalX !== 31 ||
+    duplicate.avatarFocalY !== 69
+  ) {
     throw new Error('Character duplicate is not an independent private draft.');
+  }
+  const newestCharacters = await request(
+    '/api/v1/characters?sort=newest&visibility=ALL',
+    { headers },
+    200,
+  );
+  const oldestCharacters = await request(
+    '/api/v1/characters?sort=oldest&visibility=ALL',
+    { headers },
+    200,
+  );
+  const privateCharacters = await request(
+    `/api/v1/characters?q=${encodeURIComponent(characterName)}&sort=newest&visibility=PRIVATE`,
+    { headers },
+    200,
+  );
+  if (
+    JSON.stringify(newestCharacters.items.map((item) => item.id)) !==
+      JSON.stringify(oldestCharacters.items.map((item) => item.id).reverse()) ||
+    privateCharacters.items.length !== 1 ||
+    privateCharacters.items[0]?.id !== duplicate.id
+  ) {
+    throw new Error(
+      'Owned character search/visibility/sort query did not reach deterministic D1 ordering.',
+    );
   }
   await request(
     `/api/v1/characters/${character.id}`,
@@ -4648,12 +6517,48 @@ async function fetchAfterLocalWranglerAudit(url) {
   throw new Error('Local Wrangler did not recover after a D1 audit.', { cause: lastError });
 }
 
-async function request(pathname, init, expectedStatus) {
+async function waitForStableLocalWrangler() {
+  let consecutiveHealthyResponses = 0;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      const response = await fetch(`${baseUrl}/health`);
+      await response.text();
+      consecutiveHealthyResponses = response.ok ? consecutiveHealthyResponses + 1 : 0;
+      if (consecutiveHealthyResponses >= 2) return;
+    } catch {
+      consecutiveHealthyResponses = 0;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 75));
+  }
+  throw new Error('Local Wrangler did not become stable after the D1 smoke audit.');
+}
+
+async function runWranglerAudit(argumentsList) {
+  const output = runWrangler(argumentsList);
+  await waitForStableLocalWrangler();
+  return output;
+}
+
+async function request(pathname, init, expectedStatus, options = {}) {
+  const transportRetries = options.transportRetries ?? 0;
   let response;
-  try {
-    response = await fetch(`${baseUrl}${pathname}`, init);
-  } catch (error) {
-    throw new Error(`Transport failure while requesting ${pathname}.`, { cause: error });
+  let lastTransportError;
+  for (let attempt = 0; attempt <= transportRetries; attempt += 1) {
+    try {
+      response = await fetch(`${baseUrl}${pathname}`, init);
+      break;
+    } catch (error) {
+      lastTransportError = error;
+      if (attempt === transportRetries) {
+        throw new Error(`Transport failure while requesting ${pathname}.`, { cause: error });
+      }
+      await waitForStableLocalWrangler();
+    }
+  }
+  if (!response) {
+    throw new Error(`Transport failure while requesting ${pathname}.`, {
+      cause: lastTransportError,
+    });
   }
   const rawBody = response.status === 204 ? '' : await response.text();
   let body = null;

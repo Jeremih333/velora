@@ -192,7 +192,7 @@ INSERT OR IGNORE INTO character_lorebooks (character_id, lorebook_id, enabled) V
 
 INSERT INTO conversations (
   id, user_id, character_id, character_version_id, persona_id, persona_snapshot_json,
-  title, active_message_id, state, memory_stale, created_at, updated_at, is_preview
+  title, active_leaf_message_id, state, memory_stale, created_at, updated_at, is_preview
 ) VALUES (
   'seed-conversation-long', 'seed-user-reader', 'seed-character-01',
   'seed-character-version-01', 'seed-persona-reader-main',
@@ -201,7 +201,7 @@ INSERT INTO conversations (
   1786400100000, 1786414500000, 0
 )
 ON CONFLICT(id) DO UPDATE SET
-  active_message_id = excluded.active_message_id,
+  active_leaf_message_id = excluded.active_leaf_message_id,
   state = excluded.state,
   updated_at = excluded.updated_at;
 
@@ -245,22 +245,35 @@ SELECT
 FROM sequence;
 
 INSERT INTO memory_versions (
-  id, conversation_id, content, source_type, from_message_id, to_message_id,
+  id, conversation_id, content, manual_context, auto_summary, source,
+  from_message_id, to_message_id,
   created_at, created_by
 ) VALUES (
   'seed-memory-version-long', 'seed-conversation-long',
-  'Мира и Элиас прошли несколько уровней архива, нашли медную печать и продолжают искать утраченную карту.',
+  'PINNED_MANUAL_CONTEXT:
+Мира и Элиас нашли медную печать; этот факт нельзя удалять автосводкой.',
+  'Мира и Элиас нашли медную печать; этот факт нельзя удалять автосводкой.', '',
   'MANUAL_EDIT', 'seed-message-0001', 'seed-message-0200', 1786412100000, 'seed-user-reader'
 )
-ON CONFLICT(id) DO UPDATE SET content = excluded.content, created_at = excluded.created_at;
+ON CONFLICT(id) DO UPDATE SET
+  content = excluded.content,
+  manual_context = excluded.manual_context,
+  auto_summary = excluded.auto_summary,
+  source = excluded.source,
+  created_at = excluded.created_at;
 
 INSERT INTO conversation_memory (
-  conversation_id, active_version_id, last_summarized_message_id, updated_at
+  conversation_id, current_version_id, manual_context, auto_summary,
+  last_summarized_message_id, updated_at
 ) VALUES (
-  'seed-conversation-long', 'seed-memory-version-long', 'seed-message-0200', 1786412100000
+  'seed-conversation-long', 'seed-memory-version-long',
+  'Мира и Элиас нашли медную печать; этот факт нельзя удалять автосводкой.', '',
+  'seed-message-0200', 1786412100000
 )
 ON CONFLICT(conversation_id) DO UPDATE SET
-  active_version_id = excluded.active_version_id,
+  current_version_id = excluded.current_version_id,
+  manual_context = excluded.manual_context,
+  auto_summary = excluded.auto_summary,
   last_summarized_message_id = excluded.last_summarized_message_id,
   updated_at = excluded.updated_at;
 
@@ -289,4 +302,3 @@ ON CONFLICT(id) DO UPDATE SET
   assigned_to = excluded.assigned_to,
   updated_at = excluded.updated_at,
   resolved_at = excluded.resolved_at;
-

@@ -1,0 +1,11 @@
+
+Running 6 tests using 6 workers
+
+  ok 4 [android] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (12.6s)
+  ok 5 [desktop] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (12.7s)
+  ok 3 [iphone] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (37.0s)
+  ok 1 [android] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (1.2m)
+  ok 6 [desktop] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (1.2m)
+  ok 2 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (3.5m)
+
+  6 passed (3.7m)

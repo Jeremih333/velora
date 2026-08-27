@@ -1,4 +1,8 @@
-import { buildDeterministicSummary, type MemoryMessage } from '@velora/memory';
+import {
+  buildDeterministicSummary,
+  composePersistentMemory,
+  type MemoryMessage,
+} from '@velora/memory';
 import { asError, createId, nowMs } from '@velora/shared';
 
 export type MemoryJobMode = 'INCREMENTAL' | 'FULL';
@@ -17,15 +21,16 @@ interface JobRow {
 }
 
 interface MemoryStateRow {
-  readonly activeVersionId: string | null;
+  readonly currentVersionId: string | null;
   readonly lastSummarizedMessageId: string | null;
-  readonly activeContent: string | null;
+  readonly manualContext: string;
+  readonly autoSummary: string;
   readonly activeMessageId: string | null;
 }
 
 interface BranchMessageRow {
   readonly id: string;
-  readonly role: 'USER' | 'ASSISTANT' | 'SYSTEM_INTERNAL';
+  readonly role: 'USER' | 'ASSISTANT' | 'INTERNAL';
   readonly content: string;
   readonly depth: number;
   readonly parentMessageId: string | null;
@@ -47,10 +52,42 @@ export interface MemoryJobRetryDecision {
   readonly delayMilliseconds: number;
 }
 
+export interface MemoryRegenerationPreview {
+  readonly currentAutoSummary: string;
+  readonly generatedAutoSummary: string;
+  readonly manualContext: string;
+  readonly fromMessageId: string | null;
+  readonly toMessageId: string | null;
+  readonly messageCount: number;
+  readonly estimatedTokens: number;
+  readonly provider: 'VELORA';
+  readonly model: string;
+}
+
 const JOB_TYPE = 'SUMMARIZE_MEMORY';
 const LEASE_MILLISECONDS = 30_000;
 const BRANCH_PAGE_SIZE = 400;
 const MAX_BRANCH_MESSAGES = 10_000;
+export const AUTOMATIC_MEMORY_MESSAGE_THRESHOLD = 20;
+export const AUTOMATIC_MEMORY_CHARACTER_THRESHOLD = 12_000;
+
+export function shouldEnqueueAutomaticMemory(
+  newMessageCount: number,
+  newCharacterCount: number,
+): boolean {
+  if (
+    !Number.isSafeInteger(newMessageCount) ||
+    !Number.isSafeInteger(newCharacterCount) ||
+    newMessageCount < 0 ||
+    newCharacterCount < 0
+  ) {
+    throw new RangeError('Automatic memory counters must be non-negative safe integers.');
+  }
+  return (
+    newMessageCount >= AUTOMATIC_MEMORY_MESSAGE_THRESHOLD ||
+    newCharacterCount >= AUTOMATIC_MEMORY_CHARACTER_THRESHOLD
+  );
+}
 
 export async function enqueueMemoryJob(
   database: D1Database,
@@ -124,13 +161,39 @@ export async function enqueueAutomaticMemoryIfNeeded(
     ? branch.findIndex((message) => message.id === state.lastSummarizedMessageId)
     : -1;
   const newMessageCount = branch.length - coveredIndex - 1;
-  if (newMessageCount < 20) return;
+  const newCharacterCount = branch
+    .slice(coveredIndex + 1)
+    .reduce((total, message) => total + message.content.length, 0);
+  if (!shouldEnqueueAutomaticMemory(newMessageCount, newCharacterCount)) return;
   await enqueueMemoryJob(database, {
     conversationId: input.conversationId,
     userId: input.userId,
     mode: 'INCREMENTAL',
     idempotencyKey: `automatic:${input.responseMessageId}`,
   });
+}
+
+export async function buildMemoryRegenerationPreview(
+  database: D1Database,
+  userId: string,
+  conversationId: string,
+): Promise<MemoryRegenerationPreview> {
+  const state = await readMemoryState(database, conversationId, userId);
+  if (!state?.activeMessageId) throw new Error('MEMORY_CONVERSATION_NOT_FOUND');
+  const branch = await readActiveBranch(database, conversationId, state.activeMessageId);
+  const summary = buildDeterministicSummary({ messages: branch, mode: 'FULL' });
+  if (!summary.toMessageId) throw new Error('MEMORY_EMPTY_HISTORY');
+  return {
+    currentAutoSummary: state.autoSummary,
+    generatedAutoSummary: summary.content,
+    manualContext: state.manualContext,
+    fromMessageId: summary.fromMessageId,
+    toMessageId: summary.toMessageId,
+    messageCount: summary.messageCount,
+    estimatedTokens: summary.estimatedTokens,
+    provider: 'VELORA',
+    model: summary.model,
+  };
 }
 
 export async function processDueMemoryJobs(database: D1Database, limit = 3): Promise<number> {
@@ -141,11 +204,36 @@ export async function processDueMemoryJobs(database: D1Database, limit = 3): Pro
     try {
       await processClaimedJob(database, job);
     } catch (error) {
-      await failClaimedJob(database, job, memoryErrorCode(error));
+      const errorCode = memoryErrorCode(error);
+      if (shouldCompleteMemoryJobWithoutRetry(errorCode)) {
+        await completeClaimedJobWithoutOutput(database, job.id, errorCode);
+      } else {
+        await failClaimedJob(database, job, errorCode);
+      }
     }
     processed += 1;
   }
   return processed;
+}
+
+export function shouldCompleteMemoryJobWithoutRetry(errorCode: string): boolean {
+  // A user can delete or rewind the branch after requesting a summary. Retrying
+  // an empty history cannot succeed and must not become an operational incident.
+  return errorCode === 'MEMORY_EMPTY_HISTORY';
+}
+
+async function completeClaimedJobWithoutOutput(
+  database: D1Database,
+  jobId: string,
+  reasonCode: string,
+): Promise<void> {
+  await database
+    .prepare(
+      `UPDATE jobs SET status = 'COMPLETED', lease_expires_at = NULL,
+       last_error_code = ?, updated_at = ? WHERE id = ? AND status = 'PROCESSING'`,
+    )
+    .bind(reasonCode, nowMs(), jobId)
+    .run();
 }
 
 async function claimDueJob(database: D1Database): Promise<JobRow | null> {
@@ -191,7 +279,7 @@ async function processClaimedJob(database: D1Database, job: JobRow): Promise<voi
     ? branch.findIndex((message) => message.id === state.lastSummarizedMessageId)
     : -1;
   const messages = payload.mode === 'INCREMENTAL' ? branch.slice(coveredIndex + 1) : branch;
-  const preservedMemory = payload.mode === 'INCREMENTAL' ? (state.activeContent ?? '') : '';
+  const preservedMemory = payload.mode === 'INCREMENTAL' ? state.autoSummary : '';
   const summary = buildDeterministicSummary({
     messages,
     preservedMemory,
@@ -200,40 +288,56 @@ async function processClaimedJob(database: D1Database, job: JobRow): Promise<voi
   if (!summary.toMessageId) throw new Error('MEMORY_EMPTY_HISTORY');
   const versionId = createId();
   const timestamp = nowMs();
+  const content = composePersistentMemory(state.manualContext, summary.content);
   await database.batch([
     database
       .prepare(
         `INSERT INTO memory_versions
-         (id, conversation_id, content, source_type, from_message_id, to_message_id,
-          created_at, created_by, model, previous_version_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, conversation_id, content, manual_context, auto_summary, source,
+          from_message_id, to_message_id, provider, model, created_at, created_by,
+          previous_version_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         versionId,
         payload.conversationId,
+        content,
+        state.manualContext,
         summary.content,
         payload.mode === 'FULL' ? 'FULL_REGENERATION' : 'AUTO_SUMMARY',
         summary.fromMessageId,
         summary.toMessageId,
+        'VELORA',
+        summary.model,
         timestamp,
         payload.userId,
-        summary.model,
-        state.activeVersionId,
+        state.currentVersionId,
       ),
     database
       .prepare(
-        `UPDATE conversation_memory SET active_version_id = ?,
-         last_summarized_message_id = ?, updated_at = ? WHERE conversation_id = ?`,
+        `UPDATE conversation_memory SET current_version_id = ?, manual_context = ?,
+         auto_summary = ?, last_summarized_message_id = ?, updated_at = ?
+         WHERE conversation_id = ?`,
       )
-      .bind(versionId, summary.toMessageId, timestamp, payload.conversationId),
+      .bind(
+        versionId,
+        state.manualContext,
+        summary.content,
+        summary.toMessageId,
+        timestamp,
+        payload.conversationId,
+      ),
     database
       .prepare(
         `UPDATE conversations SET
-         memory_stale = CASE WHEN active_message_id = ? THEN 0 ELSE memory_stale END,
-         updated_at = CASE WHEN active_message_id = ? THEN ? ELSE updated_at END
+         memory_stale = CASE WHEN active_leaf_message_id = ? THEN 0 ELSE memory_stale END,
+         memory_stale_since_message_id = CASE
+           WHEN active_leaf_message_id = ? THEN NULL ELSE memory_stale_since_message_id END,
+         updated_at = CASE WHEN active_leaf_message_id = ? THEN ? ELSE updated_at END
          WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
       )
       .bind(
+        summary.toMessageId,
         summary.toMessageId,
         summary.toMessageId,
         timestamp,
@@ -295,12 +399,11 @@ async function readMemoryState(
 ): Promise<MemoryStateRow | null> {
   return database
     .prepare(
-      `SELECT cm.active_version_id AS activeVersionId,
+      `SELECT cm.current_version_id AS currentVersionId,
        cm.last_summarized_message_id AS lastSummarizedMessageId,
-       mv.content AS activeContent,
-       c.active_message_id AS activeMessageId
+       cm.manual_context AS manualContext, cm.auto_summary AS autoSummary,
+       c.active_leaf_message_id AS activeMessageId
        FROM conversations c JOIN conversation_memory cm ON cm.conversation_id = c.id
-       LEFT JOIN memory_versions mv ON mv.id = cm.active_version_id
        WHERE c.id = ? AND c.user_id = ? AND c.deleted_at IS NULL AND c.state != 'DELETED'`,
     )
     .bind(conversationId, userId)

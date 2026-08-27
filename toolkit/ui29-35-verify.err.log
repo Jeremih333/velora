@@ -1,0 +1,251 @@
+$ powershell -ExecutionPolicy Bypass -File toolkit/verify.ps1
+$ prettier --check .
+$ node toolkit/check-doc-links.mjs
+$ eslint . --max-warnings=0
+$ tsc -b --pretty false
+$ vitest run --exclude apps/api/src/openapi.contract.test.ts --exclude tests/integration/** --exclude tests/e2e/**
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/web/src/AuthenticatedApp.components.test.tsx > CharacterCard > uses the chat markdown renderer for collapsed and expanded greetings
+AssertionError: expected undefined to be 'Ты всё-таки пришёл.' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<article[39m
+        [33mclass[39m=[32m"story-card is-expanded"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"story-cover"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mЛ[0m
+          [36m</span>[39m
+          [36m<b>[39m
+            [0mRU[0m
+          [36m</b>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"story-body"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"creator-link"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mот Velora[0m
+          [36m</button>[39m
+          [36m<h2>[39m
+            [0mЛира[0m
+          [36m</h2>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"tagline"[39m
+          [36m>[39m
+            [0mХранительница маяка[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"description"[39m
+          [36m>[39m
+            [0mСпокойная мистическая история.[0m
+          [36m</p>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"field greeting-picker"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mНачальное приветствие[0m
+            [36m</span>[39m
+            [36m<select[39m
+              [33maria-label[39m=[32m"Начальное приветствие"[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"0"[39m
+              [36m>[39m
+                [0mОсновное[0m
+              [36m</option>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"1"[39m
+              [36m>[39m
+                [0mВариант 1[0m
+              [36m</option>[39m
+            [36m</select>[39m
+          [36m</label>[39m
+          [36m<section[39m
+            [33maria-labelledby[39m=[32m"character-greeting-character-1-title"[39m
+            [33mclass[39m=[32m"greeting-block"[39m
+          [36m>[39m
+            [36m<h3[39m
+              [33mid[39m=[32m"character-greeting-character-1-title"[39m
+            [36m>[39m
+              [0mПриветствие[0m
+            [36m</h3>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"greeting-copy is-collapsed"[39m
+              [33mid[39m=[32m"character-greeting-character-1"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"meta"[39m
+                [33mrole[39m=[32m"status"[39m
+              [36m>[39m
+                [0mОформляем приветствие…[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33maria-controls[39m=[32m"character-greeting-character-1"[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33mclass[39m=[32m"greeting-toggle"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mПоказать полностью[0m
+            [36m</button>[39m
+          [36m</section>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"tag-list"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mмистика[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33maria-label[39m=[32m"Статистика персонажа"[39m
+            [33mclass[39m=[32m"character-metrics"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0m♡ [0m
+              [0m7[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0m🔖 [0m
+              [0m2[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"character-interactions"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-pressed[39m=[32m"false"[39m
+              [33mclass[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0m♡ Нравится[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-pressed[39m=[32m"false"[39m
+              [33mclass[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0m♧ В закладки[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0m↗ Поделиться[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"compact-primary story-start"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mНачать историю[0m
+          [36m</button>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-button"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mСвернуть[0m
+          [36m</button>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"text-button danger-link"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mЗаблокировать автора[0m
+          [36m</button>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Отзывы"[39m
+            [33mclass[39m=[32m"review-panel"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mОтзывы[0m
+            [36m</h3>[39m
+            [36m<form>[39m
+              [36m<label>[39m
+                [36m<span>[39m
+                  [0mВаша оценка[0m
+                [36m</span>[39m
+                [36m<select[39m
+                  [33mname[39m=[32m"rating"[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mselected[39m=[32m""[39m
+                    [33mvalue[39m=[32m"5"[39m
+                  [36m>[39m
+                    [0m5 из 5[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"4"[39m
+                  [36m>[39m
+                    [0m4 из 5[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"3"[39m
+                  [36m>[39m
+                    [0m3 из 5[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"2"[39m
+                  [36m>[39m
+                    [0m2 из 5[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"1"[39m
+                  [36m>[39m
+                    [0m1 из 5[0m
+                  [36m</option>[39m
+                [36m</select>[39m
+              [36m</label>[39m
+              [36m<textarea[39m
+                [33mmaxlength[39m=[32m"1000"[39m
+                [33mname[39m=[32m"reviewText"[39m
+                [33mplaceholder[39m=[32m"Отзыв необязателен"[39m
+              [36m/>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"compact-button"[39m
+                [33mtype[39m=[32m"submit"[39m
+              [36m>[39m
+                [0mОценить[0m
+              [36m</button>[39m
+            [36m</form>[39m
+          [36m</section>[39m
+        [36m</div>[39m
+      [36m</article>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected:
+"Ты всё-таки пришёл."
+
++ Received:
+undefined
+
+ ❯ apps/web/src/AuthenticatedApp.components.test.tsx:167:61
+    165|     const greeting = screen.getByRole('region', { name: 'Приветствие' …
+    166|     await waitFor(() => {
+    167|       expect(greeting.querySelector('strong')?.textContent).toBe('Ты в…
+       |                                                             ^
+    168|       expect(greeting.querySelector('em')?.textContent).toBe('Маяк всп…
+    169|     });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+Quality gate failed: pnpm test
+C:\Users\User\Desktop\��� ��� ஫���� � ������ﬨ\toolkit\verify.ps1:32 ����:7
++       throw "Quality gate failed: pnpm $command"
++       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Quality gate failed: pnpm test:String) [], RuntimeException
+    + FullyQualifiedErrorId : Quality gate failed: pnpm test
+ 

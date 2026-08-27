@@ -1,0 +1,29 @@
+$ powershell -ExecutionPolicy Bypass -File toolkit/verify.ps1
+$ prettier --check .
+$ node toolkit/check-doc-links.mjs
+$ eslint . --max-warnings=0
+$ tsc -b --pretty false
+$ vitest run --exclude apps/api/src/openapi.contract.test.ts --exclude tests/integration/** --exclude tests/e2e/**
+$ vitest run packages/prompts/src/quality-scenarios.test.ts
+$ vitest run apps/api/src/openapi.contract.test.ts
+$ corepack pnpm --filter @velora/web build && node toolkit/test-d1.mjs && node toolkit/test-api.mjs && vitest run tests/integration
+$ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+$ corepack pnpm --filter @velora/web build && corepack pnpm --filter @velora/api build
+$ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+$ wrangler deploy --dry-run --env="" --outdir dist-worker
+$ playwright test
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"
+$ playwright test --grep @visual --workers=1
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"
+$ playwright test --grep @a11y
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"
+Quality gate failed: pnpm test:a11y
+C:\Users\User\Desktop\бот для ролплея с нейросетями\toolkit\verify.ps1:32 знак:7
++       throw "Quality gate failed: pnpm $command"
++       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Quality gate failed: pnpm test:a11y:String) [], RuntimeException
+    + FullyQualifiedErrorId : Quality gate failed: pnpm test:a11y
+ 

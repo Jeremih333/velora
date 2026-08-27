@@ -1,12 +1,76 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type SyntheticEvent,
+} from 'react';
 import { renderTemplate } from '@velora/prompts';
-import { ru } from '@velora/shared';
+import { characterGroupSizes, characterLanguages, ru } from '@velora/shared';
 import { apiRequest } from './api';
+import {
+  calculateCharacterPromptMetrics,
+  characterPromptValuesFromForm,
+} from './character-metrics';
 import { allowsCharacterAutosave, pendingAutosaveState } from './character-autosave';
+import {
+  CharacterImage,
+  classifyCharacterImageGeometry,
+  type CharacterImageGeometry,
+} from './CharacterImage';
+import {
+  AppShell,
+  BottomNavigation,
+  Checkbox,
+  Dialog,
+  EmptyState,
+  ErrorState,
+  FilterButton,
+  FormField,
+  GreetingMessage,
+  SearchBar,
+  SegmentedControl,
+  SideDrawer,
+  Skeleton,
+  Switch,
+  Toast,
+  TopBar,
+  TextAreaField,
+} from './CoreComponents';
 import { localizedErrorMessage } from './error-localization';
+import { parseDiscoveryUrlState, writeDiscoveryUrlState } from './discovery-url-state';
+import {
+  parseLibraryUrlState,
+  writeLibraryUrlState,
+  type CharacterKind,
+  type CharacterVisibility,
+  type LibrarySort,
+} from './library-url-state';
+import { ImageUploadControl } from './ImageUploadControl';
+import { BrandMark } from './BrandMark';
+import { getNotificationMessages } from './notification-i18n';
+import {
+  ActionMenu,
+  Dropdown,
+  FilterSheet,
+  LocaleButton,
+  PersonaCard,
+  PlanCard,
+  PlanCarousel,
+  SortDropdown,
+  type DiscoveryFilters,
+  type DiscoveryGroupSizeOption,
+  type DiscoveryLanguageOption,
+  type DiscoveryTagOption,
+} from './ProductComponents';
 import { getWebMessages, useI18n, type Locale, type WebMessages } from './i18n';
 import { openTelegramInvoice, type InvoiceStatus } from './telegram';
+import { useTelegramBackButton } from './telegram-hooks';
+import { VeloraIcon, type VeloraIconName } from './VeloraIcon';
 import type {
   AccessPackCatalog,
   AccessPack,
@@ -22,23 +86,33 @@ import type {
   DiscoveryCharacter,
   MeResponse,
   MediaFile,
+  MediaLibraryResponse,
   ModerationCaseDetail,
   ModerationCaseSummary,
   PaymentHistoryItem,
   PaymentInvoice,
+  PlanCatalog,
   PlanDefinition,
   Persona,
   PublicFeatureFlags,
   OperationsDashboard,
+  NotificationList,
   OwnerPayment,
   OwnerUserGrant,
+  RoleplayModelEvalCatalogItem,
+  RoleplayModelEvalRun,
+  RoleplayModelControls,
   Settings,
   StaffAssignment,
   SupportCategory,
   SupportRequest,
   SupportState,
   UserProfile,
+  UserNotification,
 } from './types';
+
+const Field = FormField;
+const TextArea = TextAreaField;
 
 const ChatsView = lazy(async () => {
   const module = await import('./ChatsView');
@@ -50,8 +124,29 @@ const LorebooksView = lazy(async () => {
   return { default: module.LorebooksView };
 });
 
+const CreateHubView = lazy(async () => {
+  const module = await import('./CreateHubView');
+  return { default: module.CreateHubView };
+});
+
+const ModerationDirectoryView = lazy(async () => {
+  const module = await import('./ModerationDirectoryView');
+  return { default: module.ModerationDirectoryView };
+});
+
+const RoleplayBenchmarkPanel = lazy(async () => {
+  const module = await import('./RoleplayBenchmarkPanel');
+  return { default: module.RoleplayBenchmarkPanel };
+});
+
+const SafeMarkdown = lazy(async () => {
+  const module = await import('./SafeMarkdown');
+  return { default: module.SafeMarkdown };
+});
+
 type Tab =
   | 'discover'
+  | 'create'
   | 'chats'
   | 'characters'
   | 'lorebooks'
@@ -61,11 +156,48 @@ type Tab =
   | 'profile'
   | 'moderation';
 
+type SettingsSectionId = 'support-title' | 'legal-title' | 'blocks-title';
+
 interface ListResponse<T> {
   readonly items: readonly T[];
 }
 interface DiscoveryResponse extends ListResponse<DiscoveryCharacter> {
   readonly nextCursor: string | null;
+  readonly totalCount: number;
+  readonly contentPreferences: {
+    readonly safeSearch: boolean;
+    readonly matureImageBlur: boolean;
+  };
+}
+
+type DiscoveryTagResponse = ListResponse<DiscoveryTagOption>;
+type DiscoveryLanguageResponse = ListResponse<DiscoveryLanguageOption>;
+interface DiscoveryGroupSizeResponse extends ListResponse<DiscoveryGroupSizeOption> {
+  readonly enabled: boolean;
+}
+
+interface PublicConfigResponse {
+  readonly telegramBotUsername: string;
+}
+
+export function characterIdFromLaunchSearch(search: string): string | null {
+  const parameters = new URLSearchParams(search);
+  const directCharacterId = parameters.get('character')?.trim();
+  if (directCharacterId) return directCharacterId;
+  const startParameter = parameters.get('tgWebAppStartParam')?.trim();
+  if (!startParameter?.startsWith('character_')) return null;
+  const characterId = startParameter.slice('character_'.length);
+  return characterId === '' ? null : characterId;
+}
+
+export function telegramCharacterShareUrl(botUsername: string, characterId: string): string {
+  const normalizedUsername = botUsername.trim().replace(/^@/u, '');
+  return `https://t.me/${normalizedUsername}?startapp=${encodeURIComponent(`character_${characterId}`)}`;
+}
+
+export function telegramAvatarBotGroupUrl(botUsername: string): string {
+  const normalizedUsername = botUsername.trim().replace(/^@/u, '');
+  return `https://t.me/${normalizedUsername}?startgroup=velora`;
 }
 
 interface CharacterActionResult {
@@ -81,16 +213,86 @@ export function AuthenticatedApp({
   readonly onLocaleChange: (locale: Locale) => void;
 }) {
   const { locale, messages } = useI18n();
+  const notificationMessages = getNotificationMessages(locale);
   const client = useQueryClient();
   const [tab, setTab] = useState<Tab>('discover');
   const [notice, setNotice] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState(initialUser.id);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [createExpanded, setCreateExpanded] = useState(false);
+  const [libraryExpanded, setLibraryExpanded] = useState(true);
+  const [characterCreateRequest, setCharacterCreateRequest] = useState(0);
+  const [lorebookCreateRequest, setLorebookCreateRequest] = useState(0);
+  const [createInitialEditor, setCreateInitialEditor] = useState<'GROUP' | null>(null);
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+  }, []);
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [profileUserId, tab]);
+  useTelegramBackButton(drawerOpen, closeDrawer);
   const me = useQuery({
     queryKey: ['me'],
     queryFn: () => apiRequest<MeResponse>('/api/v1/me'),
     initialData: initialUser,
   });
+  const appSettings = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => apiRequest<Settings>('/api/v1/settings'),
+  });
+  useEffect(() => {
+    if (appSettings.data) document.documentElement.dataset['theme'] = appSettings.data.theme;
+  }, [appSettings.data]);
+  const changeLocale = useMutation({
+    mutationFn: (nextLocale: Locale) =>
+      apiRequest<Settings>('/api/v1/settings', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ locale: nextLocale }),
+      }),
+    onSuccess: (settings) => {
+      client.setQueryData<MeResponse>(['me'], (current) =>
+        current ? { ...current, locale: settings.locale } : current,
+      );
+      onLocaleChange(settings.locale);
+      setNotice(getWebMessages(settings.locale).settings.saved);
+    },
+    onError: (error: Error) => {
+      setNotice(localizedErrorMessage(error, messages));
+    },
+  });
+  const notifications = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => apiRequest<NotificationList>('/api/v1/notifications?limit=20'),
+    refetchInterval: 60_000,
+  });
+  const markNotificationRead = useMutation({
+    mutationFn: (notificationId: string) =>
+      apiRequest<{ readonly id: string; readonly read: true }>(
+        `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,
+        { method: 'POST' },
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+  const markAllNotificationsRead = useMutation({
+    mutationFn: () =>
+      apiRequest<{ readonly updated: number }>('/api/v1/notifications/read-all', {
+        method: 'POST',
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => {
+      setNotice(null);
+    }, 4_000);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [notice]);
 
   if (!me.data.onboardingCompleted) {
     return (
@@ -112,52 +314,103 @@ export function AuthenticatedApp({
   }
 
   return (
-    <main className="app-shell product-shell">
-      <header className="topbar product-topbar">
+    <AppShell>
+      <TopBar>
+        <button
+          className="shell-icon-button menu-trigger"
+          type="button"
+          aria-label={messages.navigation.openMenu}
+          aria-expanded={drawerOpen}
+          onClick={() => {
+            setDrawerOpen(true);
+          }}
+        >
+          <VeloraIcon name="menu" />
+        </button>
         <button
           className="brand brand-button"
           type="button"
+          aria-label={messages.navigation.profile}
           onClick={() => {
             setProfileUserId(me.data.id);
             setTab('profile');
           }}
         >
-          <span className="brand-mark">V</span>
+          <BrandMark />
           <span>
-            <strong>Velora</strong>
+            <strong>VeloraAI</strong>
             <small>{me.data.displayName}</small>
           </span>
         </button>
         <div className="header-actions">
           <button
+            className="shell-icon-button notification-trigger"
+            type="button"
+            aria-label={notificationMessages.open}
+            aria-haspopup="dialog"
+            aria-expanded={notificationsOpen}
+            onClick={() => {
+              setNotificationsOpen(true);
+            }}
+          >
+            <VeloraIcon name="bell" />
+            {(notifications.data?.unreadCount ?? 0) > 0 ? (
+              <span className="notification-badge" aria-hidden="true">
+                {Math.min(notifications.data?.unreadCount ?? 0, 99)}
+              </span>
+            ) : null}
+          </button>
+          <LocaleButton
+            locale={locale}
+            pending={changeLocale.isPending}
+            label={messages.navigation.switchLanguage}
+            onChange={(nextLocale) => {
+              changeLocale.mutate(nextLocale);
+            }}
+          />
+          <button
             className="balance-pill"
             type="button"
-            aria-label={messages.navigation.credits}
+            aria-label={messages.navigation.plans}
             onClick={() => {
               setTab('billing');
             }}
           >
-            <span>✦</span> {formatCredits(me.data.creditBalanceMicros, locale)}
+            <strong>{me.data.planDisplayName}</strong>
           </button>
           {['MODERATOR', 'SENIOR_MODERATOR', 'ADMIN', 'OWNER'].includes(me.data.role) ? (
             <button
               className="compact-button lore-symbol"
               type="button"
+              aria-label={messages.navigation.moderation}
               onClick={() => {
                 setTab('moderation');
               }}
             >
-              🛡 {messages.navigation.moderation}
+              <VeloraIcon name="shield" size={18} />
             </button>
           ) : null}
-          <span className="free-pill">Cloudflare Free</span>
         </div>
-      </header>
+      </TopBar>
 
-      {notice ? (
-        <div className="toast" role="status">
-          {notice}
-        </div>
+      {notice ? <Toast>{notice}</Toast> : null}
+      {notificationsOpen ? (
+        <NotificationCenter
+          data={notifications.data}
+          pending={notifications.isPending}
+          error={notifications.error}
+          onClose={() => {
+            setNotificationsOpen(false);
+          }}
+          onMarkAll={() => {
+            markAllNotificationsRead.mutate();
+          }}
+          onOpen={(notificationId, actionTab) => {
+            markNotificationRead.mutate(notificationId);
+            setNotificationsOpen(false);
+            if (actionTab) setTab(actionTab);
+          }}
+        />
       ) : null}
       <section className="workspace" aria-live="polite">
         {tab === 'discover' ? (
@@ -171,7 +424,33 @@ export function AuthenticatedApp({
               setConversationId(id);
               setTab('chats');
             }}
+            onManagePersonas={() => {
+              setTab('personas');
+            }}
           />
+        ) : null}
+        {tab === 'create' ? (
+          <Suspense fallback={<WorkspaceFallback label={messages.navigation.create} />}>
+            <CreateHubView
+              key={`create-${createInitialEditor ?? 'MENU'}`}
+              initialEditor={createInitialEditor}
+              onCreatePersona={() => {
+                setTab('personas');
+              }}
+              onCreateCharacter={() => {
+                setCharacterCreateRequest((current) => current + 1);
+                setTab('characters');
+              }}
+              onCreateLorebook={() => {
+                setLorebookCreateRequest((current) => current + 1);
+                setTab('lorebooks');
+              }}
+              onStarted={(id) => {
+                setConversationId(id);
+                setTab('chats');
+              }}
+            />
+          </Suspense>
         ) : null}
         {tab === 'chats' ? (
           <Suspense fallback={<WorkspaceFallback label={messages.navigation.chats} />}>
@@ -179,11 +458,19 @@ export function AuthenticatedApp({
               initialConversationId={conversationId}
               allowedModelProfiles={me.data.planEntitlements.modelProfiles}
               onConversationOpened={setConversationId}
+              onDiscover={() => {
+                setConversationId(null);
+                setTab('discover');
+              }}
+              telegramBackBlocked={drawerOpen}
             />
           </Suspense>
         ) : null}
         {tab === 'characters' ? (
           <CharactersView
+            account={me.data}
+            key={`characters-${String(characterCreateRequest)}`}
+            createRequest={characterCreateRequest}
             notify={setNotice}
             onStarted={(id) => {
               setConversationId(id);
@@ -197,6 +484,8 @@ export function AuthenticatedApp({
         {tab === 'lorebooks' ? (
           <Suspense fallback={<WorkspaceFallback label={messages.lorebooks.title} />}>
             <LorebooksView
+              key={`lorebooks-${String(lorebookCreateRequest)}`}
+              createRequest={lorebookCreateRequest}
               onBack={() => {
                 setTab('characters');
               }}
@@ -212,67 +501,120 @@ export function AuthenticatedApp({
           <ProfileView
             userId={profileUserId}
             currentUserId={me.data.id}
+            account={me.data}
             notify={setNotice}
+            onNavigate={(nextTab) => {
+              setTab(nextTab);
+            }}
             onBack={() => {
+              setTab('discover');
+            }}
+            onOpenCharacter={(characterId) => {
+              const location = new URL(window.location.href);
+              location.searchParams.set('character', characterId);
+              window.history.replaceState(
+                window.history.state,
+                '',
+                `${location.pathname}${location.search}${location.hash}`,
+              );
               setTab('discover');
             }}
           />
         ) : null}
         {tab === 'moderation' ? <ModerationView notify={setNotice} role={me.data.role} /> : null}
       </section>
-      <nav className="bottom-nav" aria-label={messages.navigation.main}>
-        <NavButton
-          active={tab === 'chats'}
-          label={messages.navigation.chats}
-          icon="◌"
-          onClick={() => {
-            setTab('chats');
+      {drawerOpen ? (
+        <AppDrawer
+          activeTab={tab}
+          createExpanded={createExpanded}
+          libraryExpanded={libraryExpanded}
+          onCreateExpanded={setCreateExpanded}
+          onLibraryExpanded={setLibraryExpanded}
+          onClose={closeDrawer}
+          onNavigate={(nextTab) => {
+            if (nextTab === 'profile') setProfileUserId(me.data.id);
+            setTab(nextTab);
+            setDrawerOpen(false);
+          }}
+          onNavigateSettingsSection={(sectionId) => {
+            setTab('settings');
+            setDrawerOpen(false);
+            window.requestAnimationFrame(() => {
+              document.getElementById(sectionId)?.scrollIntoView({ block: 'start' });
+            });
+          }}
+          onCreateCharacter={() => {
+            setCharacterCreateRequest((current) => current + 1);
+            setTab('characters');
+            setDrawerOpen(false);
+          }}
+          onCreatePersona={() => {
+            setTab('personas');
+            setDrawerOpen(false);
+          }}
+          onCreateGroup={() => {
+            setCreateInitialEditor('GROUP');
+            setTab('create');
+            setDrawerOpen(false);
+          }}
+          onCreateLorebook={() => {
+            setLorebookCreateRequest((current) => current + 1);
+            setTab('lorebooks');
+            setDrawerOpen(false);
           }}
         />
+      ) : null}
+      <BottomNavigation label={messages.navigation.main}>
         <NavButton
           active={tab === 'discover'}
-          label={messages.navigation.catalog}
-          icon="⌕"
+          label={messages.navigation.home}
+          icon="discover"
           onClick={() => {
             setTab('discover');
           }}
         />
         <NavButton
-          active={tab === 'characters'}
+          active={tab === 'characters' || tab === 'lorebooks'}
           label={messages.navigation.characters}
-          icon="✦"
+          icon="sparkle"
           onClick={() => {
             setTab('characters');
           }}
         />
         <NavButton
-          active={tab === 'personas'}
-          label={messages.navigation.personas}
-          icon="◉"
+          active={tab === 'create'}
+          label={messages.navigation.create}
+          icon="create"
+          ariaLabel={messages.navigation.openCreateMenu}
           onClick={() => {
-            setTab('personas');
+            setCreateInitialEditor(null);
+            setTab('create');
           }}
         />
         <NavButton
-          active={tab === 'settings'}
-          label={messages.navigation.settings}
-          icon="⚙"
+          active={tab === 'chats'}
+          label={messages.navigation.chats}
+          icon="list"
           onClick={() => {
-            setTab('settings');
+            setTab('chats');
           }}
         />
-      </nav>
-    </main>
+        <NavButton
+          active={tab === 'profile' || tab === 'settings' || tab === 'personas'}
+          label={messages.navigation.you}
+          icon="persona"
+          onClick={() => {
+            setProfileUserId(me.data.id);
+            setTab('profile');
+          }}
+        />
+      </BottomNavigation>
+    </AppShell>
   );
 }
 
 function WorkspaceFallback({ label }: { readonly label: string }) {
-  return (
-    <div className="view-stack loading-workspace" role="status" aria-busy="true">
-      <span className="loading-orbit" aria-hidden="true" />
-      <p>{label}</p>
-    </div>
-  );
+  return <Skeleton label={label} />;
 }
 
 function OnboardingView({
@@ -293,7 +635,7 @@ function OnboardingView({
   const recommendations = useQuery({
     queryKey: ['onboarding', 'recommendations'],
     queryFn: () =>
-      apiRequest<DiscoveryResponse>('/api/v1/discovery?sort=trending&limit=3&rating=SAFE'),
+      apiRequest<DiscoveryResponse>('/api/v1/discovery?sort=newest&limit=3&rating=SAFE'),
     enabled: step === 3,
   });
   const complete = useMutation({
@@ -335,13 +677,20 @@ function OnboardingView({
   return (
     <main className="app-shell onboarding-shell">
       <header className="onboarding-brand">
-        <span className="brand-mark">V</span>
+        <BrandMark />
         <span>
-          <strong>Velora</strong>
+          <strong>VeloraAI</strong>
           <small>{messages.onboarding.step(step + 1)}</small>
         </span>
       </header>
-      <div className="onboarding-progress" aria-label={messages.onboarding.stepLabel(step + 1)}>
+      <div
+        className="onboarding-progress"
+        role="progressbar"
+        aria-label={messages.onboarding.stepLabel(step + 1)}
+        aria-valuemin={1}
+        aria-valuemax={4}
+        aria-valuenow={step + 1}
+      >
         <span style={{ width: `${String(((step + 1) / 4) * 100)}%` }} />
       </div>
 
@@ -482,7 +831,12 @@ function OnboardingView({
           <div className="onboarding-character-list">
             {recommendations.data?.items.map((character) => (
               <article key={character.id} className="onboarding-character">
-                <Avatar name={character.name} fileId={character.avatarFileId} />
+                <Avatar
+                  name={character.name}
+                  fileId={character.avatarFileId}
+                  focalX={character.avatarFocalX}
+                  focalY={character.avatarFocalY}
+                />
                 <span>
                   <h2>{character.name}</h2>
                   <small>{character.tagline}</small>
@@ -528,6 +882,17 @@ function OnboardingView({
   );
 }
 
+function planBenefits(plan: PlanDefinition, messages: WebMessages): readonly string[] {
+  const entitlements = plan.entitlements;
+  return [
+    messages.billing.characterBenefit(entitlements.characterLimit),
+    messages.billing.personaBenefit(entitlements.personaLimit),
+    messages.billing.memoryBenefit(entitlements.memoryTokenBudget),
+    messages.billing.operationsBenefit(entitlements.advancedOperationsDaily),
+    messages.billing.modelsBenefit(entitlements.modelProfiles.join(', ')),
+  ];
+}
+
 function BillingView({
   account,
   notify,
@@ -538,6 +903,7 @@ function BillingView({
   const { locale, messages } = useI18n();
   const client = useQueryClient();
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [selectedAccessDuration, setSelectedAccessDuration] = useState(30);
   const catalog = useQuery({
     queryKey: ['billing', 'packs'],
     queryFn: () => apiRequest<BillingCatalog>('/api/v1/billing/packs'),
@@ -546,33 +912,14 @@ function BillingView({
     queryKey: ['billing', 'access-packs'],
     queryFn: () => apiRequest<AccessPackCatalog>('/api/v1/billing/access-packs'),
   });
+  const plans = useQuery({
+    queryKey: ['billing', 'plans'],
+    queryFn: () => apiRequest<PlanCatalog>('/api/v1/billing/plans'),
+  });
   const history = useQuery({
     queryKey: ['billing', 'payments'],
     queryFn: () =>
       apiRequest<{ readonly items: readonly PaymentHistoryItem[] }>('/api/v1/billing/payments'),
-  });
-  const invoice = useMutation({
-    mutationFn: (packCode: string) =>
-      apiRequest<PaymentInvoice>('/api/v1/billing/invoices', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          packCode,
-          termsAccepted: true,
-          idempotencyKey: crypto.randomUUID(),
-        }),
-      }),
-    onSuccess: (result) => {
-      const handleClosed = (status: InvoiceStatus) => {
-        if (status === 'paid') notify(messages.billing.paymentPaid);
-        if (status === 'failed') notify(messages.billing.paymentFailed);
-        void client.invalidateQueries({ queryKey: ['me'] });
-        void client.invalidateQueries({ queryKey: ['billing', 'payments'] });
-      };
-      if (!openTelegramInvoice(result.invoiceUrl, handleClosed)) {
-        notify(messages.billing.telegramOnly);
-      }
-    },
   });
   const accessInvoice = useMutation({
     mutationFn: (packCode: string) =>
@@ -597,9 +944,25 @@ function BillingView({
       }
     },
   });
-  if (catalog.isPending) return <EmptyState title={messages.billing.loading} />;
+  if (catalog.isPending) return <Skeleton label={messages.billing.loading} />;
   if (catalog.isError)
     return <ErrorState error={catalog.error} retry={() => void catalog.refetch()} />;
+  const accessDurations = Array.from(
+    new Set(accessCatalog.data?.items.map((pack) => pack.durationDays) ?? []),
+  ).sort((left, right) => left - right);
+  const activeAccessDuration = accessDurations.includes(selectedAccessDuration)
+    ? selectedAccessDuration
+    : accessDurations[0];
+  const visiblePlans = (plans.data?.items ?? [])
+    .filter(
+      (plan) =>
+        plan.code === 'FREE' ||
+        accessCatalog.data?.items.some(
+          (pack) => pack.planCode === plan.code && pack.durationDays === activeAccessDuration,
+        ),
+    )
+    .sort((left, right) => left.rank - right.rank);
+  const premiumRank = Math.max(0, ...visiblePlans.map((plan) => plan.rank));
   return (
     <div className="view-stack">
       <ViewHeader
@@ -635,31 +998,87 @@ function BillingView({
         </label>
       ) : null}
       {accessCatalog.isError ? <InlineError error={accessCatalog.error} /> : null}
-      {accessCatalog.data?.items.length ? (
-        <section className="view-stack" aria-labelledby="access-packs-title">
-          <h2 id="access-packs-title">{messages.billing.accessPacks}</h2>
-          <div className="billing-grid">
-            {accessCatalog.data.items.map((pack) => (
-              <article className="billing-pack" key={pack.code}>
-                <span className="pack-stars">{pack.starsAmount} ⭐</span>
-                <h2>{pack.displayName}</h2>
-                <p>{pack.description}</p>
-                <strong>{messages.billing.duration(pack.durationDays, pack.planCode)}</strong>
-                <button
-                  className="primary"
-                  type="button"
+      {plans.isError ? <InlineError error={plans.error} /> : null}
+      {accessCatalog.data?.items.length && visiblePlans.length ? (
+        <section className="view-stack plan-catalog" aria-labelledby="access-packs-title">
+          <div className="plan-catalog-heading">
+            <div>
+              <span className="section-kicker">{messages.billing.planKicker}</span>
+              <h2 id="access-packs-title">{messages.billing.accessPacks}</h2>
+              <p>{messages.billing.planComparison}</p>
+            </div>
+            {accessDurations.length > 1 ? (
+              <div
+                className="period-selector"
+                role="radiogroup"
+                aria-label={messages.billing.periodLabel}
+              >
+                {accessDurations.map((duration) => (
+                  <button
+                    className={duration === activeAccessDuration ? 'is-active' : undefined}
+                    type="button"
+                    role="radio"
+                    aria-checked={duration === activeAccessDuration}
+                    key={duration}
+                    onClick={() => {
+                      setSelectedAccessDuration(duration);
+                    }}
+                  >
+                    {messages.billing.periodDays(duration)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <PlanCarousel
+            label={messages.billing.planCarouselLabel}
+            previousLabel={locale === 'ru' ? 'Предыдущий тариф' : 'Previous plan'}
+            nextLabel={locale === 'ru' ? 'Следующий тариф' : 'Next plan'}
+          >
+            {visiblePlans.map((plan) => {
+              const pack = accessCatalog.data.items.find(
+                (candidate) =>
+                  candidate.planCode === plan.code &&
+                  candidate.durationDays === activeAccessDuration,
+              );
+              const isFree = plan.code === 'FREE';
+              const isCurrent = account.plan === plan.code;
+              const description = pack?.description ?? messages.billing.freeDescription;
+              return (
+                <PlanCard
+                  key={`${plan.code}-${String(activeAccessDuration ?? 0)}`}
+                  stars={pack?.starsAmount ?? null}
+                  title={plan.displayName}
+                  description={description}
+                  detail={
+                    isFree
+                      ? messages.billing.noExpiry
+                      : messages.billing.periodDays(pack?.durationDays ?? 0)
+                  }
+                  benefits={planBenefits(plan, messages)}
+                  badge={isCurrent ? messages.billing.currentBadge : undefined}
+                  priceLabel={
+                    isFree
+                      ? messages.billing.freePrice
+                      : messages.billing.starsPrice(pack?.starsAmount ?? 0)
+                  }
+                  current={isCurrent}
+                  premium={!isFree && plan.rank === premiumRank}
+                  actionLabel={isFree ? messages.billing.included : messages.billing.buyOnce}
                   disabled={
                     !catalog.data.paymentsEnabled || !termsAccepted || accessInvoice.isPending
                   }
-                  onClick={() => {
-                    accessInvoice.mutate(pack.code);
-                  }}
-                >
-                  {messages.billing.buyOnce}
-                </button>
-              </article>
-            ))}
-          </div>
+                  onPurchase={
+                    pack
+                      ? () => {
+                          accessInvoice.mutate(pack.code);
+                        }
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </PlanCarousel>
         </section>
       ) : null}
       {!catalog.data.paymentsEnabled ? (
@@ -667,39 +1086,26 @@ function BillingView({
           <strong>{messages.billing.disabledTitle}</strong>
           <p>{messages.billing.disabledText}</p>
         </section>
-      ) : catalog.data.items.length === 0 ? (
-        <section className="billing-disabled" role="status">
-          <strong>{messages.billing.noPacksTitle}</strong>
-          <p>{messages.billing.noPacksText}</p>
-        </section>
-      ) : (
-        <>
-          <div className="billing-grid">
-            {catalog.data.items.map((pack) => (
-              <article className="billing-pack" key={pack.code}>
-                <span className="pack-stars">{pack.starsAmount} ⭐</span>
-                <h2>{pack.displayName}</h2>
-                <p>{pack.description}</p>
-                <strong>
-                  {messages.billing.credits(formatCredits(pack.creditAmountMicros, locale))}
-                </strong>
-                <button
-                  className="primary"
-                  type="button"
-                  disabled={!termsAccepted || invoice.isPending}
-                  onClick={() => {
-                    invoice.mutate(pack.code);
-                  }}
-                >
-                  {messages.billing.buyFor(pack.starsAmount)}
-                </button>
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-      <InlineError error={invoice.error} />
+      ) : null}
       <InlineError error={accessInvoice.error} />
+      <section className="billing-faq" aria-labelledby="billing-faq-title">
+        <span className="section-kicker">FAQ</span>
+        <h2 id="billing-faq-title">{messages.billing.faqTitle}</h2>
+        {[
+          [messages.billing.faqNoRenewQuestion, messages.billing.faqNoRenewAnswer],
+          [messages.billing.faqExpiryQuestion, messages.billing.faqExpiryAnswer],
+          [messages.billing.faqStackQuestion, messages.billing.faqStackAnswer],
+          [messages.billing.faqRefundQuestion, messages.billing.faqRefundAnswer],
+        ].map(([question, answer]) => (
+          <details key={question}>
+            <summary>
+              <span>{question}</span>
+              <VeloraIcon name="chevronDown" />
+            </summary>
+            <p>{answer}</p>
+          </details>
+        ))}
+      </section>
       <section className="payment-history">
         <h2>{messages.billing.history}</h2>
         {history.isPending ? <p>{messages.billing.historyLoading}</p> : null}
@@ -708,8 +1114,17 @@ function BillingView({
         {history.data?.items.map((item) => (
           <div className="payment-row" key={item.id}>
             <span>
-              <strong>{item.amount} ⭐</strong>
+              <strong>
+                <VeloraIcon name="star" size={16} /> {item.amount}
+              </strong>
               <small>{formatPaymentState(item.state, messages)}</small>
+              {item.validUntil ? (
+                <small>
+                  {messages.billing.accessUntil(
+                    new Date(item.validUntil).toLocaleDateString(locale),
+                  )}
+                </small>
+              ) : null}
             </span>
             <time dateTime={new Date(item.createdAt).toISOString()}>
               {new Date(item.createdAt).toLocaleDateString(locale)}
@@ -731,8 +1146,12 @@ function formatPaymentState(state: string, messages: ReturnType<typeof getWebMes
   const labels: Readonly<Record<string, string>> = {
     CREATED: messages.billing.stateCreated,
     INVOICE_SENT: messages.billing.stateInvoiceSent,
+    PENDING: messages.billing.statePending,
     PAID: messages.billing.statePaid,
+    GRANTED: messages.billing.stateGranted,
     FAILED: messages.billing.stateFailed,
+    CANCELLED: messages.billing.stateCancelled,
+    EXPIRED: messages.billing.stateExpired,
     REFUNDED: messages.billing.stateRefunded,
   };
   return labels[state] ?? state;
@@ -742,18 +1161,275 @@ function NavButton({
   active,
   label,
   icon,
+  ariaLabel,
   onClick,
 }: {
   readonly active: boolean;
   readonly label: string;
-  readonly icon: string;
+  readonly icon: VeloraIconName;
+  readonly ariaLabel?: string;
   readonly onClick: () => void;
 }) {
   return (
-    <button className={active ? 'nav-item is-active' : 'nav-item'} type="button" onClick={onClick}>
-      <span>{icon}</span>
+    <button
+      className={active ? 'nav-item is-active' : 'nav-item'}
+      type="button"
+      aria-label={ariaLabel}
+      onClick={onClick}
+    >
+      <VeloraIcon name={icon} />
       <small>{label}</small>
     </button>
+  );
+}
+
+function NotificationCenter({
+  data,
+  pending,
+  error,
+  onClose,
+  onMarkAll,
+  onOpen,
+}: {
+  readonly data: NotificationList | undefined;
+  readonly pending: boolean;
+  readonly error: Error | null;
+  readonly onClose: () => void;
+  readonly onMarkAll: () => void;
+  readonly onOpen: (notificationId: string, actionTab: UserNotification['actionTab']) => void;
+}) {
+  const { locale } = useI18n();
+  const messages = getNotificationMessages(locale);
+  return (
+    <Dialog
+      backdropClassName="notification-backdrop"
+      className="notification-center"
+      labelledBy="notification-center-title"
+      onClose={onClose}
+    >
+      <header className="notification-center-header">
+        <div>
+          <h2 id="notification-center-title">{messages.title}</h2>
+          <p>{messages.unread(data?.unreadCount ?? 0)}</p>
+        </div>
+        <button
+          className="shell-icon-button"
+          type="button"
+          aria-label={messages.close}
+          onClick={onClose}
+        >
+          <VeloraIcon name="close" />
+        </button>
+      </header>
+      {(data?.unreadCount ?? 0) > 0 ? (
+        <button className="notification-mark-all" type="button" onClick={onMarkAll}>
+          <VeloraIcon name="check" size={18} />
+          {messages.markAll}
+        </button>
+      ) : null}
+      {pending ? <Skeleton label={messages.title} /> : null}
+      {error ? <InlineError error={error} /> : null}
+      {!pending && !error && (data?.items.length ?? 0) === 0 ? (
+        <p className="notification-empty">{messages.empty}</p>
+      ) : null}
+      <div className="notification-list" role="list">
+        {data?.items.map((notification) => (
+          <button
+            className={
+              notification.readAt === null ? 'notification-item is-unread' : 'notification-item'
+            }
+            type="button"
+            role="listitem"
+            key={notification.id}
+            onClick={() => {
+              onOpen(notification.id, notification.actionTab);
+            }}
+          >
+            <span className="notification-item-copy">
+              <strong>{notification.title}</strong>
+              <span>{notification.body}</span>
+            </span>
+            <time dateTime={new Date(notification.createdAt).toISOString()}>
+              {new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
+                notification.createdAt,
+              )}
+            </time>
+          </button>
+        ))}
+      </div>
+    </Dialog>
+  );
+}
+
+export function AppDrawer({
+  activeTab,
+  createExpanded,
+  libraryExpanded,
+  onCreateExpanded,
+  onLibraryExpanded,
+  onClose,
+  onNavigate,
+  onCreateCharacter,
+  onCreatePersona,
+  onCreateGroup,
+  onCreateLorebook,
+  onNavigateSettingsSection,
+}: {
+  readonly activeTab: Tab;
+  readonly createExpanded: boolean;
+  readonly libraryExpanded: boolean;
+  readonly onCreateExpanded: (expanded: boolean) => void;
+  readonly onLibraryExpanded: (expanded: boolean) => void;
+  readonly onClose: () => void;
+  readonly onNavigate: (tab: Tab) => void;
+  readonly onCreateCharacter: () => void;
+  readonly onCreatePersona: () => void;
+  readonly onCreateGroup: () => void;
+  readonly onCreateLorebook: () => void;
+  readonly onNavigateSettingsSection: (sectionId: SettingsSectionId) => void;
+}) {
+  const { messages } = useI18n();
+  const logout = useMutation({
+    mutationFn: () => apiRequest<undefined>('/api/v1/auth/logout', { method: 'POST' }),
+    onSuccess: () => {
+      window.location.reload();
+    },
+  });
+  const item = (tab: Tab, icon: VeloraIconName, label: string) => (
+    <button
+      className={activeTab === tab ? 'drawer-link is-active' : 'drawer-link'}
+      type="button"
+      onClick={() => {
+        onNavigate(tab);
+      }}
+    >
+      <VeloraIcon name={icon} />
+      {label}
+    </button>
+  );
+  const settingsSectionItem = (
+    sectionId: SettingsSectionId,
+    icon: VeloraIconName,
+    label: string,
+  ) => (
+    <button
+      className={activeTab === 'settings' ? 'drawer-link is-active' : 'drawer-link'}
+      type="button"
+      onClick={() => {
+        onNavigateSettingsSection(sectionId);
+      }}
+    >
+      <VeloraIcon name={icon} />
+      {label}
+    </button>
+  );
+  return (
+    <SideDrawer label={messages.navigation.menu} onClose={onClose}>
+      <header className="drawer-brand">
+        <BrandMark />
+        <div>
+          <strong>VeloraAI</strong>
+          <small>{messages.navigation.storyStudio}</small>
+        </div>
+        <button type="button" aria-label={messages.navigation.closeMenu} onClick={onClose}>
+          <VeloraIcon name="close" />
+        </button>
+      </header>
+      <nav className="drawer-navigation" aria-label={messages.navigation.menu}>
+        {item('discover', 'discover', messages.navigation.home)}
+        {item('chats', 'list', messages.navigation.chats)}
+        {item('personas', 'persona', messages.navigation.personas)}
+        <button
+          className="drawer-link drawer-accordion"
+          type="button"
+          aria-expanded={createExpanded}
+          onClick={() => {
+            onCreateExpanded(!createExpanded);
+          }}
+        >
+          <VeloraIcon name="create" />
+          {messages.navigation.create}
+          <VeloraIcon name={createExpanded ? 'chevronUp' : 'chevronDown'} />
+        </button>
+        {createExpanded ? (
+          <div className="drawer-submenu">
+            <button type="button" onClick={onCreateCharacter}>
+              {messages.navigation.createCharacter}
+            </button>
+            <button type="button" onClick={onCreatePersona}>
+              {messages.navigation.createPersona}
+            </button>
+            <button type="button" onClick={onCreateGroup}>
+              {messages.navigation.createGroup}
+            </button>
+            <button type="button" onClick={onCreateLorebook}>
+              {messages.navigation.createLorebook}
+            </button>
+          </div>
+        ) : null}
+        <button
+          className="drawer-link drawer-accordion"
+          type="button"
+          aria-expanded={libraryExpanded}
+          onClick={() => {
+            onLibraryExpanded(!libraryExpanded);
+          }}
+        >
+          <VeloraIcon name="library" />
+          {messages.navigation.myLibrary}
+          <VeloraIcon name={libraryExpanded ? 'chevronUp' : 'chevronDown'} />
+        </button>
+        {libraryExpanded ? (
+          <div className="drawer-submenu">
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate('characters');
+              }}
+            >
+              {messages.navigation.characters}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate('personas');
+              }}
+            >
+              {messages.navigation.myLibrary}: {messages.navigation.personas}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate('lorebooks');
+              }}
+            >
+              Lorebooks
+            </button>
+          </div>
+        ) : null}
+        {item('billing', 'billing', messages.navigation.plans)}
+        {item('settings', 'settings', messages.navigation.settings)}
+        {settingsSectionItem('blocks-title', 'ban', messages.dataControls.blockedTitle)}
+        {settingsSectionItem('support-title', 'info', messages.support.title)}
+        {settingsSectionItem('legal-title', 'shield', messages.legal.title)}
+        {item('profile', 'persona', messages.navigation.profile)}
+      </nav>
+      <footer className="drawer-footer">
+        <button
+          className="drawer-logout"
+          type="button"
+          disabled={logout.isPending}
+          onClick={() => {
+            logout.mutate();
+          }}
+        >
+          <VeloraIcon name="logout" />
+          {logout.isPending ? messages.navigation.loggingOut : messages.navigation.logout}
+        </button>
+        {logout.error ? <InlineError error={logout.error} /> : null}
+        <small>VeloraAI · 0.1.0</small>
+      </footer>
+    </SideDrawer>
   );
 }
 
@@ -761,92 +1437,796 @@ function DiscoveryView({
   currentUserId,
   onStarted,
   onOpenCreator,
+  onManagePersonas,
 }: {
   readonly currentUserId: string;
   readonly onStarted: (id: string) => void;
   readonly onOpenCreator: (userId: string) => void;
+  readonly onManagePersonas: () => void;
 }) {
   const { messages } = useI18n();
-  const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
-  const discovery = useQuery({
-    queryKey: ['discovery', submittedQuery],
+  const client = useQueryClient();
+  const [initialUrlState] = useState(() =>
+    parseDiscoveryUrlState(typeof window === 'undefined' ? '' : window.location.search),
+  );
+  const [query, setQuery] = useState(initialUrlState.query);
+  const [submittedQuery, setSubmittedQuery] = useState(initialUrlState.query);
+  const [sort, setSort] = useState<'newest' | 'oldest'>(initialUrlState.sort);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sharedCharacterId, setSharedCharacterId] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : characterIdFromLaunchSearch(window.location.search),
+  );
+  const [draftFilters, setDraftFilters] = useState<DiscoveryFilters>(initialUrlState.filters);
+  const [appliedFilters, setAppliedFilters] = useState<DiscoveryFilters>(initialUrlState.filters);
+  const [personaRequest, setPersonaRequest] = useState<{
+    readonly character: DiscoveryCharacter;
+    readonly greetingIndex: number;
+  } | null>(null);
+  const [personaSearch, setPersonaSearch] = useState('');
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [rememberPersona, setRememberPersona] = useState(false);
+  const activeFilterCount =
+    appliedFilters.languages.length +
+    appliedFilters.groupSizes.length +
+    Number(appliedFilters.rating !== 'ALL') +
+    appliedFilters.includeTags.length +
+    appliedFilters.excludeTags.length;
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSubmittedQuery(query.trim());
+    }, 350);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [query]);
+  useEffect(() => {
+    const search = writeDiscoveryUrlState(window.location.search, {
+      query: submittedQuery,
+      sort,
+      filters: appliedFilters,
+    });
+    const nextUrl = `${window.location.pathname}${search}${window.location.hash}`;
+    window.history.replaceState(window.history.state, '', nextUrl);
+  }, [appliedFilters, sort, submittedQuery]);
+  useEffect(() => {
+    const restoreFromHistory = () => {
+      const restored = parseDiscoveryUrlState(window.location.search);
+      setQuery(restored.query);
+      setSubmittedQuery(restored.query);
+      setSort(restored.sort);
+      setDraftFilters(restored.filters);
+      setAppliedFilters(restored.filters);
+    };
+    window.addEventListener('popstate', restoreFromHistory);
+    return () => {
+      window.removeEventListener('popstate', restoreFromHistory);
+    };
+  }, []);
+  const discovery = useInfiniteQuery({
+    queryKey: ['discovery', submittedQuery, appliedFilters, sort],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
+      const parameters = new URLSearchParams({ q: submittedQuery, limit: '20', sort });
+      if (appliedFilters.languages.length > 0) {
+        parameters.set('languages', appliedFilters.languages.join(','));
+      }
+      if (appliedFilters.groupSizes.length > 0) {
+        parameters.set('groupSizes', appliedFilters.groupSizes.join(','));
+      }
+      if (appliedFilters.rating !== 'ALL') {
+        parameters.set('rating', appliedFilters.rating);
+      }
+      if (appliedFilters.includeTags.length > 0) {
+        parameters.set('includeTags', appliedFilters.includeTags.join(','));
+      }
+      if (appliedFilters.excludeTags.length > 0) {
+        parameters.set('excludeTags', appliedFilters.excludeTags.join(','));
+      }
+      if (pageParam) {
+        parameters.set('cursor', pageParam);
+      }
+      return apiRequest<DiscoveryResponse>(`/api/v1/discovery?${parameters.toString()}`);
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+  const discoveryTags = useQuery({
+    queryKey: [
+      'discovery-tags',
+      draftFilters.languages,
+      draftFilters.groupSizes,
+      draftFilters.rating,
+    ],
+    queryFn: () => {
+      const parameters = new URLSearchParams({ limit: '200' });
+      if (draftFilters.languages.length > 0) {
+        parameters.set('languages', draftFilters.languages.join(','));
+      }
+      if (draftFilters.rating !== 'ALL') parameters.set('rating', draftFilters.rating);
+      if (draftFilters.groupSizes.length > 0) {
+        parameters.set('groupSizes', draftFilters.groupSizes.join(','));
+      }
+      return apiRequest<DiscoveryTagResponse>(
+        `/api/v1/discovery/tags/catalog?${parameters.toString()}`,
+      );
+    },
+    enabled: filtersOpen,
+  });
+  const discoveryLanguages = useQuery({
+    queryKey: [
+      'discovery-languages',
+      draftFilters.rating,
+      draftFilters.includeTags,
+      draftFilters.excludeTags,
+      draftFilters.groupSizes,
+    ],
+    queryFn: () => {
+      const parameters = new URLSearchParams();
+      if (draftFilters.rating !== 'ALL') parameters.set('rating', draftFilters.rating);
+      if (draftFilters.includeTags.length > 0) {
+        parameters.set('includeTags', draftFilters.includeTags.join(','));
+      }
+      if (draftFilters.excludeTags.length > 0) {
+        parameters.set('excludeTags', draftFilters.excludeTags.join(','));
+      }
+      if (draftFilters.groupSizes.length > 0) {
+        parameters.set('groupSizes', draftFilters.groupSizes.join(','));
+      }
+      return apiRequest<DiscoveryLanguageResponse>(
+        `/api/v1/discovery/languages/catalog?${parameters.toString()}`,
+      );
+    },
+    enabled: filtersOpen,
+  });
+  const catalogueItems = discovery.data?.pages.flatMap((page) => page.items) ?? [];
+  const sharedCharacter = useQuery({
+    queryKey: ['discovery', 'character', sharedCharacterId],
     queryFn: () =>
-      apiRequest<DiscoveryResponse>(
-        `/api/v1/discovery?q=${encodeURIComponent(submittedQuery)}&rating=SAFE&limit=20`,
+      apiRequest<DiscoveryCharacter>(
+        `/api/v1/discovery/${encodeURIComponent(sharedCharacterId ?? '')}`,
       ),
+    enabled: sharedCharacterId !== null,
+  });
+  const discoveryItems = sharedCharacter.data
+    ? [
+        sharedCharacter.data,
+        ...catalogueItems.filter((character) => character.id !== sharedCharacter.data.id),
+      ]
+    : catalogueItems;
+  const contentPreferences = discovery.data?.pages[0]?.contentPreferences;
+  const publicConfig = useQuery({
+    queryKey: ['public-config'],
+    queryFn: () => apiRequest<PublicConfigResponse>('/api/v1/config'),
   });
   const featureFlags = useQuery({
     queryKey: ['feature-flags'],
     queryFn: () => apiRequest<PublicFeatureFlags>('/api/v1/feature-flags'),
   });
+  const discoveryGroupSizes = useQuery({
+    queryKey: [
+      'discovery-group-sizes',
+      draftFilters.languages,
+      draftFilters.rating,
+      draftFilters.includeTags,
+      draftFilters.excludeTags,
+    ],
+    queryFn: () => {
+      const parameters = new URLSearchParams();
+      if (draftFilters.languages.length > 0) {
+        parameters.set('languages', draftFilters.languages.join(','));
+      }
+      if (draftFilters.rating !== 'ALL') parameters.set('rating', draftFilters.rating);
+      if (draftFilters.includeTags.length > 0) {
+        parameters.set('includeTags', draftFilters.includeTags.join(','));
+      }
+      if (draftFilters.excludeTags.length > 0) {
+        parameters.set('excludeTags', draftFilters.excludeTags.join(','));
+      }
+      return apiRequest<DiscoveryGroupSizeResponse>(
+        `/api/v1/discovery/group-sizes/catalog?${parameters.toString()}`,
+      );
+    },
+    enabled: filtersOpen && (featureFlags.data?.flags.groups ?? false),
+  });
+  const settings = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => apiRequest<Settings>('/api/v1/settings'),
+  });
+  const personas = useQuery({
+    queryKey: ['personas'],
+    queryFn: () => apiRequest<ListResponse<Persona>>('/api/v1/personas'),
+  });
+  const startConversation = useMutation({
+    mutationFn: async ({
+      characterId,
+      greetingIndex,
+      personaId,
+      remember,
+    }: {
+      readonly characterId: string;
+      readonly greetingIndex: number;
+      readonly personaId: string | null;
+      readonly remember: boolean;
+    }) => {
+      if (remember && personaId) {
+        if (settings.data?.defaultPersonaId !== personaId) {
+          await apiRequest(`/api/v1/personas/${personaId}/default`, { method: 'POST' });
+        }
+        await apiRequest<Settings>('/api/v1/settings', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            preferences: {
+              ...(settings.data?.preferences ?? {}),
+              autoUseDefaultPersona: true,
+            },
+          }),
+        });
+      }
+      return apiRequest<{ readonly id: string }>('/api/v1/conversations', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          characterId,
+          personaId,
+          greetingIndex,
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      });
+    },
+    onSuccess: async (conversation) => {
+      setPersonaRequest(null);
+      setPersonaSearch('');
+      setRememberPersona(false);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['settings'] }),
+        client.invalidateQueries({ queryKey: ['personas'] }),
+        client.invalidateQueries({ queryKey: ['conversations'] }),
+      ]);
+      onStarted(conversation.id);
+    },
+  });
+  const requestStart = (character: DiscoveryCharacter, greetingIndex: number) => {
+    const automaticPersona = resolveAutomaticPersona(settings.data, personas.data?.items ?? []);
+    if (automaticPersona) {
+      startConversation.mutate({
+        characterId: character.id,
+        greetingIndex,
+        personaId: automaticPersona.id,
+        remember: false,
+      });
+      return;
+    }
+    const defaultPersona = (personas.data?.items ?? []).find(
+      (persona) => persona.id === settings.data?.defaultPersonaId,
+    );
+    setSelectedPersonaId(defaultPersona?.id ?? personas.data?.items[0]?.id ?? null);
+    setPersonaSearch('');
+    setRememberPersona(false);
+    setPersonaRequest({ character, greetingIndex });
+  };
+  useEffect(() => {
+    if (!personaRequest) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !startConversation.isPending) setPersonaRequest(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [personaRequest, startConversation.isPending]);
+  const resetDiscovery = () => {
+    const emptyFilters: DiscoveryFilters = {
+      languages: [],
+      groupSizes: [],
+      rating: 'ALL',
+      includeTags: [],
+      excludeTags: [],
+    };
+    setQuery('');
+    setSubmittedQuery('');
+    setDraftFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+  };
   return (
-    <div className="view-stack">
+    <div className="view-stack discovery-view">
       <ViewHeader
         eyebrow={messages.discovery.eyebrow}
         title={messages.discovery.title}
         description={messages.discovery.description}
       />
-      <form
-        className="search-bar"
-        onSubmit={(event) => {
-          event.preventDefault();
+      <SearchBar
+        value={query}
+        label={messages.discovery.searchLabel}
+        placeholder={messages.discovery.searchPlaceholder}
+        submitLabel={messages.discovery.search}
+        onChange={setQuery}
+        onSubmit={() => {
           setSubmittedQuery(query.trim());
         }}
-      >
-        <input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-          }}
-          placeholder={messages.discovery.searchPlaceholder}
-          aria-label={messages.discovery.searchLabel}
+      />
+      <div className="discovery-toolbar">
+        <span className="result-count">
+          {messages.discovery.resultCount(discovery.data?.pages[0]?.totalCount ?? 0)}
+        </span>
+        <SortDropdown
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: 'newest', label: messages.discovery.newest },
+            { value: 'oldest', label: messages.discovery.oldest },
+          ]}
+          label={messages.discovery.sortLabel}
         />
-        <button type="submit">{messages.discovery.search}</button>
-      </form>
-      {discovery.isPending ? <EmptyState title={messages.discovery.loading} /> : null}
+        <FilterButton
+          label={messages.discovery.filters(activeFilterCount)}
+          active={activeFilterCount > 0}
+          expanded={filtersOpen}
+          onClick={() => {
+            setDraftFilters(appliedFilters);
+            setFiltersOpen(true);
+          }}
+        />
+      </div>
+      {filtersOpen ? (
+        <FilterSheet
+          title={messages.discovery.filterTitle}
+          filters={draftFilters}
+          tagOptions={discoveryTags.data?.items ?? []}
+          tagOptionsLoading={discoveryTags.isPending}
+          languageOptions={discoveryLanguages.data?.items ?? []}
+          languageOptionsLoading={discoveryLanguages.isPending}
+          groupSizeOptions={discoveryGroupSizes.data?.items ?? []}
+          groupSizeOptionsLoading={discoveryGroupSizes.isPending}
+          showGroupSizes={featureFlags.data?.flags.groups ?? false}
+          labels={{
+            language: messages.discovery.languageFilter,
+            languagePlaceholder: messages.discovery.languagePlaceholder,
+            languageResults: messages.discovery.languageResults,
+            languageSelection: messages.discovery.languageSelection,
+            selectLanguage: messages.discovery.selectLanguage,
+            loadingLanguages: messages.discovery.loadingLanguages,
+            noLanguages: messages.discovery.noLanguages,
+            groupSize: messages.discovery.groupSizeFilter,
+            groupSizeSelection: messages.discovery.groupSizeSelection,
+            groupSizeLabels: messages.discovery.groupSizeLabels,
+            selectGroupSize: messages.discovery.selectGroupSize,
+            loadingGroupSizes: messages.discovery.loadingGroupSizes,
+            noGroupSizes: messages.discovery.noGroupSizes,
+            tagsFacet: messages.discovery.tagsFacet,
+            languagesFacet: messages.discovery.languagesFacet,
+            rating: messages.discovery.ratingFilter,
+            allRatings: messages.discovery.allRatings,
+            safe: messages.discovery.safeOnly,
+            mature: messages.discovery.matureOnly,
+            tags: messages.discovery.tagsFilter,
+            tagsPlaceholder: messages.discovery.tagsPlaceholder,
+            tagResults: messages.discovery.tagResults,
+            tagSelection: messages.discovery.tagSelection,
+            includeTag: messages.discovery.includeTag,
+            excludeTag: messages.discovery.excludeTag,
+            includedTag: messages.discovery.includedTag,
+            excludedTag: messages.discovery.excludedTag,
+            loadingTags: messages.discovery.loadingTags,
+            noTags: messages.discovery.noTags,
+            apply: messages.discovery.applyFilters,
+            reset: messages.discovery.resetFilters,
+            close: messages.discovery.closeFilters,
+          }}
+          onChange={setDraftFilters}
+          onApply={() => {
+            setAppliedFilters(draftFilters);
+            setFiltersOpen(false);
+          }}
+          onReset={() => {
+            resetDiscovery();
+          }}
+          onClose={() => {
+            setFiltersOpen(false);
+          }}
+        />
+      ) : null}
+      {discovery.isPending ? <Skeleton label={messages.discovery.loading} rows={6} /> : null}
       {discovery.isError ? (
         <ErrorState error={discovery.error} retry={() => void discovery.refetch()} />
       ) : null}
-      {discovery.data?.items.length === 0 ? (
-        <EmptyState title={messages.discovery.emptyTitle} text={messages.discovery.emptyText} />
+      {discoveryItems.length === 0 && !discovery.isPending ? (
+        <EmptyState
+          title={messages.discovery.emptyTitle}
+          text={messages.discovery.emptyText}
+          action={
+            <button className="secondary compact-button" type="button" onClick={resetDiscovery}>
+              {messages.discovery.resetFilters}
+            </button>
+          }
+        />
       ) : null}
       <div className="card-grid">
-        {discovery.data?.items.map((character) => (
-          <DiscoveryCard
+        {discoveryItems.map((character) => (
+          <CharacterCard
             key={character.id}
             character={character}
             currentUserId={currentUserId}
-            onStarted={onStarted}
+            onRequestStart={requestStart}
             onOpenCreator={onOpenCreator}
+            startPending={startConversation.isPending}
             publicReviews={featureFlags.data?.flags.public_reviews ?? false}
+            initiallyExpanded={sharedCharacterId === character.id}
+            shareUrl={
+              publicConfig.data?.telegramBotUsername
+                ? telegramCharacterShareUrl(publicConfig.data.telegramBotUsername, character.id)
+                : (() => {
+                    const location = new URL(window.location.href);
+                    location.searchParams.set('character', character.id);
+                    return location.href;
+                  })()
+            }
+            onExpansionChange={(nextExpanded) => {
+              const location = new URL(window.location.href);
+              if (nextExpanded) {
+                location.searchParams.set('character', character.id);
+                setSharedCharacterId(character.id);
+              } else {
+                if (location.searchParams.get('character') === character.id) {
+                  location.searchParams.delete('character');
+                }
+                setSharedCharacterId(null);
+              }
+              window.history.replaceState(
+                window.history.state,
+                '',
+                `${location.pathname}${location.search}${location.hash}`,
+              );
+            }}
+            blurMatureImages={
+              character.contentRating === 'MATURE' && (contentPreferences?.matureImageBlur ?? true)
+            }
           />
         ))}
       </div>
+      {discovery.hasNextPage ? (
+        <button
+          className="secondary discovery-load-more"
+          type="button"
+          disabled={discovery.isFetchingNextPage}
+          onClick={() => {
+            void discovery.fetchNextPage();
+          }}
+        >
+          {discovery.isFetchingNextPage
+            ? messages.discovery.loadingMore
+            : messages.discovery.loadMore}
+        </button>
+      ) : null}
+      {personaRequest ? (
+        <PersonaSelector
+          character={personaRequest.character}
+          personas={personas.data?.items ?? []}
+          defaultPersonaId={settings.data?.defaultPersonaId ?? null}
+          selectedPersonaId={selectedPersonaId}
+          query={personaSearch}
+          remember={rememberPersona}
+          loading={settings.isPending || personas.isPending}
+          pending={startConversation.isPending}
+          error={settings.error ?? personas.error ?? startConversation.error}
+          onQueryChange={setPersonaSearch}
+          onSelect={setSelectedPersonaId}
+          onRememberChange={setRememberPersona}
+          onClose={() => {
+            if (!startConversation.isPending) setPersonaRequest(null);
+          }}
+          onManage={() => {
+            setPersonaRequest(null);
+            onManagePersonas();
+          }}
+          onConfirm={() => {
+            startConversation.mutate({
+              characterId: personaRequest.character.id,
+              greetingIndex: personaRequest.greetingIndex,
+              personaId: selectedPersonaId,
+              remember: rememberPersona,
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
-function DiscoveryCard({
+export function resolveAutomaticPersona(
+  settings: Settings | undefined,
+  personas: readonly Persona[],
+): Persona | null {
+  if (settings?.preferences['autoUseDefaultPersona'] !== true || !settings.defaultPersonaId)
+    return null;
+  return personas.find((persona) => persona.id === settings.defaultPersonaId) ?? null;
+}
+
+export function PersonaSelector({
+  character,
+  personas,
+  defaultPersonaId,
+  selectedPersonaId,
+  query,
+  remember,
+  loading,
+  pending,
+  error,
+  onQueryChange,
+  onSelect,
+  onRememberChange,
+  onClose,
+  onManage,
+  onConfirm,
+}: {
+  readonly character: DiscoveryCharacter;
+  readonly personas: readonly Persona[];
+  readonly defaultPersonaId: string | null;
+  readonly selectedPersonaId: string | null;
+  readonly query: string;
+  readonly remember: boolean;
+  readonly loading: boolean;
+  readonly pending: boolean;
+  readonly error: Error | null;
+  readonly onQueryChange: (value: string) => void;
+  readonly onSelect: (id: string | null) => void;
+  readonly onRememberChange: (value: boolean) => void;
+  readonly onClose: () => void;
+  readonly onManage: () => void;
+  readonly onConfirm: () => void;
+}) {
+  const { messages } = useI18n();
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const filteredPersonas = personas.filter((persona) =>
+    `${persona.name} ${persona.shortDescription}`.toLocaleLowerCase().includes(normalizedQuery),
+  );
+  const selectedPersona = personas.find((persona) => persona.id === selectedPersonaId) ?? null;
+  return (
+    <Dialog
+      backdropClassName="account-dialog-backdrop persona-chooser-backdrop"
+      className="account-dialog persona-chooser"
+      labelledBy="persona-chooser-title"
+      onClose={onClose}
+    >
+      <header className="persona-chooser-header">
+        <div>
+          <p className="eyebrow">{messages.discovery.personaChooserEyebrow}</p>
+          <h2 id="persona-chooser-title">
+            {messages.discovery.personaChooserTitle(character.name)}
+          </h2>
+        </div>
+        <button
+          className="persona-chooser-close"
+          type="button"
+          aria-label={messages.discovery.closePersonaChooser}
+          disabled={pending}
+          onClick={onClose}
+        >
+          <VeloraIcon name="close" />
+        </button>
+      </header>
+      <label className="persona-search">
+        <span className="sr-only">{messages.discovery.personaSearchLabel}</span>
+        <input
+          autoFocus
+          type="search"
+          value={query}
+          placeholder={messages.discovery.personaSearchPlaceholder}
+          onChange={(event) => {
+            onQueryChange(event.currentTarget.value);
+          }}
+        />
+      </label>
+      <div className="persona-pair" aria-label={messages.discovery.personaPairPreview}>
+        <Avatar
+          name={selectedPersona?.name ?? messages.discovery.noPersona}
+          fileId={selectedPersona?.avatarFileId ?? null}
+        />
+        <span aria-hidden="true">↔</span>
+        <Avatar
+          name={character.name}
+          fileId={character.avatarFileId}
+          focalX={character.avatarFocalX}
+          focalY={character.avatarFocalY}
+        />
+      </div>
+      {loading ? <p className="meta">{messages.discovery.personaChooserLoading}</p> : null}
+      {!loading ? (
+        <div
+          className="persona-choice-list"
+          role="radiogroup"
+          aria-label={messages.discovery.personaChoiceLabel}
+        >
+          <label
+            className={selectedPersonaId === null ? 'persona-choice is-selected' : 'persona-choice'}
+          >
+            <input
+              type="radio"
+              name="persona-choice"
+              checked={selectedPersonaId === null}
+              onChange={() => {
+                onSelect(null);
+                onRememberChange(false);
+              }}
+            />
+            <Avatar name={messages.discovery.noPersona} fileId={null} />
+            <span>
+              <strong>{messages.discovery.noPersona}</strong>
+              <small>{messages.discovery.noPersonaText}</small>
+            </span>
+          </label>
+          {filteredPersonas.map((persona) => (
+            <label
+              className={
+                persona.id === selectedPersonaId ? 'persona-choice is-selected' : 'persona-choice'
+              }
+              key={persona.id}
+            >
+              <input
+                type="radio"
+                name="persona-choice"
+                checked={persona.id === selectedPersonaId}
+                onChange={() => {
+                  onSelect(persona.id);
+                }}
+              />
+              <Avatar name={persona.name} fileId={persona.avatarFileId} />
+              <span>
+                <strong>
+                  {persona.name}
+                  {persona.id === defaultPersonaId ? (
+                    <em>{messages.discovery.defaultPersona}</em>
+                  ) : null}
+                </strong>
+                <small>{persona.shortDescription || messages.personas.noDescription}</small>
+              </span>
+            </label>
+          ))}
+          {filteredPersonas.length === 0 && normalizedQuery ? (
+            <p className="meta">{messages.discovery.noPersonasFound}</p>
+          ) : null}
+        </div>
+      ) : null}
+      <label className="persona-remember">
+        <input
+          type="checkbox"
+          checked={remember}
+          disabled={selectedPersonaId === null || pending}
+          onChange={(event) => {
+            onRememberChange(event.currentTarget.checked);
+          }}
+        />
+        <span>{messages.discovery.rememberPersona}</span>
+      </label>
+      <InlineError error={error} />
+      <button
+        className="compact-primary persona-confirm"
+        type="button"
+        disabled={loading || pending}
+        onClick={onConfirm}
+      >
+        {pending
+          ? messages.discovery.opening
+          : messages.discovery.startWithCharacter(character.name)}
+      </button>
+      <button
+        className="text-button persona-manage"
+        type="button"
+        disabled={pending}
+        onClick={onManage}
+      >
+        {messages.discovery.managePersonas}
+      </button>
+    </Dialog>
+  );
+}
+
+export const PersonaChooser = PersonaSelector;
+
+export function CharacterHero({
+  name,
+  fileId,
+  focalX,
+  focalY,
+  language,
+  contentRating,
+  blurMatureImages,
+}: {
+  readonly name: string;
+  readonly fileId: string | null;
+  readonly focalX: number;
+  readonly focalY: number;
+  readonly language: string;
+  readonly contentRating: DiscoveryCharacter['contentRating'];
+  readonly blurMatureImages: boolean;
+}) {
+  const [geometry, setGeometry] = useState<CharacterImageGeometry | null>(null);
+  return (
+    <div
+      className={storyCoverClassName(contentRating, blurMatureImages)}
+      data-image-geometry={geometry ?? undefined}
+    >
+      <CharacterImage
+        fileId={fileId}
+        alt={name}
+        focalX={focalX}
+        focalY={focalY}
+        fallback={<span className="story-cover-fallback">{name.slice(0, 1).toUpperCase()}</span>}
+        onGeometry={setGeometry}
+        previewable
+      />
+      <b>{language.toUpperCase()}</b>
+    </div>
+  );
+}
+
+export function TagChip({ children }: { readonly children: React.ReactNode }) {
+  return <span>{children}</span>;
+}
+
+function StaffBadge({ role }: { readonly role: string }) {
+  if (role === 'OWNER') {
+    return (
+      <span className="staff-badge is-owner" aria-hidden="true" title="Владелец">
+        <VeloraIcon name="check" size={14} strokeWidth={3} />
+      </span>
+    );
+  }
+  if (!['MODERATOR', 'SENIOR_MODERATOR', 'ADMIN'].includes(role)) return null;
+  return (
+    <span className="staff-badge is-moderator" aria-hidden="true" title="Модератор">
+      <VeloraIcon name="check" size={14} strokeWidth={3} />
+    </span>
+  );
+}
+
+export function CharacterCard({
   character,
   currentUserId,
-  onStarted,
+  onRequestStart,
   onOpenCreator,
+  startPending,
   publicReviews,
+  blurMatureImages,
+  initiallyExpanded = false,
+  shareUrl,
+  onExpansionChange,
 }: {
   readonly character: DiscoveryCharacter;
   readonly currentUserId: string;
-  readonly onStarted: (id: string) => void;
+  readonly onRequestStart: (character: DiscoveryCharacter, greetingIndex: number) => void;
   readonly onOpenCreator: (userId: string) => void;
+  readonly startPending: boolean;
   readonly publicReviews: boolean;
+  readonly blurMatureImages: boolean;
+  readonly initiallyExpanded?: boolean | undefined;
+  readonly shareUrl?: string | undefined;
+  readonly onExpansionChange?: ((expanded: boolean) => void) | undefined;
 }) {
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
   const client = useQueryClient();
-  const [expanded, setExpanded] = useState(false);
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(initiallyExpanded);
+  const expanded = onExpansionChange ? initiallyExpanded : uncontrolledExpanded;
+  const [shareFeedback, setShareFeedback] = useState<{
+    readonly kind: 'success' | 'error';
+    readonly text: string;
+  } | null>(null);
   const [reporting, setReporting] = useState(false);
   const [reportSent, setReportSent] = useState(false);
   const [confirmingBlock, setConfirmingBlock] = useState(false);
   const [greetingIndex, setGreetingIndex] = useState(0);
+  const [greetingExpanded, setGreetingExpanded] = useState(false);
+  const [optimisticInteraction, setOptimisticInteraction] = useState<{
+    readonly liked: boolean;
+    readonly bookmarked: boolean;
+    readonly likeCount: number;
+    readonly bookmarkCount: number;
+  } | null>(null);
+  const visibleInteraction = optimisticInteraction ?? character;
+  const selectedGreeting =
+    greetingIndex === 0
+      ? character.firstMessage
+      : (character.alternateGreetings[greetingIndex - 1] ?? character.firstMessage);
+  const greetingContentId = `character-greeting-${character.id}`;
   const reviews = useQuery({
     queryKey: ['character-reviews', character.id],
     queryFn: () =>
@@ -864,9 +2244,36 @@ function DiscoveryCard({
       apiRequest(`/api/v1/discovery/${character.id}/${kind}`, {
         method: enabled ? 'PUT' : 'DELETE',
       }),
-    onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ['discovery'] });
-      await client.invalidateQueries({ queryKey: ['creator-stats'] });
+    onMutate: ({ kind, enabled }) => {
+      const previous = {
+        liked: visibleInteraction.liked,
+        bookmarked: visibleInteraction.bookmarked,
+        likeCount: visibleInteraction.likeCount,
+        bookmarkCount: visibleInteraction.bookmarkCount,
+      };
+      setOptimisticInteraction({
+        ...previous,
+        ...(kind === 'like'
+          ? {
+              liked: enabled,
+              likeCount: Math.max(0, previous.likeCount + (enabled ? 1 : -1)),
+            }
+          : {
+              bookmarked: enabled,
+              bookmarkCount: Math.max(0, previous.bookmarkCount + (enabled ? 1 : -1)),
+            }),
+      });
+      return previous;
+    },
+    onError: (_error, _variables, previous) => {
+      if (previous) setOptimisticInteraction(previous);
+    },
+    onSettled: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['discovery'] }),
+        client.invalidateQueries({ queryKey: ['creator-stats'] }),
+      ]);
+      setOptimisticInteraction(null);
     },
   });
   const review = useMutation({
@@ -894,21 +2301,6 @@ function DiscoveryCard({
       ]);
     },
   });
-  const start = useMutation({
-    mutationFn: () =>
-      apiRequest<{ readonly id: string }>('/api/v1/conversations', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          characterId: character.id,
-          greetingIndex,
-          idempotencyKey: crypto.randomUUID(),
-        }),
-      }),
-    onSuccess: (conversation) => {
-      onStarted(conversation.id);
-    },
-  });
   const blockCreator = useMutation({
     mutationFn: () => apiRequest(`/api/v1/blocks/${character.creatorId}`, { method: 'PUT' }),
     onSuccess: async () => {
@@ -920,15 +2312,42 @@ function DiscoveryCard({
     },
   });
   return (
-    <article className="story-card">
-      <div className="story-cover">
-        {character.avatarFileId ? (
-          <img src={`/api/v1/media/${character.avatarFileId}/content`} alt="" />
-        ) : (
-          <span>{character.name.slice(0, 1).toUpperCase()}</span>
-        )}
-        <b>{character.language.toUpperCase()}</b>
-      </div>
+    <article
+      className={expanded ? 'story-card is-expanded' : 'story-card is-startable'}
+      onClick={(event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest('.story-cover, button, a, input, select, textarea, [role="button"]')) {
+          return;
+        }
+        onRequestStart(character, greetingIndex);
+      }}
+    >
+      <CharacterHero
+        name={character.name}
+        fileId={character.avatarFileId}
+        focalX={character.avatarFocalX}
+        focalY={character.avatarFocalY}
+        language={character.language}
+        contentRating={character.contentRating}
+        blurMatureImages={blurMatureImages}
+      />
+      {!expanded ? (
+        <button
+          className={
+            visibleInteraction.liked ? 'story-like-toggle is-selected' : 'story-like-toggle'
+          }
+          type="button"
+          aria-label={visibleInteraction.liked ? messages.discovery.liked : messages.discovery.like}
+          aria-pressed={visibleInteraction.liked}
+          disabled={interaction.isPending}
+          onClick={() => {
+            interaction.mutate({ kind: 'like', enabled: !visibleInteraction.liked });
+          }}
+        >
+          <VeloraIcon name="heart" size={18} />
+        </button>
+      ) : null}
       <div className="story-body">
         <button
           className="creator-link"
@@ -937,11 +2356,88 @@ function DiscoveryCard({
             onOpenCreator(character.creatorId);
           }}
         >
-          {messages.discovery.byCreator(character.creatorName)}
+          <span>{messages.discovery.byCreator(character.creatorName)}</span>
+          <StaffBadge role={character.creatorRole} />
         </button>
-        <h2>{character.name}</h2>
+        <div className="story-title-row">
+          <h2>{character.name}</h2>
+          {!expanded ? (
+            <ActionMenu
+              label={messages.characters.ownerActions(character.name)}
+              items={[
+                {
+                  label: visibleInteraction.bookmarked
+                    ? messages.discovery.saved
+                    : messages.discovery.bookmark,
+                  disabled: interaction.isPending,
+                  onSelect: () => {
+                    interaction.mutate({
+                      kind: 'bookmark',
+                      enabled: !visibleInteraction.bookmarked,
+                    });
+                  },
+                },
+              ]}
+            />
+          ) : null}
+        </div>
         <p className="tagline">{character.tagline}</p>
-        {expanded ? <p className="description">{character.description}</p> : null}
+        <button
+          className="compact-primary story-start"
+          type="button"
+          disabled={startPending}
+          onClick={() => {
+            onRequestStart(character, greetingIndex);
+          }}
+        >
+          {startPending ? messages.discovery.opening : messages.discovery.startStory}
+        </button>
+        {expanded && character.avatarBotUsername ? (
+          <a
+            className="secondary compact-button character-avatar-bot-link"
+            href={telegramAvatarBotGroupUrl(character.avatarBotUsername)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <VeloraIcon name="create" size={18} />
+            {locale === 'ru' ? 'Добавить персонажа в чат' : 'Add character to a chat'}
+          </a>
+        ) : null}
+        {expanded ? (
+          <div className="character-metrics" aria-label={messages.discovery.metrics}>
+            <span>
+              <VeloraIcon name="heart" size={16} /> {visibleInteraction.likeCount}
+            </span>
+            <span>
+              <VeloraIcon name="bookmark" size={16} /> {visibleInteraction.bookmarkCount}
+            </span>
+            {publicReviews ? (
+              <span>
+                <VeloraIcon name="star" size={16} /> {character.averageRating?.toFixed(1) ?? '0'} ·{' '}
+                {character.reviewCount}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {expanded ? (
+          <div className="description character-markdown-description">
+            <Suspense
+              fallback={
+                <span className="meta" role="status">
+                  {messages.discovery.renderingGreeting}
+                </span>
+              }
+            >
+              <SafeMarkdown content={character.description} />
+            </Suspense>
+          </div>
+        ) : null}
+        {expanded && character.personality ? (
+          <section className="character-public-personality">
+            <h3>{messages.characters.personalitySection}</h3>
+            <SafeMarkdown content={character.personality} />
+          </section>
+        ) : null}
         {expanded && character.alternateGreetings.length > 0 ? (
           <label className="field greeting-picker">
             <span>{messages.discovery.greeting}</span>
@@ -950,6 +2446,7 @@ function DiscoveryCard({
               value={greetingIndex}
               onChange={(event) => {
                 setGreetingIndex(Number(event.currentTarget.value));
+                setGreetingExpanded(false);
               }}
             >
               <option value={0}>{messages.discovery.primaryGreeting}</option>
@@ -961,50 +2458,126 @@ function DiscoveryCard({
             </select>
           </label>
         ) : null}
+        {expanded ? (
+          <GreetingMessage labelledBy={`${greetingContentId}-title`}>
+            <h3 id={`${greetingContentId}-title`}>{messages.discovery.greetingBlockTitle}</h3>
+            <div
+              id={greetingContentId}
+              className={greetingExpanded ? 'greeting-copy' : 'greeting-copy is-collapsed'}
+            >
+              <Suspense
+                fallback={
+                  <span className="meta" role="status">
+                    {messages.discovery.renderingGreeting}
+                  </span>
+                }
+              >
+                <SafeMarkdown content={selectedGreeting} />
+              </Suspense>
+            </div>
+            <button
+              className="greeting-toggle"
+              type="button"
+              aria-expanded={greetingExpanded}
+              aria-controls={greetingContentId}
+              onClick={() => {
+                setGreetingExpanded((value) => !value);
+              }}
+            >
+              {greetingExpanded
+                ? messages.discovery.collapseGreeting
+                : messages.discovery.expandGreeting}
+            </button>
+          </GreetingMessage>
+        ) : null}
         <div className="tag-list">
           {character.tags.map((tag) => (
-            <span key={tag}>{tag}</span>
+            <TagChip key={tag}>{tag}</TagChip>
           ))}
         </div>
-        <div className="character-metrics" aria-label={messages.discovery.metrics}>
-          <span>♡ {character.likeCount}</span>
-          <span>🔖 {character.bookmarkCount}</span>
-          {publicReviews ? (
-            <span>
-              ★ {character.averageRating?.toFixed(1) ?? '—'} · {character.reviewCount}
-            </span>
-          ) : null}
-        </div>
-        <div className="character-interactions">
-          <button
-            className={character.liked ? 'is-selected' : ''}
-            type="button"
-            aria-pressed={character.liked}
-            disabled={interaction.isPending}
-            onClick={() => {
-              interaction.mutate({ kind: 'like', enabled: !character.liked });
-            }}
+        {expanded ? (
+          <div className="character-interactions character-interactions-after-details">
+            <button
+              className={visibleInteraction.liked ? 'is-selected' : ''}
+              type="button"
+              aria-pressed={visibleInteraction.liked}
+              disabled={interaction.isPending}
+              onClick={() => {
+                interaction.mutate({ kind: 'like', enabled: !visibleInteraction.liked });
+              }}
+            >
+              <VeloraIcon name="heart" size={18} />
+              {visibleInteraction.liked ? messages.discovery.liked : messages.discovery.like}
+            </button>
+            <button
+              className={visibleInteraction.bookmarked ? 'is-selected' : ''}
+              type="button"
+              aria-pressed={visibleInteraction.bookmarked}
+              disabled={interaction.isPending}
+              onClick={() => {
+                interaction.mutate({ kind: 'bookmark', enabled: !visibleInteraction.bookmarked });
+              }}
+            >
+              <VeloraIcon name="bookmark" size={18} />
+              {visibleInteraction.bookmarked
+                ? messages.discovery.saved
+                : messages.discovery.bookmark}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const fallbackUrl = new URL(window.location.href);
+                fallbackUrl.searchParams.set('character', character.id);
+                const url = shareUrl ?? fallbackUrl.href;
+                setShareFeedback(null);
+                void (async () => {
+                  try {
+                    const nativeShare: unknown = Reflect.get(navigator, 'share');
+                    if (typeof nativeShare === 'function') {
+                      const invokeShare = nativeShare as (data: ShareData) => Promise<void>;
+                      await invokeShare.call(navigator, {
+                        title: character.name,
+                        text: character.tagline || character.description,
+                        url,
+                      });
+                    } else {
+                      const clipboard: unknown = Reflect.get(navigator, 'clipboard');
+                      const writeText: unknown =
+                        typeof clipboard === 'object' && clipboard !== null
+                          ? Reflect.get(clipboard, 'writeText')
+                          : null;
+                      if (typeof writeText !== 'function') throw new Error('SHARE_UNAVAILABLE');
+                      const copyText = writeText as (value: string) => Promise<void>;
+                      await copyText.call(clipboard, url);
+                    }
+                    setShareFeedback({ kind: 'success', text: messages.discovery.shareDone });
+                  } catch {
+                    setShareFeedback({ kind: 'error', text: messages.discovery.shareFailed });
+                  }
+                })();
+              }}
+            >
+              <VeloraIcon name="share" size={18} />
+              {messages.discovery.share}
+            </button>
+          </div>
+        ) : null}
+        {shareFeedback ? (
+          <span
+            className={shareFeedback.kind === 'success' ? 'success share-feedback' : 'error'}
+            role={shareFeedback.kind === 'success' ? 'status' : 'alert'}
           >
-            {character.liked ? messages.discovery.liked : messages.discovery.like}
-          </button>
-          <button
-            className={character.bookmarked ? 'is-selected' : ''}
-            type="button"
-            aria-pressed={character.bookmarked}
-            disabled={interaction.isPending}
-            onClick={() => {
-              interaction.mutate({ kind: 'bookmark', enabled: !character.bookmarked });
-            }}
-          >
-            {character.bookmarked ? messages.discovery.saved : messages.discovery.bookmark}
-          </button>
-        </div>
+            {shareFeedback.text}
+          </span>
+        ) : null}
         {interaction.error ? <InlineError error={interaction.error} /> : null}
         <button
           className="text-button"
           type="button"
           onClick={() => {
-            setExpanded((value) => !value);
+            const nextExpanded = !expanded;
+            if (onExpansionChange) onExpansionChange(nextExpanded);
+            else setUncontrolledExpanded(nextExpanded);
           }}
         >
           {expanded ? messages.discovery.collapse : messages.discovery.details}
@@ -1013,6 +2586,7 @@ function DiscoveryCard({
           <button
             className="text-button report-link"
             type="button"
+            disabled={review.isPending || removeReview.isPending}
             onClick={() => {
               setReportSent(false);
               setReporting((value) => !value);
@@ -1129,7 +2703,9 @@ function DiscoveryCard({
             {reviews.data?.items.map((item) => (
               <article className="review-row" key={item.userId}>
                 <strong>{item.displayName}</strong>
-                <span>{'★'.repeat(item.rating)}</span>
+                <span className="review-rating" aria-label={String(item.rating)}>
+                  <VeloraIcon name="star" size={16} /> {item.rating}/5
+                </span>
                 {item.reviewText ? <p>{item.reviewText}</p> : null}
               </article>
             ))}
@@ -1138,39 +2714,47 @@ function DiscoveryCard({
             ) : null}
           </section>
         ) : null}
-        <button
-          className="compact-primary story-start"
-          type="button"
-          disabled={start.isPending}
-          onClick={() => {
-            start.mutate();
-          }}
-        >
-          {start.isPending ? messages.discovery.opening : messages.discovery.startStory}
-        </button>
-        {start.error ? <InlineError error={start.error} /> : null}
       </div>
     </article>
   );
 }
 
+export function storyCoverClassName(
+  contentRating: DiscoveryCharacter['contentRating'],
+  blurMatureImages: boolean,
+): string {
+  return contentRating === 'MATURE' && blurMatureImages
+    ? 'story-cover is-mature-blurred'
+    : 'story-cover';
+}
+
 function ProfileView({
   userId,
   currentUserId,
+  account,
   notify,
+  onNavigate,
   onBack,
+  onOpenCharacter,
 }: {
   readonly userId: string;
   readonly currentUserId: string;
+  readonly account: MeResponse;
   readonly notify: (message: string | null) => void;
+  readonly onNavigate: (tab: 'billing' | 'settings') => void;
   readonly onBack: () => void;
+  readonly onOpenCharacter: (characterId: string) => void;
 }) {
   const { messages } = useI18n();
   const client = useQueryClient();
   const isOwn = userId === currentUserId;
   const [editing, setEditing] = useState(false);
+  const [profileAvatarId, setProfileAvatarId] = useState('');
   const [reporting, setReporting] = useState(false);
   const [confirmingBlock, setConfirmingBlock] = useState(false);
+  const [characterQuery, setCharacterQuery] = useState('');
+  const [characterRating, setCharacterRating] = useState<'ALL' | 'SAFE' | 'MATURE'>('ALL');
+  const [characterSort, setCharacterSort] = useState<'newest' | 'oldest'>('newest');
   const profile = useQuery({
     queryKey: ['profile', userId],
     queryFn: () =>
@@ -1178,8 +2762,19 @@ function ProfileView({
   });
   const media = useQuery({
     queryKey: ['media'],
-    queryFn: () => apiRequest<ListResponse<MediaFile>>('/api/v1/media'),
+    queryFn: () => apiRequest<MediaLibraryResponse>('/api/v1/media'),
     enabled: isOwn && editing,
+  });
+  const blocks = useQuery({
+    queryKey: ['blocks'],
+    queryFn: () => apiRequest<ListResponse<BlockedUser>>('/api/v1/blocks'),
+    enabled: isOwn,
+  });
+  const logout = useMutation({
+    mutationFn: () => apiRequest<undefined>('/api/v1/auth/logout', { method: 'POST' }),
+    onSuccess: () => {
+      window.location.reload();
+    },
   });
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
@@ -1232,14 +2827,14 @@ function ProfileView({
           title={messages.profile.editTitle}
           description={messages.profile.editDescription}
         />
-        <Field
+        <FormField
           label={messages.profile.displayName}
           name="displayName"
           defaultValue={profile.data.displayName}
           required
           maxLength={80}
         />
-        <TextArea
+        <TextAreaField
           label={messages.profile.bio}
           name="bio"
           defaultValue={profile.data.bio}
@@ -1247,7 +2842,13 @@ function ProfileView({
         />
         <label className="field">
           <span>{messages.profile.avatarLibrary}</span>
-          <select name="avatarFileId" defaultValue={profile.data.avatarFileId ?? ''}>
+          <select
+            name="avatarFileId"
+            value={profileAvatarId}
+            onChange={(event) => {
+              setProfileAvatarId(event.currentTarget.value);
+            }}
+          >
             <option value="">{messages.profile.noAvatar}</option>
             {media.data?.items
               .filter(
@@ -1261,6 +2862,13 @@ function ProfileView({
               ))}
           </select>
         </label>
+        <ImageUploadControl
+          capabilities={media.data?.capabilities}
+          aspectRatio={1}
+          onUploaded={(uploaded) => {
+            setProfileAvatarId(uploaded.id);
+          }}
+        />
         <Select
           label={messages.profile.visibility}
           name="visibility"
@@ -1288,19 +2896,42 @@ function ProfileView({
       </form>
     );
   }
+  const normalizedCharacterQuery = characterQuery.trim().toLocaleLowerCase();
+  const visibleCharacters = [...profile.data.characters]
+    .filter(
+      (character) =>
+        (characterRating === 'ALL' || character.contentRating === characterRating) &&
+        (normalizedCharacterQuery === '' ||
+          `${character.name} ${character.tagline}`
+            .toLocaleLowerCase()
+            .includes(normalizedCharacterQuery)),
+    )
+    .sort((left, right) =>
+      characterSort === 'newest'
+        ? right.updatedAt - left.updatedAt
+        : left.updatedAt - right.updatedAt,
+    );
   return (
     <div className="view-stack">
-      <button className="text-button profile-back" type="button" onClick={onBack}>
-        {messages.profile.backToCatalog}
-      </button>
-      <article className="editor-card public-profile">
+      {!isOwn ? (
+        <button className="text-button profile-back" type="button" onClick={onBack}>
+          {messages.profile.backToCatalog}
+        </button>
+      ) : null}
+      <article className={`editor-card public-profile${isOwn ? ' is-own' : ''}`}>
         <div className="profile-identity">
           <Avatar name={profile.data.displayName} fileId={profile.data.avatarFileId} />
           <div>
             <p className="eyebrow">
               {profile.data.isOwn ? messages.profile.ownEyebrow : messages.profile.authorEyebrow}
             </p>
-            <h1>{profile.data.displayName}</h1>
+            <h1 className="profile-name-with-badge">
+              <span>{profile.data.displayName}</span>
+              <StaffBadge role={profile.data.role} />
+            </h1>
+            <p className="profile-handle">
+              @{profile.data.username ?? profile.data.userId.slice(0, 8)}
+            </p>
             <span className="status-pill">
               {profile.data.visibility === 'PUBLIC'
                 ? messages.profile.public
@@ -1308,31 +2939,81 @@ function ProfileView({
             </span>
           </div>
         </div>
-        <p className="profile-bio">{profile.data.bio || messages.profile.emptyBio}</p>
-        {profile.data.avatarPending ? (
-          <p className="meta">{messages.profile.avatarPending}</p>
-        ) : null}
-        <div className="creator-stats" aria-label={messages.profile.stats}>
-          <span>
-            <strong>{profile.data.stats.characters}</strong> {messages.profile.characters}
-          </span>
-          <span>
-            <strong>{profile.data.stats.likes}</strong> {messages.profile.likes}
-          </span>
-          <span>
-            <strong>{profile.data.stats.chats}</strong> {messages.profile.chats}
-          </span>
-        </div>
         {profile.data.isOwn ? (
-          <button
-            className="secondary"
-            type="button"
-            onClick={() => {
-              setEditing(true);
-            }}
-          >
-            {messages.profile.edit}
-          </button>
+          <section className="profile-account-hub" aria-label={messages.profile.accountHub}>
+            <div className="profile-plan-summary">
+              <span className="status-pill">{account.planDisplayName}</span>
+              <small>{messages.profile.planStatus(account.planDisplayName)}</small>
+            </div>
+            <nav className="profile-account-links" aria-label={messages.profile.accountActions}>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileAvatarId(profile.data.avatarFileId ?? '');
+                  setEditing(true);
+                }}
+              >
+                <VeloraIcon name="edit" />
+                <strong>{messages.profile.edit}</strong>
+                <VeloraIcon name="chevronRight" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('settings');
+                }}
+              >
+                <VeloraIcon name="ban" />
+                <strong>{messages.profile.blockedUsers(blocks.data?.items.length ?? 0)}</strong>
+                <VeloraIcon name="chevronRight" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('billing');
+                }}
+              >
+                <VeloraIcon name="billing" />
+                <strong>{messages.profile.managePlan}</strong>
+                <VeloraIcon name="chevronRight" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('settings');
+                }}
+              >
+                <VeloraIcon name="settings" />
+                <strong>{messages.profile.preferences}</strong>
+                <VeloraIcon name="chevronRight" />
+              </button>
+              <button
+                type="button"
+                disabled={logout.isPending}
+                onClick={() => {
+                  logout.mutate();
+                }}
+              >
+                <VeloraIcon name="logout" />
+                <strong>
+                  {logout.isPending ? messages.navigation.loggingOut : messages.profile.logout}
+                </strong>
+                <VeloraIcon name="chevronRight" />
+              </button>
+              <button
+                className="is-danger"
+                type="button"
+                onClick={() => {
+                  onNavigate('settings');
+                }}
+              >
+                <VeloraIcon name="delete" />
+                <strong>{messages.profile.deleteAccount}</strong>
+                <VeloraIcon name="chevronRight" />
+              </button>
+            </nav>
+            {logout.error ? <InlineError error={logout.error} /> : null}
+          </section>
         ) : (
           <div className="profile-actions">
             <button
@@ -1355,6 +3036,21 @@ function ProfileView({
             </button>
           </div>
         )}
+        <p className="profile-bio">{profile.data.bio || messages.profile.emptyBio}</p>
+        {profile.data.avatarPending ? (
+          <p className="meta">{messages.profile.avatarPending}</p>
+        ) : null}
+        <div className="creator-stats" aria-label={messages.profile.stats}>
+          <span>
+            <strong>{profile.data.stats.characters}</strong> {messages.profile.characters}
+          </span>
+          <span>
+            <strong>{profile.data.stats.likes}</strong> {messages.profile.likes}
+          </span>
+          <span>
+            <strong>{profile.data.stats.chats}</strong> {messages.profile.chats}
+          </span>
+        </div>
         {reporting ? (
           <ReportForm
             targetId={profile.data.userId}
@@ -1397,19 +3093,73 @@ function ProfileView({
       </article>
       <section className="profile-characters" aria-labelledby="profile-characters-title">
         <h2 id="profile-characters-title">{messages.profile.publishedCharacters}</h2>
+        <div className="profile-character-controls">
+          <label className="profile-character-search">
+            <span className="sr-only">{messages.profile.searchCharacters}</span>
+            <input
+              type="search"
+              value={characterQuery}
+              placeholder={messages.profile.searchCharactersPlaceholder}
+              onChange={(event) => {
+                setCharacterQuery(event.currentTarget.value);
+              }}
+            />
+          </label>
+          <label className="profile-character-filter">
+            <span>{messages.profile.characterFilter}</span>
+            <select
+              value={characterRating}
+              onChange={(event) => {
+                setCharacterRating(event.currentTarget.value as 'ALL' | 'SAFE' | 'MATURE');
+              }}
+            >
+              <option value="ALL">{messages.profile.allRatings}</option>
+              <option value="SAFE">Safe</option>
+              <option value="MATURE">Mature</option>
+            </select>
+          </label>
+          <SortDropdown
+            value={characterSort}
+            onChange={setCharacterSort}
+            options={[
+              { value: 'newest', label: messages.profile.newestCharacters },
+              { value: 'oldest', label: messages.profile.oldestCharacters },
+            ]}
+            label={messages.profile.characterSort}
+          />
+          <span className="result-count" role="status">
+            {messages.profile.characterResults(visibleCharacters.length)}
+          </span>
+        </div>
         {profile.data.characters.length === 0 ? (
           <p className="meta">{messages.profile.noPublicCharacters}</p>
         ) : null}
-        <div className="list-stack">
-          {profile.data.characters.map((character) => (
-            <article className="profile-character" key={character.id}>
-              <Avatar name={character.name} fileId={character.avatarFileId} />
+        {profile.data.characters.length > 0 && visibleCharacters.length === 0 ? (
+          <p className="meta">{messages.profile.noCharacterResults}</p>
+        ) : null}
+        <div className="profile-character-grid">
+          {visibleCharacters.map((character) => (
+            <button
+              className="profile-character"
+              type="button"
+              key={character.id}
+              aria-label={messages.profile.openCharacter(character.name)}
+              onClick={() => {
+                onOpenCharacter(character.id);
+              }}
+            >
+              <Avatar
+                name={character.name}
+                fileId={character.avatarFileId}
+                focalX={character.avatarFocalX}
+                focalY={character.avatarFocalY}
+              />
               <div>
                 <strong>{character.name}</strong>
                 <small>{character.tagline}</small>
               </div>
               <span className="status-pill">{character.contentRating}</span>
-            </article>
+            </button>
           ))}
         </div>
       </section>
@@ -1504,7 +3254,9 @@ function ModerationView({
 }) {
   const { messages } = useI18n();
   const client = useQueryClient();
-  const [section, setSection] = useState<'queue' | 'operations' | 'support'>('queue');
+  const [section, setSection] = useState<
+    'queue' | 'users' | 'characters' | 'operations' | 'support'
+  >('queue');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [stateFilter, setStateFilter] = useState('OPEN');
   const [action, setAction] = useState('WARNING');
@@ -1576,6 +3328,19 @@ function ModerationView({
       />
     );
   }
+  if (section === 'users' || section === 'characters') {
+    return (
+      <Suspense fallback={<Skeleton label={messages.moderation.loadingQueue} />}>
+        <ModerationDirectoryView
+          mode={section}
+          onBack={() => {
+            setSection('queue');
+          }}
+          notify={notify}
+        />
+      </Suspense>
+    );
+  }
   if (selectedId) {
     return (
       <div className="view-stack">
@@ -1616,6 +3381,8 @@ function ModerationView({
                   className="moderation-media-preview"
                   src={`/api/v1/media/${avatarEvidenceId}/content`}
                   alt={messages.moderation.avatarEvidenceAlt}
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : null}
               <pre>{JSON.stringify(detail.data.evidence, null, 2)}</pre>
@@ -1700,6 +3467,24 @@ function ModerationView({
         description={messages.moderation.queueDescription}
         action={
           <div className="header-actions">
+            <button
+              className="compact-button"
+              type="button"
+              onClick={() => {
+                setSection('users');
+              }}
+            >
+              {messages.operations.users}
+            </button>
+            <button
+              className="compact-button"
+              type="button"
+              onClick={() => {
+                setSection('characters');
+              }}
+            >
+              {messages.navigation.characters}
+            </button>
             {role === 'ADMIN' || role === 'OWNER' ? (
               <>
                 <button
@@ -1778,6 +3563,131 @@ function ModerationView({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+interface ModerationDirectoryUser {
+  readonly id: string;
+  readonly telegramId: string;
+  readonly username: string | null;
+  readonly displayName: string;
+  readonly role: string;
+  readonly moderationState: string;
+}
+
+interface ModerationDirectoryCharacter {
+  readonly id: string;
+  readonly name: string;
+  readonly publishState: string;
+  readonly visibility: string;
+  readonly ownerName: string;
+}
+
+// Kept temporarily to preserve the stable moderation card markup while the directory is lazy-loaded.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function LegacyModerationDirectoryView({
+  mode,
+  onBack,
+  notify,
+}: {
+  readonly mode: 'users' | 'characters';
+  readonly onBack: () => void;
+  readonly notify: (message: string | null) => void;
+}) {
+  const { messages } = useI18n();
+  const client = useQueryClient();
+  const [query, setQuery] = useState('');
+  const endpoint = `/api/v1/admin/moderation/${mode}?q=${encodeURIComponent(query)}`;
+  const directory = useQuery<ListResponse<ModerationDirectoryUser | ModerationDirectoryCharacter>>({
+    queryKey: ['moderation-directory', mode, query],
+    queryFn: () =>
+      apiRequest<ListResponse<ModerationDirectoryUser | ModerationDirectoryCharacter>>(endpoint),
+  });
+  const changeUserState = useMutation({
+    mutationFn: (input: { readonly userId: string; readonly state: 'ACTIVE' | 'BANNED' }) =>
+      apiRequest(`/api/v1/admin/moderation/users/${input.userId}/state`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ state: input.state }),
+      }),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['moderation-directory', 'users'] });
+      notify(messages.moderation.decisionNotice);
+    },
+  });
+  return (
+    <div className="view-stack moderation-directory">
+      <ViewHeader
+        eyebrow={messages.moderation.eyebrow}
+        title={mode === 'users' ? messages.operations.users : messages.navigation.characters}
+        description={messages.operations.users}
+        action={
+          <button className="compact-button" type="button" onClick={onBack}>
+            {messages.moderation.backToQueue}
+          </button>
+        }
+      />
+      <label className="search-bar">
+        <span className="sr-only">{messages.operations.users}</span>
+        <input
+          type="search"
+          value={query}
+          placeholder={messages.operations.users}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value);
+          }}
+        />
+      </label>
+      {directory.isPending ? <Skeleton label={messages.moderation.loadingQueue} /> : null}
+      {directory.isError ? (
+        <ErrorState error={directory.error} retry={() => void directory.refetch()} />
+      ) : null}
+      <div className="list-stack">
+        {mode === 'users'
+          ? (directory.data?.items as readonly ModerationDirectoryUser[] | undefined)?.map(
+              (user) => (
+                <article className="moderation-directory-card" key={user.id}>
+                  <div>
+                    <strong>{user.displayName}</strong>
+                    <small>
+                      {user.telegramId} {user.username ? `@${user.username}` : ''} · {user.role}
+                    </small>
+                    <span className="status-pill">{user.moderationState}</span>
+                  </div>
+                  <button
+                    className={user.moderationState === 'BANNED' ? 'compact-button' : 'danger-text'}
+                    type="button"
+                    disabled={changeUserState.isPending}
+                    onClick={() => {
+                      changeUserState.mutate({
+                        userId: user.id,
+                        state: user.moderationState === 'BANNED' ? 'ACTIVE' : 'BANNED',
+                      });
+                    }}
+                  >
+                    {user.moderationState === 'BANNED'
+                      ? messages.dataControls.unblock
+                      : messages.profile.block}
+                  </button>
+                </article>
+              ),
+            )
+          : (directory.data?.items as readonly ModerationDirectoryCharacter[] | undefined)?.map(
+              (character) => (
+                <article className="moderation-directory-card" key={character.id}>
+                  <div>
+                    <strong>{character.name}</strong>
+                    <small>
+                      {character.ownerName} · {character.id}
+                    </small>
+                  </div>
+                  <span className="status-pill">{character.publishState}</span>
+                </article>
+              ),
+            )}
+      </div>
+      <InlineError error={changeUserState.error} />
     </div>
   );
 }
@@ -1914,7 +3824,8 @@ function OperationsView({
   readonly onBack: () => void;
   readonly notify: (message: string | null) => void;
 }) {
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
+  const aiCopy = ownerAiUsageCopy(locale);
   const client = useQueryClient();
   const dashboard = useQuery({
     queryKey: ['operations-dashboard'],
@@ -1997,7 +3908,55 @@ function OperationsView({
             ))}
         </section>
       ) : null}
+      {role === 'OWNER' && dashboard.data?.ownerAiUsage ? (
+        <section className="ai-usage-panel" aria-labelledby="owner-ai-usage-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="owner-ai-usage-title">{aiCopy.title}</h2>
+              <p>{aiCopy.description}</p>
+            </div>
+          </div>
+          <div className="ai-usage-grid">
+            <AiUsageCard
+              label={aiCopy.daily}
+              usage={dashboard.data.ownerAiUsage.daily}
+              copy={aiCopy}
+            />
+            <AiUsageCard
+              label={aiCopy.weekly}
+              usage={dashboard.data.ownerAiUsage.weekly}
+              copy={aiCopy}
+            />
+            <AiUsageCard
+              label={aiCopy.lifetime}
+              usage={dashboard.data.ownerAiUsage.lifetime}
+              copy={aiCopy}
+            />
+          </div>
+          <p className="ai-budget-summary">
+            {aiCopy.budgetRemaining(
+              formatCredits(
+                dashboard.data.ownerAiUsage.configuredBudgetMicros.remainingLifetime,
+                locale,
+              ),
+              formatCredits(dashboard.data.ownerAiUsage.configuredBudgetMicros.lifetime, locale),
+            )}
+          </p>
+          <h3>{aiCopy.perModel}</h3>
+          {dashboard.data.ownerAiUsage.perModelWeekly.length === 0 ? (
+            <p>{aiCopy.noModels}</p>
+          ) : (
+            <div className="ai-model-usage-list">
+              {dashboard.data.ownerAiUsage.perModelWeekly.map((usage) => (
+                <AiUsageCard key={usage.model} label={usage.model} usage={usage} copy={aiCopy} />
+              ))}
+            </div>
+          )}
+          <p className="capacity-no-upgrade">{aiCopy.capsUnavailable}</p>
+        </section>
+      ) : null}
       {role === 'OWNER' ? <StaffManagement notify={notify} /> : null}
+      {role === 'OWNER' ? <RoleplayModelControlPanel notify={notify} /> : null}
       {role === 'OWNER' ? <AiSmokePanel notify={notify} /> : null}
       {role === 'OWNER' ? <OwnerBillingConfiguration notify={notify} /> : null}
       {role === 'OWNER' ? (
@@ -2047,6 +4006,175 @@ function OperationsView({
       ) : null}
     </div>
   );
+}
+
+function RoleplayModelControlPanel({
+  notify,
+}: {
+  readonly notify: (message: string | null) => void;
+}) {
+  const client = useQueryClient();
+  const models = useQuery({
+    queryKey: ['admin-roleplay-models'],
+    queryFn: () => apiRequest<RoleplayModelControls>('/api/v1/admin/operations/models'),
+  });
+  const save = useMutation({
+    mutationFn: (input: {
+      readonly modelProfileId: string;
+      readonly body: Readonly<Record<string, unknown>>;
+    }) =>
+      apiRequest(`/api/v1/admin/operations/models/${input.modelProfileId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input.body),
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-roleplay-models'] }),
+        client.invalidateQueries({ queryKey: ['roleplay-model-catalog'] }),
+      ]);
+      notify('Настройки модели применены без нового развёртывания.');
+    },
+  });
+  return (
+    <section
+      className="feature-flags-panel model-control-panel"
+      aria-labelledby="model-control-title"
+    >
+      <div className="section-heading">
+        <div>
+          <span className="status-pill">OWNER · MODELS</span>
+          <h2 id="model-control-title">Управление ролевыми моделями</h2>
+        </div>
+      </div>
+      <p className="section-description">
+        Название, описание, доступность, тариф, модель по умолчанию и безопасная цепочка fallback
+        применяются сразу. Provider ID, цены и окна контекста остаются защищены сервером.
+      </p>
+      {models.isPending ? <p className="section-description">Загружаем модели…</p> : null}
+      <div className="model-control-list">
+        {models.data?.items.map((model) => (
+          <form
+            className="model-control-card"
+            key={`${model.modelProfileId}-${String(model.updatedAt)}`}
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              save.mutate({
+                modelProfileId: model.modelProfileId,
+                body: {
+                  displayName: getFormString(data, 'displayName'),
+                  descriptionRu: getFormString(data, 'descriptionRu'),
+                  tier: getFormString(data, 'tier'),
+                  enabled: data.get('enabled') === 'on',
+                  isDefault: data.get('isDefault') === 'on',
+                  fallbackIds: models.data.items
+                    .filter(
+                      (candidate) => data.get(`fallback:${candidate.modelProfileId}`) === 'on',
+                    )
+                    .map((candidate) => candidate.modelProfileId),
+                },
+              });
+            }}
+          >
+            <div className="model-control-heading">
+              <strong>{model.modelProfileId}</strong>
+              <span className={`status-pill ${model.enabled ? 'status-success' : 'status-error'}`}>
+                {model.enabled ? 'включена' : 'отключена'}
+              </span>
+            </div>
+            <label>
+              <span>Название</span>
+              <input name="displayName" defaultValue={model.displayName} maxLength={80} required />
+            </label>
+            <label>
+              <span>Описание для пользователей</span>
+              <textarea
+                name="descriptionRu"
+                defaultValue={model.descriptionRu}
+                maxLength={1000}
+                required
+              />
+            </label>
+            <label>
+              <span>Тариф</span>
+              <select name="tier" defaultValue={model.tier}>
+                <option value="free">Free</option>
+                <option value="standard">Standard</option>
+                <option value="premium">Premium</option>
+              </select>
+            </label>
+            <div className="model-control-switches">
+              <Switch name="enabled" label="Включена" defaultChecked={model.enabled} />
+              <label>
+                <input
+                  name="isDefault"
+                  type="checkbox"
+                  defaultChecked={models.data.defaultModelProfileId === model.modelProfileId}
+                />{' '}
+                По умолчанию
+              </label>
+            </div>
+            <fieldset>
+              <legend>Fallback (не более двух, без циклов)</legend>
+              {models.data.items
+                .filter((candidate) => candidate.modelProfileId !== model.modelProfileId)
+                .map((candidate) => (
+                  <label key={candidate.modelProfileId}>
+                    <input
+                      name={`fallback:${candidate.modelProfileId}`}
+                      type="checkbox"
+                      defaultChecked={model.fallbackIds.includes(candidate.modelProfileId)}
+                      disabled={!candidate.enabled}
+                    />{' '}
+                    {candidate.displayName}
+                  </label>
+                ))}
+            </fieldset>
+            <div className="model-health-grid" aria-label="Метрики модели за 24 часа">
+              <span>
+                <strong>{model.health.requestCount}</strong> запросов
+              </span>
+              <span>
+                <strong>{formatPercent(model.health.successRatePercent)}</strong> успех
+              </span>
+              <span>
+                <strong>{formatPercent(model.health.failureRatePercent)}</strong> ошибки
+              </span>
+              <span>
+                <strong>{formatLatency(model.health.averageLatencyMs)}</strong> latency
+              </span>
+              <span>
+                <strong>{formatLatency(model.health.averageTtftMs)}</strong> TTFT
+              </span>
+            </div>
+            {model.health.recentErrors.length > 0 ? (
+              <details>
+                <summary>Последние ошибки</summary>
+                {model.health.recentErrors.map((error, index) => (
+                  <p className="section-description" key={`${error.errorCode}-${String(index)}`}>
+                    {error.errorCode}
+                  </p>
+                ))}
+              </details>
+            ) : null}
+            <button className="compact-primary" type="submit" disabled={save.isPending}>
+              Сохранить модель
+            </button>
+          </form>
+        ))}
+      </div>
+      <InlineError error={models.error ?? save.error} />
+    </section>
+  );
+}
+
+function formatPercent(value: number | null): string {
+  return value === null ? '—' : `${value.toFixed(1)}%`;
+}
+
+function formatLatency(value: number | null): string {
+  return value === null ? '—' : `${String(value)} мс`;
 }
 
 function OwnerBillingConfiguration({
@@ -2633,6 +4761,142 @@ function AiSmokePanel({ notify }: { readonly notify: (message: string | null) =>
         </details>
       ) : null}
       <InlineError error={smoke.error ?? run.error} />
+      <RoleplayModelEvalPanel capabilities={capabilities} notify={notify} />
+    </section>
+  );
+}
+
+function RoleplayModelEvalPanel({
+  capabilities,
+  notify,
+}: {
+  readonly capabilities: BotHubModelCapabilities | null;
+  readonly notify: (message: string | null) => void;
+}) {
+  const { messages } = useI18n();
+  const client = useQueryClient();
+  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
+  interface EvalState {
+    readonly models: readonly RoleplayModelEvalCatalogItem[];
+    readonly items: readonly RoleplayModelEvalRun[];
+  }
+  const evals = useQuery({
+    queryKey: ['admin-model-evals'],
+    queryFn: () => apiRequest<EvalState>('/api/v1/admin/operations/model-evals'),
+  });
+  const run = useMutation({
+    mutationFn: (modelProfileId: string) =>
+      apiRequest<{ readonly run: RoleplayModelEvalRun }>('/api/v1/admin/operations/model-evals', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          modelProfileId,
+          confirmation: 'ПОТРАТИТЬ 1 ЗАПРОС НА ПРОВЕРКУ МОДЕЛИ',
+        }),
+      }),
+    onSuccess: async (result) => {
+      setPendingModelId(null);
+      notify(
+        result.run.alreadyAttempted
+          ? messages.aiAdmin.evalAlreadyRun
+          : messages.aiAdmin.evalCompleted,
+      );
+      await client.invalidateQueries({ queryKey: ['admin-model-evals'] });
+      await client.invalidateQueries({ queryKey: ['admin-ai-smoke'] });
+    },
+  });
+  const runsByProfile = new Map(
+    (evals.data?.items ?? []).map((item) => [item.modelProfileId, item] as const),
+  );
+  return (
+    <section className="model-eval-panel" aria-labelledby="model-eval-title">
+      <div>
+        <h3 id="model-eval-title">{messages.aiAdmin.evalTitle}</h3>
+        <p className="section-description">{messages.aiAdmin.evalDescription}</p>
+      </div>
+      {evals.isPending ? <p className="section-description">{messages.aiAdmin.checking}</p> : null}
+      <div className="model-eval-list">
+        {evals.data?.models.map((model) => {
+          const result = runsByProfile.get(model.modelProfileId);
+          const available =
+            capabilities?.availableCandidates.includes(model.providerModelId) ?? false;
+          return (
+            <article className="model-eval-card" key={model.modelProfileId}>
+              <div className="model-eval-heading">
+                <span>
+                  <strong>{model.displayName}</strong>
+                  <small>{model.providerModelId}</small>
+                </span>
+                <span className={`status-pill model-tier-${model.tier}`}>{model.tier}</span>
+              </div>
+              <span className={`status-pill ${available ? 'status-success' : 'status-error'}`}>
+                {available ? messages.aiAdmin.evalAvailable : messages.aiAdmin.evalUnavailable}
+              </span>
+              {result ? (
+                <div className="model-eval-result">
+                  <strong>{result.state}</strong>
+                  <span>
+                    {messages.aiAdmin.tokenUsage(result.inputTokens, result.outputTokens)} ·{' '}
+                    {result.latencyMs ?? 0} {messages.aiAdmin.milliseconds}
+                  </span>
+                  {result.errorCode ? <span className="error">{result.errorCode}</span> : null}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!available || run.isPending}
+                  onClick={() => {
+                    setPendingModelId(model.modelProfileId);
+                  }}
+                >
+                  {messages.aiAdmin.evalRun}
+                </button>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {pendingModelId ? (
+        <Dialog
+          backdropClassName="account-dialog-backdrop"
+          className="account-dialog"
+          labelledBy="model-eval-confirm-title"
+          onClose={() => {
+            setPendingModelId(null);
+          }}
+        >
+          <h3 id="model-eval-confirm-title">{messages.aiAdmin.evalConfirmTitle}</h3>
+          <p>{messages.aiAdmin.evalConsent}</p>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setPendingModelId(null);
+              }}
+            >
+              {messages.common.cancel}
+            </button>
+            <button
+              type="button"
+              className="compact-primary"
+              disabled={run.isPending}
+              onClick={() => {
+                run.mutate(pendingModelId);
+              }}
+            >
+              {run.isPending ? messages.aiAdmin.running : messages.aiAdmin.evalConfirm}
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
+      <InlineError error={evals.error ?? run.error} />
+      <Suspense fallback={<p className="section-description">{messages.aiAdmin.checking}</p>}>
+        <RoleplayBenchmarkPanel
+          models={evals.data?.models ?? []}
+          capabilities={capabilities}
+          notify={notify}
+        />
+      </Suspense>
     </section>
   );
 }
@@ -2757,9 +5021,65 @@ function Metric({ label, value }: { readonly label: string; readonly value: stri
   );
 }
 
+function ownerAiUsageCopy(locale: Locale) {
+  return locale === 'ru'
+    ? {
+        title: 'Расходы AI владельца',
+        description: 'Агрегаты BotHub без текстов диалогов и ID.',
+        daily: 'За 24 часа',
+        weekly: 'За 7 дней',
+        lifetime: 'За всё время',
+        requests: (count: number) => `Запросов: ${String(count)}`,
+        tokens: (input: number, output: number) =>
+          `${String(input)} вход / ${String(output)} выход`,
+        cost: (value: string) => `Расход: $${value}`,
+        budgetRemaining: (remaining: string, limit: string) =>
+          `Остаток лимита: $${remaining} из $${limit}`,
+        perModel: 'За 7 дней по моделям',
+        noModels: 'За 7 дней запросов не было.',
+        capsUnavailable: 'Точный CAPS доступен только в кабинете BotHub.',
+      }
+    : {
+        title: 'Owner AI usage',
+        description: 'BotHub totals without chat text or user IDs.',
+        daily: '24 hours',
+        weekly: '7 days',
+        lifetime: 'Lifetime',
+        requests: (count: number) => `Requests: ${String(count)}`,
+        tokens: (input: number, output: number) => `${String(input)} in / ${String(output)} out`,
+        cost: (value: string) => `Spend: $${value}`,
+        budgetRemaining: (remaining: string, limit: string) =>
+          `Budget left: $${remaining} of $${limit}`,
+        perModel: '7 days by model',
+        noModels: 'No requests in 7 days.',
+        capsUnavailable: 'Exact CAPS are available only in BotHub.',
+      };
+}
+
+function AiUsageCard({
+  label,
+  usage,
+  copy,
+}: {
+  readonly label: string;
+  readonly usage: NonNullable<OperationsDashboard['ownerAiUsage']>['daily'];
+  readonly copy: ReturnType<typeof ownerAiUsageCopy>;
+}) {
+  const { locale } = useI18n();
+  return (
+    <article className="ai-usage-card">
+      <strong>{label}</strong>
+      <span>{copy.requests(usage.requests)}</span>
+      <span>{copy.tokens(usage.inputTokens, usage.outputTokens)}</span>
+      <span>{copy.cost(formatCredits(usage.costMicros, locale))}</span>
+    </article>
+  );
+}
+
 function PersonasView({ notify }: { readonly notify: (message: string | null) => void }) {
   const { messages } = useI18n();
   const client = useQueryClient();
+  const [query, setQuery] = useState('');
   const personas = useQuery({
     queryKey: ['personas'],
     queryFn: () => apiRequest<ListResponse<Persona>>('/api/v1/personas'),
@@ -2780,6 +5100,12 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
       notify(messages.personas.defaultChanged);
     },
   });
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visiblePersonas = (personas.data?.items ?? []).filter((persona) =>
+    `${persona.name} ${persona.shortDescription} ${persona.longDescription}`
+      .toLocaleLowerCase()
+      .includes(normalizedQuery),
+  );
   if (editing)
     return (
       <PersonaEditor
@@ -2798,69 +5124,98 @@ function PersonasView({ notify }: { readonly notify: (message: string | null) =>
         description={messages.personas.description}
         action={
           <button
-            className="compact-primary"
+            className="compact-primary persona-create-button"
             type="button"
+            aria-label={messages.personas.create}
             onClick={() => {
               setEditing('new');
             }}
           >
-            {messages.personas.create}
+            <VeloraIcon name="create" />
           </button>
         }
       />
+      <label className="search-bar persona-library-search">
+        <span className="sr-only">{messages.personas.searchLabel}</span>
+        <input
+          type="search"
+          value={query}
+          placeholder={messages.personas.searchPlaceholder}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value);
+          }}
+        />
+      </label>
+      <p className="result-count" role="status">
+        {messages.personas.resultCount(visiblePersonas.length)}
+      </p>
       {personas.isError ? (
         <ErrorState error={personas.error} retry={() => void personas.refetch()} />
       ) : null}
+      {personas.isPending ? <Skeleton label={messages.personas.loading} /> : null}
       {personas.data?.items.length === 0 ? (
-        <EmptyState title={messages.personas.emptyTitle} text={messages.personas.emptyText} />
+        <EmptyState
+          title={messages.personas.emptyTitle}
+          text={messages.personas.emptyText}
+          action={
+            <button
+              className="compact-primary"
+              type="button"
+              onClick={() => {
+                setEditing('new');
+              }}
+            >
+              {messages.personas.create}
+            </button>
+          }
+        />
       ) : null}
-      <div className="list-stack">
-        {personas.data?.items.map((persona) => (
-          <article className="list-card" key={persona.id}>
-            <Avatar name={persona.name} fileId={persona.avatarFileId} />
-            <div className="list-copy">
-              <h2>{persona.name}</h2>
-              <p>{persona.shortDescription || messages.personas.noDescription}</p>
-              <div className="tag-list">
-                <span>
-                  {persona.visibility === 'PUBLIC'
-                    ? messages.personas.public
-                    : messages.personas.private}
-                </span>
-                {persona.isDefault ? <span>{messages.personas.default}</span> : null}
-              </div>
-            </div>
-            <div className="card-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(persona);
-                }}
-              >
-                {messages.personas.edit}
-              </button>
-              {!persona.isDefault ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    makeDefault.mutate(persona.id);
-                  }}
-                >
-                  {messages.personas.makeDefault}
-                </button>
-              ) : null}
-              <button
-                className="danger-link"
-                type="button"
-                onClick={() => {
-                  if (window.confirm(messages.personas.removeConfirm(persona.name)))
-                    remove.mutate(persona.id);
-                }}
-              >
-                {messages.personas.remove}
-              </button>
-            </div>
-          </article>
+      {personas.data && personas.data.items.length > 0 && visiblePersonas.length === 0 ? (
+        <EmptyState
+          title={messages.personas.noMatchesTitle}
+          text={messages.personas.noMatchesText}
+          action={
+            <button
+              className="secondary compact-button"
+              type="button"
+              onClick={() => {
+                setQuery('');
+              }}
+            >
+              {messages.personas.clearSearch}
+            </button>
+          }
+        />
+      ) : null}
+      <div className="list-stack persona-library-list">
+        {visiblePersonas.map((persona) => (
+          <PersonaCard
+            key={persona.id}
+            avatar={<Avatar name={persona.name} fileId={persona.avatarFileId} />}
+            name={persona.name}
+            description={persona.shortDescription || messages.personas.noDescription}
+            actionsLabel={messages.characters.ownerActions(persona.name)}
+            badges={[
+              persona.visibility === 'PUBLIC'
+                ? messages.personas.public
+                : messages.personas.private,
+              ...(persona.isDefault ? [messages.personas.default] : []),
+            ]}
+            editLabel={messages.personas.edit}
+            defaultLabel={messages.personas.makeDefault}
+            removeLabel={messages.personas.remove}
+            isDefault={persona.isDefault}
+            onEdit={() => {
+              setEditing(persona);
+            }}
+            onMakeDefault={() => {
+              makeDefault.mutate(persona.id);
+            }}
+            onRemove={() => {
+              if (window.confirm(messages.personas.removeConfirm(persona.name)))
+                remove.mutate(persona.id);
+            }}
+          />
         ))}
       </div>
     </div>
@@ -2878,14 +5233,40 @@ function PersonaEditor({
 }) {
   const { messages } = useI18n();
   const client = useQueryClient();
+  useLayoutEffect(() => {
+    const previousScrollY = window.scrollY;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    return () => {
+      window.scrollTo({ top: previousScrollY, left: 0, behavior: 'instant' });
+    };
+  }, []);
   const existing = persona === 'new' ? null : persona;
+  const [previewAvatarId, setPreviewAvatarId] = useState(existing?.avatarFileId ?? '');
+  const media = useQuery({
+    queryKey: ['media'],
+    queryFn: () => apiRequest<MediaLibraryResponse>('/api/v1/media'),
+  });
   const save = useMutation({
-    mutationFn: (body: Record<string, unknown>) =>
-      apiRequest<Persona>(existing ? `/api/v1/personas/${existing.id}` : '/api/v1/personas', {
-        method: existing ? 'PATCH' : 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      }),
+    mutationFn: async ({
+      body,
+      makeDefault,
+    }: {
+      readonly body: Record<string, unknown>;
+      readonly makeDefault: boolean;
+    }) => {
+      const saved = await apiRequest<Persona>(
+        existing ? `/api/v1/personas/${existing.id}` : '/api/v1/personas',
+        {
+          method: existing ? 'PATCH' : 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+      );
+      if (makeDefault && !saved.isDefault) {
+        await apiRequest(`/api/v1/personas/${saved.id}/default`, { method: 'POST' });
+      }
+      return saved;
+    },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['personas'] });
       notify(existing ? messages.personas.saved : messages.personas.created);
@@ -2897,33 +5278,58 @@ function PersonaEditor({
     const data = new FormData(event.currentTarget);
     const representedAge = getFormString(data, 'representedAge');
     save.mutate({
-      name: getFormString(data, 'name'),
-      shortDescription: getFormString(data, 'shortDescription'),
-      longDescription: getFormString(data, 'longDescription'),
-      personality: getFormString(data, 'personality'),
-      appearance: getFormString(data, 'appearance'),
-      speakingStyle: getFormString(data, 'speakingStyle'),
-      background: getFormString(data, 'background'),
-      pronouns: getFormString(data, 'pronouns'),
-      representedAge: representedAge.length > 0 ? representedAge : null,
-      customNotes: getFormString(data, 'customNotes'),
-      visibility: getFormString(data, 'visibility'),
+      body: {
+        name: getFormString(data, 'name'),
+        avatarFileId: getFormString(data, 'avatarFileId') || null,
+        shortDescription: getFormString(data, 'shortDescription'),
+        longDescription: getFormString(data, 'longDescription'),
+        personality: getFormString(data, 'personality'),
+        appearance: getFormString(data, 'appearance'),
+        speakingStyle: getFormString(data, 'speakingStyle'),
+        background: getFormString(data, 'background'),
+        pronouns: getFormString(data, 'pronouns'),
+        representedAge: representedAge.length > 0 ? representedAge : null,
+        customNotes: getFormString(data, 'customNotes'),
+        visibility: getFormString(data, 'visibility'),
+      },
+      makeDefault: data.get('makeDefault') === 'on',
     });
   };
   return (
     <Editor
+      className="persona-editor-view"
       title={existing ? messages.personas.editTitle : messages.personas.newTitle}
       onCancel={onClose}
       onSubmit={submit}
       pending={save.isPending}
       error={save.error}
     >
+      <div className="persona-editor-avatar">
+        <Avatar
+          name={existing?.name ?? messages.personas.personaFallback}
+          fileId={previewAvatarId || null}
+        />
+        <div className="persona-avatar-copy">
+          <strong>{messages.personas.avatar}</strong>
+          <p className="meta">{messages.personas.avatarHint}</p>
+        </div>
+        <input type="hidden" name="avatarFileId" value={previewAvatarId} />
+      </div>
+      <ImageUploadControl
+        capabilities={media.data?.capabilities}
+        aspectRatio={1}
+        onUploaded={(uploaded) => {
+          setPreviewAvatarId(uploaded.id);
+        }}
+      />
+      {media.error ? <InlineError error={media.error} /> : null}
       <Field
         label={messages.personas.name}
         name="name"
         defaultValue={existing?.name}
         required
         maxLength={80}
+        metrics
       />
       <Field
         label={messages.personas.shortDescription}
@@ -2935,6 +5341,8 @@ function PersonaEditor({
         label={messages.personas.longDescription}
         name="longDescription"
         defaultValue={existing?.longDescription}
+        maxLength={12_000}
+        metrics
       />
       <TextArea
         label={messages.personas.personality}
@@ -2982,30 +5390,76 @@ function PersonaEditor({
           ['PUBLIC', messages.personas.public],
         ]}
       />
+      <label className="check-row persona-default-toggle">
+        <input
+          type="checkbox"
+          name="makeDefault"
+          defaultChecked={existing?.isDefault ?? false}
+          disabled={existing?.isDefault ?? false}
+        />
+        <span>{messages.personas.makeDefaultInEditor}</span>
+      </label>
     </Editor>
   );
 }
 
+export function CreatorCharacterCard({ children }: { readonly children: React.ReactNode }) {
+  return <article className="list-card creator-character-card">{children}</article>;
+}
+
+function characterVisibilityLabel(
+  visibility: Character['visibility'],
+  messages: WebMessages,
+): string {
+  if (visibility === 'PUBLIC') return messages.characters.publicVisibility;
+  if (visibility === 'UNLISTED') return messages.characters.unlistedVisibility;
+  return messages.characters.privateVisibility;
+}
+
 function CharactersView({
+  account,
+  createRequest,
   notify,
   onStarted,
   onOpenLorebooks,
 }: {
+  readonly account: MeResponse;
+  readonly createRequest: number;
   readonly notify: (message: string | null) => void;
   readonly onStarted: (id: string) => void;
   readonly onOpenLorebooks: () => void;
 }) {
   const { messages } = useI18n();
   const client = useQueryClient();
+  const [initialUrlState] = useState(() =>
+    parseLibraryUrlState(typeof window === 'undefined' ? '' : window.location.search),
+  );
+  const [query, setQuery] = useState(initialUrlState.query);
+  const [sort, setSort] = useState<LibrarySort>(initialUrlState.sort);
+  const [visibility, setVisibility] = useState<CharacterVisibility>(initialUrlState.visibility);
+  const [kind, setKind] = useState<CharacterKind>(initialUrlState.kind);
+  useEffect(() => {
+    const search = writeLibraryUrlState(window.location.search, { query, sort, visibility, kind });
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${search}${window.location.hash}`,
+    );
+  }, [kind, query, sort, visibility]);
   const characters = useQuery({
-    queryKey: ['characters'],
-    queryFn: () => apiRequest<ListResponse<Character>>('/api/v1/characters'),
+    queryKey: ['characters', query, sort, visibility, kind],
+    queryFn: () => {
+      const parameters = new URLSearchParams({ q: query, sort, visibility, kind });
+      return apiRequest<ListResponse<Character>>(`/api/v1/characters?${parameters.toString()}`);
+    },
   });
   const stats = useQuery({
     queryKey: ['creator-stats'],
     queryFn: () => apiRequest<CreatorStats>('/api/v1/discovery/creator-stats/me'),
   });
-  const [editing, setEditing] = useState<Character | 'new' | null>(null);
+  const [editing, setEditing] = useState<Character | 'new' | null>(
+    createRequest > 0 ? 'new' : null,
+  );
   const preview = useMutation({
     mutationFn: (characterId: string) =>
       apiRequest<{ readonly id: string }>('/api/v1/conversations', {
@@ -3061,6 +5515,7 @@ function CharactersView({
   if (editing)
     return (
       <CharacterEditor
+        account={account}
         character={editing}
         onClose={() => {
           setEditing(null);
@@ -3069,16 +5524,13 @@ function CharactersView({
       />
     );
   return (
-    <div className="view-stack">
+    <div className="view-stack library-view characters-library">
       <ViewHeader
         eyebrow={messages.characters.eyebrow}
         title={messages.characters.title}
         description={messages.characters.description}
         action={
           <div className="header-actions">
-            <button className="secondary compact-button" type="button" onClick={onOpenLorebooks}>
-              {messages.characters.lorebooks}
-            </button>
             <button
               className="compact-primary"
               type="button"
@@ -3091,10 +5543,183 @@ function CharactersView({
           </div>
         }
       />
+      <nav className="library-tabs" aria-label={messages.navigation.myLibrary}>
+        <button type="button" className="is-active" aria-current="page">
+          {messages.navigation.characters}
+        </button>
+        <button type="button" onClick={onOpenLorebooks}>
+          {messages.characters.lorebooks}
+        </button>
+      </nav>
+      <div className="library-controls">
+        <label className="library-search">
+          <VeloraIcon name="search" />
+          <input
+            value={query}
+            aria-label={messages.characters.searchLabel}
+            placeholder={messages.characters.searchPlaceholder}
+            onChange={(event) => {
+              setQuery(event.currentTarget.value);
+            }}
+          />
+        </label>
+        <label className="compact-filter library-visibility">
+          <span>{messages.characters.visibilityFilter}</span>
+          <select
+            value={visibility}
+            onChange={(event) => {
+              setVisibility(event.currentTarget.value as typeof visibility);
+            }}
+          >
+            <option value="ALL">{messages.characters.allVisibility}</option>
+            <option value="PUBLIC">{messages.characters.publicVisibility}</option>
+            <option value="UNLISTED">{messages.characters.unlistedVisibility}</option>
+            <option value="PRIVATE">{messages.characters.privateVisibility}</option>
+          </select>
+        </label>
+        <label className="compact-filter library-kind">
+          <span>{messages.discovery.groupSizeFilter}</span>
+          <select
+            value={kind}
+            onChange={(event) => {
+              setKind(event.currentTarget.value as CharacterKind);
+            }}
+          >
+            <option value="ALL">{messages.characters.allVisibility}</option>
+            {characterGroupSizes.map(({ code }) => (
+              <option value={code} key={code}>
+                {messages.discovery.groupSizeLabels[code]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <SortDropdown
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: 'newest', label: messages.characters.newest },
+            { value: 'oldest', label: messages.characters.oldest },
+          ]}
+          label={messages.characters.sortLabel}
+        />
+      </div>
       {characters.isError ? (
         <ErrorState error={characters.error} retry={() => void characters.refetch()} />
       ) : null}
+      {characters.isPending ? <Skeleton label={messages.characters.loading} /> : null}
       <InlineError error={preview.error} />
+      {characters.data?.items.length === 0 ? (
+        <EmptyState
+          title={messages.characters.emptyTitle}
+          text={messages.characters.emptyText}
+          action={
+            <button
+              className="compact-primary"
+              type="button"
+              onClick={() => {
+                setEditing('new');
+              }}
+            >
+              {messages.characters.create}
+            </button>
+          }
+        />
+      ) : null}
+      <div className="list-stack">
+        {characters.data?.items.map((character) => (
+          <CreatorCharacterCard key={character.id}>
+            <div className="creator-character-cover">
+              <Avatar
+                name={character.name}
+                fileId={character.avatarFileId}
+                focalX={character.avatarFocalX}
+                focalY={character.avatarFocalY}
+              />
+              <ActionMenu
+                label={messages.characters.ownerActions(character.name)}
+                items={[
+                  {
+                    label: messages.characters.edit,
+                    onSelect: () => {
+                      setEditing(character);
+                    },
+                  },
+                  {
+                    label:
+                      character.publishState === 'PUBLISHED' ||
+                      character.publishState === 'MODERATION_PENDING'
+                        ? character.publishState === 'MODERATION_PENDING'
+                          ? messages.characters.cancelReview
+                          : messages.characters.unpublish
+                        : messages.characters.publish,
+                    onSelect: () => {
+                      action.mutate({
+                        id: character.id,
+                        command:
+                          character.publishState === 'PUBLISHED' ||
+                          character.publishState === 'MODERATION_PENDING'
+                            ? 'unpublish'
+                            : 'publish',
+                      });
+                    },
+                  },
+                  {
+                    label: messages.characters.duplicate,
+                    onSelect: () => {
+                      action.mutate({ id: character.id, command: 'duplicate' });
+                    },
+                  },
+                  {
+                    label: messages.characters.remove,
+                    danger: true,
+                    onSelect: () => {
+                      if (window.confirm(messages.characters.removeConfirm(character.name)))
+                        action.mutate({ id: character.id, command: 'delete' });
+                    },
+                  },
+                ]}
+              />
+            </div>
+            <div className="list-copy">
+              <p className="library-owner">
+                {account.username ? `@${account.username}` : account.displayName}
+              </p>
+              <h2>{character.name}</h2>
+              <p>{character.tagline}</p>
+              <div className="tag-list">
+                <TagChip>v{character.version}</TagChip>
+                <TagChip>{characterVisibilityLabel(character.visibility, messages)}</TagChip>
+                <TagChip>
+                  {character.publishState === 'PUBLISHED'
+                    ? messages.characters.statePublished
+                    : character.publishState === 'MODERATION_PENDING'
+                      ? messages.characters.statePending
+                      : character.publishState === 'HIDDEN' || character.publishState === 'REJECTED'
+                        ? messages.characters.stateHidden
+                        : messages.characters.stateDraft}
+                </TagChip>
+                {character.tags.slice(0, 2).map((tag) => (
+                  <TagChip key={tag}>{tag}</TagChip>
+                ))}
+              </div>
+            </div>
+            <div className="card-actions">
+              <button
+                className="compact-primary"
+                type="button"
+                disabled={preview.isPending}
+                onClick={() => {
+                  preview.mutate(character.id);
+                }}
+              >
+                {preview.isPending && preview.variables === character.id
+                  ? messages.characters.openingPreview
+                  : messages.characters.previewChat}
+              </button>
+            </div>
+          </CreatorCharacterCard>
+        ))}
+      </div>
       {stats.data ? (
         <section className="creator-stats" aria-label={messages.characters.creatorStats}>
           <span>
@@ -3112,111 +5737,38 @@ function CharactersView({
           </span>
         </section>
       ) : null}
-      {characters.data?.items.length === 0 ? (
-        <EmptyState title={messages.characters.emptyTitle} text={messages.characters.emptyText} />
-      ) : null}
-      <div className="list-stack">
-        {characters.data?.items.map((character) => (
-          <article className="list-card" key={character.id}>
-            <Avatar name={character.name} fileId={character.avatarFileId} />
-            <div className="list-copy">
-              <h2>{character.name}</h2>
-              <p>{character.tagline}</p>
-              <div className="tag-list">
-                <span>v{character.version}</span>
-                <span>
-                  {character.publishState === 'PUBLISHED'
-                    ? messages.characters.statePublished
-                    : character.publishState === 'MODERATION_PENDING'
-                      ? messages.characters.statePending
-                      : character.publishState === 'HIDDEN' || character.publishState === 'REJECTED'
-                        ? messages.characters.stateHidden
-                        : messages.characters.stateDraft}
-                </span>
-                {character.tags.slice(0, 2).map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-            </div>
-            <div className="card-actions">
-              <button
-                className="compact-primary"
-                type="button"
-                disabled={preview.isPending}
-                onClick={() => {
-                  preview.mutate(character.id);
-                }}
-              >
-                {preview.isPending && preview.variables === character.id
-                  ? messages.characters.openingPreview
-                  : messages.characters.previewChat}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(character);
-                }}
-              >
-                {messages.characters.edit}
-              </button>
-              {character.publishState === 'PUBLISHED' ||
-              character.publishState === 'MODERATION_PENDING' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    action.mutate({ id: character.id, command: 'unpublish' });
-                  }}
-                >
-                  {character.publishState === 'MODERATION_PENDING'
-                    ? messages.characters.cancelReview
-                    : messages.characters.unpublish}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    action.mutate({ id: character.id, command: 'publish' });
-                  }}
-                >
-                  {messages.characters.publish}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  action.mutate({ id: character.id, command: 'duplicate' });
-                }}
-              >
-                {messages.characters.duplicate}
-              </button>
-              <button
-                className="danger-link"
-                type="button"
-                onClick={() => {
-                  if (window.confirm(messages.characters.removeConfirm(character.name)))
-                    action.mutate({ id: character.id, command: 'delete' });
-                }}
-              >
-                {messages.characters.remove}
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
     </div>
   );
 }
 
 function CharacterEditor({
+  account,
   character,
   onClose,
   notify,
 }: {
+  readonly account: MeResponse;
   readonly character: Character | 'new';
   readonly onClose: () => void;
   readonly notify: (message: string | null) => void;
 }) {
-  const { messages } = useI18n();
+  const { locale, messages } = useI18n();
+  const assistCopy =
+    locale === 'ru'
+      ? {
+          title: 'AI-помощник',
+          description: 'AI предложит черновик. Поле изменится только после подтверждения.',
+          generate: 'Предложить',
+          suggestion: 'Черновик AI',
+          applied: 'Текст применён. Проверь его перед сохранением.',
+        }
+      : {
+          title: 'AI assistant',
+          description: 'AI suggests a draft. The field changes only after confirmation.',
+          generate: 'Suggest',
+          suggestion: 'AI draft',
+          applied: 'Text applied. Review it before saving.',
+        };
   const client = useQueryClient();
   const existing = character === 'new' ? null : character;
   const currentCharacter = useRef<Character | null>(existing);
@@ -3226,15 +5778,72 @@ function CharacterEditor({
   const revisionRef = useRef(0);
   const dirtyRef = useRef(existing === null);
   const [saveState, setSaveState] = useState<
-    'INCOMPLETE' | 'DIRTY' | 'SAVING' | 'SAVED' | 'FAILED'
+    'INCOMPLETE' | 'DIRTY' | 'SAVING' | 'SAVED' | 'VALIDATING' | 'SUBMITTING' | 'SUCCESS' | 'FAILED'
   >(existing ? 'SAVED' : 'INCOMPLETE');
   const [saveError, setSaveError] = useState<Error | null>(null);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const [previewName, setPreviewName] = useState(
     existing?.name ?? messages.characters.characterFallback,
   );
   const [previewGreeting, setPreviewGreeting] = useState(
     existing?.firstMessage ?? messages.characters.greetingFallback,
   );
+  const [previewAvatarId, setPreviewAvatarId] = useState(existing?.avatarFileId ?? '');
+  const [avatarFocalX, setAvatarFocalX] = useState(existing?.avatarFocalX ?? 50);
+  const [avatarFocalY, setAvatarFocalY] = useState(existing?.avatarFocalY ?? 50);
+  const [assistTarget, setAssistTarget] = useState<CharacterAssistTarget>('firstMessage');
+  const [assistSuggestion, setAssistSuggestion] = useState<string | null>(null);
+  const [promptMetrics, setPromptMetrics] = useState(() =>
+    calculateCharacterPromptMetrics(existing ?? {}),
+  );
+  const media = useQuery({
+    queryKey: ['media'],
+    queryFn: () => apiRequest<MediaLibraryResponse>('/api/v1/media'),
+  });
+  const createAvatarBot = useMutation({
+    mutationFn: (characterId: string) =>
+      apiRequest<{ readonly instruction: string }>(
+        `/api/v1/characters/${characterId}/avatar-bot/setup`,
+        { method: 'POST' },
+      ),
+    onSuccess: (result) => {
+      notify(result.instruction);
+    },
+  });
+  const characterAssist = useMutation({
+    mutationFn: () => {
+      const form = formRef.current;
+      if (!form) throw new Error(assistCopy.description);
+      const data = new FormData(form);
+      const context = [
+        getFormString(data, 'tagline'),
+        getFormString(data, 'description'),
+        getFormString(data, 'personality'),
+        getFormString(data, 'scenario'),
+        getFormString(data, 'speechStyle'),
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+        .slice(0, 6_000);
+      return apiRequest<{ readonly target: CharacterAssistTarget; readonly suggestion: string }>(
+        '/api/v1/characters/assist',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            target: assistTarget,
+            name: getFormString(data, 'name') || messages.characters.characterFallback,
+            currentText: getFormString(data, assistTarget),
+            context,
+            language: locale,
+          }),
+        },
+      );
+    },
+    onSuccess: (result) => {
+      setAssistSuggestion(result.suggestion);
+    },
+  });
   const autosaveEnabled = allowsCharacterAutosave(existing?.publishState ?? null);
 
   useEffect(
@@ -3248,9 +5857,13 @@ function CharacterEditor({
     const data = new FormData(form);
     return {
       name: getFormString(data, 'name'),
+      avatarFileId: getFormString(data, 'avatarFileId') || null,
+      avatarFocalX: Number(getFormString(data, 'avatarFocalX')),
+      avatarFocalY: Number(getFormString(data, 'avatarFocalY')),
       tagline: getFormString(data, 'tagline'),
       description: getFormString(data, 'description'),
       personality: getFormString(data, 'personality'),
+      personalityVisible: data.has('personalityVisible'),
       scenario: getFormString(data, 'scenario'),
       firstMessage: getFormString(data, 'firstMessage'),
       speechStyle: getFormString(data, 'speechStyle'),
@@ -3264,6 +5877,8 @@ function CharacterEditor({
       postHistoryInstructions: getFormString(data, 'postHistoryInstructions'),
       alternateGreetings: parseAlternateGreetingInput(getFormString(data, 'alternateGreetings')),
       language: getFormString(data, 'language'),
+      groupSize: getFormString(data, 'groupSize'),
+      visibility: getFormString(data, 'visibility'),
       contentRating: getFormString(data, 'contentRating'),
       tags: getFormString(data, 'tags')
         .split(',')
@@ -3294,11 +5909,7 @@ function CharacterEditor({
         {
           method: current ? 'PATCH' : 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(
-            current
-              ? { ...body, baseVersion: current.version }
-              : { ...body, visibility: 'PRIVATE' },
-          ),
+          body: JSON.stringify(current ? { ...body, baseVersion: current.version } : body),
         },
       );
       currentCharacter.current = saved;
@@ -3335,6 +5946,11 @@ function CharacterEditor({
   function scheduleAutosave(): void {
     dirtyRef.current = true;
     revisionRef.current += 1;
+    if (formRef.current) {
+      setPromptMetrics(
+        calculateCharacterPromptMetrics(characterPromptValuesFromForm(formRef.current)),
+      );
+    }
     setSaveState(pendingAutosaveState(formRef.current?.checkValidity() ?? false));
     if (!autosaveEnabled) return;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -3345,15 +5961,57 @@ function CharacterEditor({
 
   const submit = async (event: SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    const action = (event.nativeEvent.submitter as HTMLButtonElement | null)?.value ?? 'draft';
+    const publishing = action === 'publish';
+    setSaveError(null);
+    if (publishing) {
+      setSaveState('VALIDATING');
+      if (!policyAccepted) {
+        setSaveState('INCOMPLETE');
+        setSaveError(new Error(messages.onboarding.policyText));
+        return;
+      }
+      const visibility = getFormString(new FormData(form), 'visibility');
+      if (visibility !== 'PUBLIC' && visibility !== 'UNLISTED') {
+        setSaveState('INCOMPLETE');
+        setSaveError(new Error(messages.characters.visibilityHint));
+        return;
+      }
+    }
     const createdInitially = currentCharacter.current === null;
     if (await persistForm(true)) {
+      if (publishing) {
+        const saved = currentCharacter.current;
+        if (!saved) return;
+        setSaveState('SUBMITTING');
+        try {
+          const visibility = getFormString(new FormData(form), 'visibility') as
+            'PUBLIC' | 'UNLISTED';
+          await apiRequest(`/api/v1/characters/${saved.id}/publish`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ visibility }),
+          });
+          setSaveState('SUCCESS');
+          await client.invalidateQueries({ queryKey: ['characters'] });
+          notify(messages.characters.published);
+          onClose();
+        } catch (error) {
+          setSaveState('FAILED');
+          setSaveError(error instanceof Error ? error : new Error(messages.characters.saveFailed));
+        }
+        return;
+      }
+      setSaveState('SUCCESS');
       notify(createdInitially ? messages.characters.created : messages.characters.versionSaved);
       onClose();
     }
   };
   return (
     <Editor
+      className="character-editor-view"
       title={existing ? messages.characters.editorTitle : messages.characters.newTitle}
       onCancel={onClose}
       onSubmit={(event) => {
@@ -3363,28 +6021,62 @@ function CharacterEditor({
       error={saveError}
       formRef={formRef}
       onInput={scheduleAutosave}
+      hideDefaultActions
       status={
         <span className={`save-status is-${saveState.toLowerCase()}`} role="status">
           {saveState === 'SAVING'
             ? messages.characters.saving
             : saveState === 'SAVED'
               ? messages.characters.saved
-              : saveState === 'FAILED'
-                ? messages.characters.failed
-                : saveState === 'INCOMPLETE'
-                  ? messages.characters.incomplete
-                  : messages.characters.dirty}
+              : saveState === 'VALIDATING' || saveState === 'SUBMITTING'
+                ? messages.common.saving
+                : saveState === 'SUCCESS'
+                  ? messages.characters.saved
+                  : saveState === 'FAILED'
+                    ? messages.characters.failed
+                    : saveState === 'INCOMPLETE'
+                      ? messages.characters.incomplete
+                      : messages.characters.dirty}
         </span>
       }
     >
       <fieldset className="editor-section">
         <legend>{messages.characters.basics}</legend>
+        <input type="hidden" name="avatarFileId" value={previewAvatarId} />
+        <div className="character-avatar-editor" aria-label={messages.characters.avatar}>
+          <Avatar name={previewName} fileId={previewAvatarId || null} />
+          <div>
+            <strong>{messages.characters.avatar}</strong>
+            <p className="meta">{messages.characters.avatarHint}</p>
+          </div>
+        </div>
+        <ImageUploadControl
+          capabilities={media.data?.capabilities}
+          onUploaded={(uploaded) => {
+            setPreviewAvatarId(uploaded.id);
+            setAvatarFocalX(50);
+            setAvatarFocalY(50);
+            scheduleAutosave();
+          }}
+        />
+        {previewAvatarId ? (
+          <CharacterCropControl
+            name={previewName}
+            media={media.data?.items.find((item) => item.id === previewAvatarId) ?? null}
+            focalX={avatarFocalX}
+            focalY={avatarFocalY}
+            onFocalXChange={setAvatarFocalX}
+            onFocalYChange={setAvatarFocalY}
+          />
+        ) : null}
+        {media.error ? <InlineError error={media.error} /> : null}
         <Field
           label={messages.characters.name}
           name="name"
           defaultValue={existing?.name}
           required
           maxLength={100}
+          metrics
           onChange={(value) => {
             setPreviewName(value || messages.characters.characterFallback);
           }}
@@ -3395,6 +6087,7 @@ function CharacterEditor({
           defaultValue={existing?.tagline}
           required
           maxLength={180}
+          metrics
         />
         <TextArea
           label={messages.characters.descriptionField}
@@ -3402,7 +6095,74 @@ function CharacterEditor({
           defaultValue={existing?.description}
           required
           minLength={20}
+          maxLength={24_000}
+          metrics
         />
+      </fieldset>
+      <fieldset className="editor-section character-ai-assist">
+        <legend>{assistCopy.title}</legend>
+        <p>{assistCopy.description}</p>
+        <Select
+          label={assistCopy.title}
+          name="assistTarget"
+          defaultValue="firstMessage"
+          value={assistTarget}
+          onChange={(value) => {
+            setAssistTarget(value as CharacterAssistTarget);
+            setAssistSuggestion(null);
+            characterAssist.reset();
+          }}
+          options={[
+            ['tagline', messages.characters.tagline],
+            ['description', messages.characters.descriptionField],
+            ['personality', messages.characters.personalityField],
+            ['firstMessage', messages.characters.firstMessage],
+          ]}
+        />
+        <button
+          className="secondary character-assist-generate"
+          type="button"
+          disabled={characterAssist.isPending}
+          onClick={() => {
+            setAssistSuggestion(null);
+            characterAssist.mutate();
+          }}
+        >
+          <VeloraIcon name="sparkle" size={18} />
+          {characterAssist.isPending ? messages.common.saving : assistCopy.generate}
+        </button>
+        {assistSuggestion ? (
+          <section className="character-assist-result" aria-live="polite">
+            <strong>{assistCopy.suggestion}</strong>
+            <p>{assistSuggestion}</p>
+            <div>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => {
+                  const form = formRef.current;
+                  if (!form || !applyCharacterAssistValue(form, assistTarget, assistSuggestion)) {
+                    return;
+                  }
+                  setAssistSuggestion(null);
+                  notify(assistCopy.applied);
+                }}
+              >
+                {messages.common.save}
+              </button>
+              <button
+                className="secondary"
+                type="button"
+                onClick={() => {
+                  setAssistSuggestion(null);
+                }}
+              >
+                {messages.common.cancel}
+              </button>
+            </div>
+          </section>
+        ) : null}
+        <InlineError error={characterAssist.error} />
       </fieldset>
       <fieldset className="editor-section">
         <legend>{messages.characters.personalitySection}</legend>
@@ -3412,6 +6172,13 @@ function CharacterEditor({
           defaultValue={existing?.personality}
           required
           minLength={20}
+          maxLength={24_000}
+          metrics
+        />
+        <Switch
+          name="personalityVisible"
+          label={`${messages.characters.personalitySection} · ${messages.characters.publicVisibility}`}
+          defaultChecked={existing?.personalityVisible ?? false}
         />
         <TextArea
           label={messages.characters.speechStyle}
@@ -3441,6 +6208,7 @@ function CharacterEditor({
           defaultValue={existing?.firstMessage}
           required
           maxLength={16_000}
+          metrics
           onChange={setPreviewGreeting}
         />
         <TextArea
@@ -3452,16 +6220,20 @@ function CharacterEditor({
         <section className="template-preview" aria-label={messages.characters.greetingPreview}>
           <span>{messages.characters.greetingPreviewCaption}</span>
           <strong>{previewName}</strong>
-          <p>
-            {renderTemplate(previewGreeting, {
-              char: previewName,
-              user: messages.characters.userPersonaFallback,
-              persona: messages.characters.userPersonaFallback,
-              scenario: '',
-              description: '',
-              memory: '',
-            }).value || messages.characters.emptyGreeting}
-          </p>
+          <Suspense fallback={<span className="meta">{messages.characters.emptyGreeting}</span>}>
+            <SafeMarkdown
+              content={
+                renderTemplate(previewGreeting, {
+                  char: previewName,
+                  user: messages.characters.userPersonaFallback,
+                  persona: messages.characters.userPersonaFallback,
+                  scenario: '',
+                  description: '',
+                  memory: '',
+                }).value || messages.characters.emptyGreeting
+              }
+            />
+          </Suspense>
         </section>
       </fieldset>
       <fieldset className="editor-section">
@@ -3515,16 +6287,28 @@ function CharacterEditor({
           label={messages.characters.tags}
           name="tags"
           defaultValue={existing?.tags.join(', ')}
+          maxLength={819}
+          metrics
+        />
+        <SegmentedControl
+          label={messages.characters.visibility}
+          name="visibility"
+          defaultValue={existing?.visibility ?? 'PRIVATE'}
+          options={[
+            { value: 'PUBLIC', label: messages.characters.publicVisibility },
+            { value: 'PRIVATE', label: messages.characters.privateVisibility },
+            { value: 'UNLISTED', label: messages.characters.unlistedVisibility },
+          ]}
+          description={messages.characters.visibilityHint}
         />
         <div className="field-row">
           <Select
             label={messages.characters.language}
             name="language"
             defaultValue={existing?.language ?? 'ru'}
-            options={[
-              ['ru', messages.characters.russian],
-              ['en', messages.characters.english],
-            ]}
+            options={characterLanguages.map(
+              (language) => [language.code, language.nativeName] as const,
+            )}
           />
           <Select
             label={messages.characters.contentRating}
@@ -3535,9 +6319,98 @@ function CharacterEditor({
               ['MATURE', messages.characters.mature],
             ]}
           />
+          <Select
+            label={messages.discovery.groupSizeFilter}
+            name="groupSize"
+            defaultValue={existing?.groupSize ?? 'single'}
+            options={characterGroupSizes.map(
+              ({ code }) => [code, messages.discovery.groupSizeLabels[code]] as const,
+            )}
+          />
         </div>
         {!autosaveEnabled ? <p className="meta">{messages.characters.manualSaveHint}</p> : null}
+        <section
+          className={`prompt-budget${promptMetrics.withinBudget ? '' : ' is-over'}`}
+          aria-label={messages.characters.promptBudgetLabel}
+        >
+          <div>
+            <strong>
+              {messages.characters.promptBudget(promptMetrics.tokens, promptMetrics.budget)}
+            </strong>
+            <span>{messages.characters.promptCharacters(promptMetrics.characters)}</span>
+          </div>
+          <progress
+            value={Math.min(promptMetrics.tokens, promptMetrics.budget)}
+            max={promptMetrics.budget}
+          />
+          <p>
+            {promptMetrics.withinBudget
+              ? messages.characters.promptBudgetHint
+              : messages.characters.promptBudgetExceeded}
+          </p>
+        </section>
+        <label className="policy-acknowledgement">
+          <input
+            type="checkbox"
+            checked={policyAccepted}
+            onChange={(event) => {
+              setPolicyAccepted(event.currentTarget.checked);
+              if (
+                event.currentTarget.checked &&
+                saveError?.message === messages.onboarding.policyText
+              ) {
+                setSaveError(null);
+              }
+            }}
+          />
+          <span>
+            <strong>{messages.onboarding.policyTitle}</strong>
+            <small>{messages.onboarding.policyText}</small>
+          </span>
+        </label>
       </fieldset>
+      {existing ? (
+        <fieldset className="editor-section character-avatar-bot-section">
+          <legend>{messages.characters.avatarBotTitle}</legend>
+          <p>{messages.characters.avatarBotDescription}</p>
+          <button
+            className="secondary"
+            type="button"
+            disabled={account.plan !== 'PRO' || createAvatarBot.isPending}
+            onClick={() => {
+              createAvatarBot.mutate(existing.id);
+            }}
+          >
+            {account.plan === 'PRO'
+              ? messages.characters.avatarBotCreate
+              : messages.characters.avatarBotProRequired}
+          </button>
+          <InlineError error={createAvatarBot.error} />
+        </fieldset>
+      ) : null}
+      <div className="character-editor-submit-actions">
+        <button
+          className="secondary"
+          type="submit"
+          name="characterAction"
+          value="draft"
+          disabled={saveState === 'SAVING' || saveState === 'SUBMITTING'}
+        >
+          {messages.common.save} {messages.characters.stateDraft.toLocaleLowerCase()}
+        </button>
+        <button
+          className="primary"
+          type="submit"
+          name="characterAction"
+          value="publish"
+          disabled={saveState === 'SAVING' || saveState === 'SUBMITTING'}
+        >
+          {messages.characters.publish}
+        </button>
+        <button className="secondary character-editor-cancel" type="button" onClick={onClose}>
+          {messages.common.cancel}
+        </button>
+      </div>
     </Editor>
   );
 }
@@ -3654,9 +6527,6 @@ function SettingsView({
       }, 0);
     },
   });
-  useEffect(() => {
-    if (settings.data) document.documentElement.dataset['theme'] = settings.data.theme;
-  }, [settings.data]);
   if (settings.isPending) return <EmptyState title={messages.settings.loading} />;
   if (settings.isError)
     return <ErrorState error={settings.error} retry={() => void settings.refetch()} />;
@@ -3676,6 +6546,9 @@ function SettingsView({
             theme: data.get('theme'),
             locale: data.get('locale'),
             generationProfile: data.get('generationProfile'),
+            nsfwVisible: data.get('nsfwVisible') === 'on',
+            safeSearch: data.get('safeSearch') === 'on',
+            matureImageBlur: data.get('matureImageBlur') === 'on',
           });
         }}
       >
@@ -3689,6 +6562,31 @@ function SettingsView({
             ['light', messages.settings.light],
           ]}
         />
+        <fieldset className="settings-safety-group">
+          <legend>{messages.settings.contentSafety}</legend>
+          <Checkbox
+            name="nsfwVisible"
+            label={messages.settings.matureContent}
+            description={messages.settings.matureContentText}
+            defaultChecked={settings.data.nsfwVisible}
+            disabled={!account.ageGateAccepted}
+          />
+          <Checkbox
+            name="safeSearch"
+            label={messages.settings.safeSearch}
+            description={messages.settings.safeSearchText}
+            defaultChecked={settings.data.safeSearch}
+          />
+          <Checkbox
+            name="matureImageBlur"
+            label={messages.settings.matureImageBlur}
+            description={messages.settings.matureImageBlurText}
+            defaultChecked={settings.data.matureImageBlur}
+          />
+          {!account.ageGateAccepted ? (
+            <p className="meta">{messages.settings.ageGateRequired}</p>
+          ) : null}
+        </fieldset>
         <Select
           label={messages.settings.language}
           name="locale"
@@ -3778,7 +6676,7 @@ function SettingsView({
           </button>
           {createSupportRequest.error ? <InlineError error={createSupportRequest.error} /> : null}
         </form>
-        <div className="list-stack" aria-label={messages.support.myRequests}>
+        <div className="list-stack" role="list" aria-label={messages.support.myRequests}>
           {supportRequests.data?.items.map((item) => (
             <article className="support-card" key={item.id}>
               <span className="status-pill">{supportStateLabel(item.state, messages)}</span>
@@ -3812,12 +6710,7 @@ function SettingsView({
         <div>
           <p className="eyebrow">{messages.dataControls.eyebrow}</p>
           <h2 id="data-controls-title">{messages.dataControls.title}</h2>
-          <p className="meta">
-            {messages.dataControls.accountSummary(
-              account.plan,
-              formatCredits(account.creditBalanceMicros, locale),
-            )}
-          </p>
+          <p className="meta">{messages.billing.currentPlan(account.planDisplayName)}</p>
         </div>
         {dataControls.isPending ? <p className="meta">{messages.dataControls.loading}</p> : null}
         {dataControls.error ? <InlineError error={dataControls.error} /> : null}
@@ -3940,61 +6833,57 @@ function SettingsView({
       </section>
 
       {showDeletionDialog ? (
-        <div
-          className="account-dialog-backdrop"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowDeletionDialog(false);
+        <Dialog
+          backdropClassName="account-dialog-backdrop"
+          className="account-dialog"
+          labelledBy="confirm-deletion-title"
+          role="alertdialog"
+          onClose={() => {
+            setShowDeletionDialog(false);
+            setDeletionConfirmation('');
           }}
         >
-          <section
-            className="account-dialog"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="confirm-deletion-title"
-          >
-            <h2 id="confirm-deletion-title">{messages.dataControls.confirmTitle}</h2>
-            <p>
-              {messages.dataControls.confirmText} {messages.dataControls.confirmationInstruction}{' '}
-              <strong>{messages.dataControls.confirmationWord}</strong>.
-            </p>
-            <label className="field">
-              <span>{messages.dataControls.confirmation}</span>
-              <input
-                autoFocus
-                value={deletionConfirmation}
-                onChange={(event) => {
-                  setDeletionConfirmation(event.currentTarget.value);
-                }}
-              />
-            </label>
-            {requestDeletion.error ? <InlineError error={requestDeletion.error} /> : null}
-            <div className="dialog-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDeletionDialog(false);
-                  setDeletionConfirmation('');
-                }}
-              >
-                {messages.dataControls.cancel}
-              </button>
-              <button
-                className="danger"
-                type="button"
-                disabled={
-                  deletionConfirmation !== messages.dataControls.confirmationWord ||
-                  requestDeletion.isPending
-                }
-                onClick={() => {
-                  requestDeletion.mutate();
-                }}
-              >
-                {messages.dataControls.scheduleDeletion}
-              </button>
-            </div>
-          </section>
-        </div>
+          <h2 id="confirm-deletion-title">{messages.dataControls.confirmTitle}</h2>
+          <p>
+            {messages.dataControls.confirmText} {messages.dataControls.confirmationInstruction}{' '}
+            <strong>{messages.dataControls.confirmationWord}</strong>.
+          </p>
+          <label className="field">
+            <span>{messages.dataControls.confirmation}</span>
+            <input
+              autoFocus
+              value={deletionConfirmation}
+              onChange={(event) => {
+                setDeletionConfirmation(event.currentTarget.value);
+              }}
+            />
+          </label>
+          {requestDeletion.error ? <InlineError error={requestDeletion.error} /> : null}
+          <div className="dialog-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setShowDeletionDialog(false);
+                setDeletionConfirmation('');
+              }}
+            >
+              {messages.dataControls.cancel}
+            </button>
+            <button
+              className="danger"
+              type="button"
+              disabled={
+                deletionConfirmation !== messages.dataControls.confirmationWord ||
+                requestDeletion.isPending
+              }
+              onClick={() => {
+                requestDeletion.mutate();
+              }}
+            >
+              {messages.dataControls.scheduleDeletion}
+            </button>
+          </div>
+        </Dialog>
       ) : null}
     </div>
   );
@@ -4022,35 +6911,108 @@ function ViewHeader({
     </header>
   );
 }
-function Avatar({ name, fileId }: { readonly name: string; readonly fileId: string | null }) {
+
+function CharacterCropControl({
+  name,
+  media,
+  focalX,
+  focalY,
+  onFocalXChange,
+  onFocalYChange,
+}: {
+  readonly name: string;
+  readonly media: MediaFile | null;
+  readonly focalX: number;
+  readonly focalY: number;
+  readonly onFocalXChange: (value: number) => void;
+  readonly onFocalYChange: (value: number) => void;
+}) {
+  const { messages } = useI18n();
+  const [loadedGeometry, setLoadedGeometry] = useState<CharacterImageGeometry | null>(null);
+  const storedGeometry =
+    media?.width && media.height
+      ? classifyCharacterImageGeometry(media.width, media.height)
+      : 'invalid';
+  const geometry = loadedGeometry ?? storedGeometry;
+  const unusual = geometry === 'extreme-landscape' || geometry === 'extreme-portrait';
+
+  return (
+    <fieldset className="character-crop-control">
+      <legend>{messages.characters.cropTitle}</legend>
+      <div className="character-crop-preview" data-image-geometry={geometry}>
+        <CharacterImage
+          fileId={media?.id ?? null}
+          alt={messages.characters.cropPreviewAlt(name)}
+          focalX={focalX}
+          focalY={focalY}
+          fallback={<span>{name.slice(0, 1).toUpperCase()}</span>}
+          onGeometry={setLoadedGeometry}
+        />
+      </div>
+      <p className="meta">
+        {media?.width && media.height
+          ? messages.characters.imageDimensions(media.width, media.height)
+          : messages.characters.imageDimensionsPending}
+      </p>
+      {unusual ? <p className="crop-warning">{messages.characters.unusualAspectRatio}</p> : null}
+      <label className="crop-range">
+        <span>
+          {messages.characters.cropHorizontal}: <output>{Math.round(focalX)}%</output>
+        </span>
+        <input
+          type="range"
+          name="avatarFocalX"
+          min="0"
+          max="100"
+          step="1"
+          value={focalX}
+          onChange={(event) => {
+            onFocalXChange(Number(event.currentTarget.value));
+          }}
+        />
+      </label>
+      <label className="crop-range">
+        <span>
+          {messages.characters.cropVertical}: <output>{Math.round(focalY)}%</output>
+        </span>
+        <input
+          type="range"
+          name="avatarFocalY"
+          min="0"
+          max="100"
+          step="1"
+          value={focalY}
+          onChange={(event) => {
+            onFocalYChange(Number(event.currentTarget.value));
+          }}
+        />
+      </label>
+      <p className="meta">{messages.characters.cropHint}</p>
+    </fieldset>
+  );
+}
+
+function Avatar({
+  name,
+  fileId,
+  focalX = 50,
+  focalY = 50,
+}: {
+  readonly name: string;
+  readonly fileId: string | null;
+  readonly focalX?: number;
+  readonly focalY?: number;
+}) {
   return (
     <div className="avatar">
-      {fileId ? (
-        <img src={`/api/v1/media/${fileId}/content`} alt="" />
-      ) : (
-        name.slice(0, 1).toUpperCase()
-      )}
-    </div>
-  );
-}
-function EmptyState({ title, text }: { readonly title: string; readonly text?: string }) {
-  return (
-    <div className="empty-state">
-      <span>✦</span>
-      <h2>{title}</h2>
-      {text ? <p>{text}</p> : null}
-    </div>
-  );
-}
-function ErrorState({ error, retry }: { readonly error: Error; readonly retry: () => void }) {
-  const { messages } = useI18n();
-  return (
-    <div className="error-panel" role="alert">
-      <strong>{messages.common.sectionLoadFailed}</strong>
-      <p>{localizedErrorMessage(error, messages)}</p>
-      <button type="button" onClick={retry}>
-        {messages.common.retry}
-      </button>
+      <CharacterImage
+        fileId={fileId}
+        alt={name}
+        focalX={focalX}
+        focalY={focalY}
+        fallback={name.slice(0, 1).toUpperCase()}
+        previewable
+      />
     </div>
   );
 }
@@ -4064,6 +7026,7 @@ function InlineError({ error }: { readonly error: Error | null }) {
 }
 
 function Editor({
+  className,
   title,
   onCancel,
   onSubmit,
@@ -4072,8 +7035,10 @@ function Editor({
   formRef,
   onInput,
   status,
+  hideDefaultActions = false,
   children,
 }: {
+  readonly className?: string;
   readonly title: string;
   readonly onCancel: () => void;
   readonly onSubmit: (event: SyntheticEvent<HTMLFormElement, SubmitEvent>) => void;
@@ -4082,11 +7047,12 @@ function Editor({
   readonly formRef?: React.RefObject<HTMLFormElement | null>;
   readonly onInput?: () => void;
   readonly status?: React.ReactNode;
+  readonly hideDefaultActions?: boolean;
   readonly children: React.ReactNode;
 }) {
   const { messages } = useI18n();
   return (
-    <div className="view-stack">
+    <div className={`view-stack${className ? ` ${className}` : ''}`}>
       <div className="editor-heading">
         <button type="button" onClick={onCancel}>
           {messages.common.back}
@@ -4097,104 +7063,67 @@ function Editor({
         {status}
         {children}
         <InlineError error={error} />
-        <div className="editor-actions">
-          <button className="secondary" type="button" onClick={onCancel}>
-            {messages.common.cancel}
-          </button>
-          <button className="primary" type="submit" disabled={pending}>
-            {pending ? messages.common.saving : messages.common.save}
-          </button>
-        </div>
+        {!hideDefaultActions ? (
+          <div className="editor-actions">
+            <button className="secondary" type="button" onClick={onCancel}>
+              {messages.common.cancel}
+            </button>
+            <button className="primary" type="submit" disabled={pending}>
+              {pending ? messages.common.saving : messages.common.save}
+            </button>
+          </div>
+        ) : null}
       </form>
     </div>
-  );
-}
-function Field({
-  label,
-  name,
-  defaultValue = '',
-  onChange,
-  ...props
-}: {
-  readonly label: string;
-  readonly name: string;
-  readonly defaultValue?: string | undefined;
-  readonly required?: boolean;
-  readonly maxLength?: number;
-  readonly type?: 'text' | 'number';
-  readonly min?: number;
-  readonly max?: number;
-  readonly step?: number | string;
-  readonly onChange?: (value: string) => void;
-}) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <input
-        name={name}
-        defaultValue={defaultValue}
-        {...props}
-        onChange={(event) => {
-          onChange?.(event.currentTarget.value);
-        }}
-      />
-    </label>
-  );
-}
-function TextArea({
-  label,
-  name,
-  defaultValue = '',
-  onChange,
-  ...props
-}: {
-  readonly label: string;
-  readonly name: string;
-  readonly defaultValue?: string | undefined;
-  readonly required?: boolean;
-  readonly minLength?: number;
-  readonly maxLength?: number;
-  readonly placeholder?: string;
-  readonly onChange?: (value: string) => void;
-}) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <textarea
-        name={name}
-        defaultValue={defaultValue}
-        rows={4}
-        {...props}
-        onChange={(event) => {
-          onChange?.(event.currentTarget.value);
-        }}
-      />
-    </label>
   );
 }
 function Select({
   label,
   name,
   defaultValue,
+  value,
   options,
+  onChange,
 }: {
   readonly label: string;
   readonly name: string;
   readonly defaultValue: string;
+  readonly value?: string;
   readonly options: readonly (readonly [string, string])[];
+  readonly onChange?: (value: string) => void;
 }) {
   return (
-    <label className="field">
-      <span>{label}</span>
-      <select name={name} defaultValue={defaultValue}>
-        {options.map(([value, text]) => (
-          <option key={value} value={value}>
-            {text}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Dropdown
+      label={label}
+      name={name}
+      defaultValue={defaultValue}
+      options={options}
+      {...(value === undefined ? {} : { value })}
+      {...(onChange === undefined ? {} : { onChange })}
+    />
   );
+}
+
+type CharacterAssistTarget = 'tagline' | 'description' | 'personality' | 'firstMessage';
+
+export function applyCharacterAssistValue(
+  form: HTMLFormElement,
+  target: CharacterAssistTarget,
+  suggestion: string,
+): boolean {
+  const control = form.elements.namedItem(target);
+  if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement))
+    return false;
+  const prototype =
+    control instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+  if (!descriptor?.set) return false;
+  descriptor.set.call(control, suggestion);
+  control.dispatchEvent(new Event('input', { bubbles: true }));
+  control.focus({ preventScroll: true });
+  return true;
 }
 
 function getFormString(data: FormData, key: string): string {

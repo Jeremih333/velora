@@ -213,6 +213,69 @@ describe('BotHub streaming', () => {
     expect(error.message).not.toContain('sensitive provider detail');
   });
 
+  it('classifies only explicit provider content-policy codes without retaining the body', async () => {
+    const provider = new BotHubProvider({
+      apiKey: 'valid',
+      prices: {
+        model: { inputPerMillionUsd: 1, outputPerMillionUsd: 1, fixedRequestUsd: 0 },
+      },
+      fetcher: () =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: { code: 'content_policy', message: 'private echoed prompt fragment' },
+            }),
+            { status: 422 },
+          ),
+        ),
+    });
+    const error = await collectError(
+      provider.stream(
+        {
+          requestId: 'request',
+          model: 'model',
+          messages: [],
+          temperature: 1,
+          maxOutputTokens: 10,
+          maxCostUsd: 1,
+        },
+        new AbortController().signal,
+      ),
+    );
+    expect(error).toMatchObject({ code: 'BOTHUB_CONTENT_RESTRICTED', retryable: false });
+    expect(error.message).not.toContain('private echoed prompt fragment');
+  });
+
+  it('treats an explicit content-filter finish reason as a non-retryable restriction', async () => {
+    const provider = new BotHubProvider({
+      apiKey: 'valid',
+      prices: {
+        model: { inputPerMillionUsd: 1, outputPerMillionUsd: 1, fixedRequestUsd: 0 },
+      },
+      fetcher: () =>
+        Promise.resolve(
+          new Response(
+            'data: {"choices":[{"delta":{},"finish_reason":"content_filter"}],"usage":{"prompt_tokens":2,"completion_tokens":0,"cost":0.0001}}\n\ndata: [DONE]\n\n',
+            { status: 200 },
+          ),
+        ),
+    });
+    const error = await collectError(
+      provider.stream(
+        {
+          requestId: 'request',
+          model: 'model',
+          messages: [],
+          temperature: 1,
+          maxOutputTokens: 10,
+          maxCostUsd: 1,
+        },
+        new AbortController().signal,
+      ),
+    );
+    expect(error).toMatchObject({ code: 'BOTHUB_CONTENT_RESTRICTED', retryable: false });
+  });
+
   it('uses the documented BotHub streaming shape without stream_options when requested', async () => {
     const fetcher = vi.fn<typeof fetch>((_input, init) => {
       if (typeof init?.body !== 'string') throw new Error('Expected a JSON request body.');

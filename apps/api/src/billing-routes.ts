@@ -51,6 +51,20 @@ interface PaymentInvoiceRow {
   readonly createdAt: number;
 }
 
+interface PaymentHistoryRow {
+  readonly id: string;
+  readonly packCode: string | null;
+  readonly accessPackCode: string | null;
+  readonly planCode: string | null;
+  readonly accessDurationDays: number | null;
+  readonly amount: number;
+  readonly creditAmountMicros: number | null;
+  readonly state: string;
+  readonly createdAt: number;
+  readonly paidAt: number | null;
+  readonly validUntil: number | null;
+}
+
 interface AccessPackRow {
   readonly code: string;
   readonly displayName: string;
@@ -174,15 +188,17 @@ billingRoutes.get('/billing/plans', async (context) => {
 billingRoutes.get('/billing/payments', async (context) => {
   const principal = context.get('principal');
   const result = await context.env.DB.prepare(
-    `SELECT id, pack_code AS packCode, access_pack_code AS accessPackCode,
-     plan_code AS planCode, access_duration_days AS accessDurationDays, amount,
-     credit_amount_micros AS creditAmountMicros, state,
-     created_at AS createdAt, paid_at AS paidAt
-     FROM payments WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`,
+    `SELECT p.id, p.pack_code AS packCode, p.access_pack_code AS accessPackCode,
+     p.plan_code AS planCode, p.access_duration_days AS accessDurationDays, p.amount,
+     p.credit_amount_micros AS creditAmountMicros, p.state,
+     p.created_at AS createdAt, p.paid_at AS paidAt, g.expires_at AS validUntil
+     FROM payments p
+     LEFT JOIN plan_access_grants g ON g.source_payment_id = p.id
+     WHERE p.user_id = ? ORDER BY p.created_at DESC LIMIT 100`,
   )
     .bind(principal.userId)
-    .all();
-  return context.json({ items: result.results });
+    .all<PaymentHistoryRow>();
+  return context.json({ items: result.results.map(toPaymentHistoryResponse) });
 });
 
 billingRoutes.post('/billing/invoices', async (context) => {
@@ -1036,6 +1052,14 @@ function toInvoiceResponse(payment: PaymentInvoiceRow) {
     invoiceUrl: payment.invoiceUrl,
     recurring: false,
     createdAt: payment.createdAt,
+  };
+}
+
+function toPaymentHistoryResponse(payment: PaymentHistoryRow) {
+  return {
+    ...payment,
+    state: payment.state === 'ENTITLEMENT_GRANTED' ? 'GRANTED' : payment.state,
+    autoRenew: false,
   };
 }
 

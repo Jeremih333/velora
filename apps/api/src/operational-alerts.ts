@@ -1,6 +1,7 @@
 import { createId, nowMs } from '@velora/shared';
 import { sendTelegramCommandReply } from './telegram-webhook';
 import { telegramApiLocation } from './telegram-api';
+import { telegramWebAppUrl } from './telegram-web-app-url';
 import type { Env } from './types';
 
 export type OperationalSeverity = 'WARNING' | 'CRITICAL';
@@ -35,9 +36,12 @@ interface AlertRow {
 const MIN_AI_SAMPLE = 20;
 const WARNING_RATIO = 0.8;
 const CRITICAL_RATIO = 0.95;
-const WARNING_COOLDOWN_MS = 6 * 60 * 60 * 1000;
-const CRITICAL_COOLDOWN_MS = 60 * 60 * 1000;
 const LEASE_MS = 2 * 60 * 1000;
+const OPERATIONAL_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+
+export function operationalFailureWindowStart(timestamp: number): number {
+  return timestamp - OPERATIONAL_FAILURE_WINDOW_MS;
+}
 
 export function deriveOperationalSignals(
   metrics: SignalMetrics,
@@ -89,14 +93,10 @@ export function deriveOperationalSignals(
   return signals;
 }
 
-export function shouldNotifyAlert(
-  severity: OperationalSeverity,
-  lastNotifiedAt: number | null,
-  timestamp: number,
-): boolean {
-  if (lastNotifiedAt === null) return true;
-  const cooldown = severity === 'CRITICAL' ? CRITICAL_COOLDOWN_MS : WARNING_COOLDOWN_MS;
-  return timestamp - lastNotifiedAt >= cooldown;
+export function shouldNotifyAlert(lastNotifiedAt: number | null): boolean {
+  // One Telegram notification per open incident. When the signal disappears,
+  // resolveMissingSignals closes it; a later recurrence creates a new incident.
+  return lastNotifiedAt === null;
 }
 
 export async function runOperationalAlertCycle(env: Env, timestamp = nowMs()): Promise<void> {
@@ -140,7 +140,7 @@ function addBudgetSignal(
 }
 
 async function readMetrics(database: D1Database, timestamp: number): Promise<SignalMetrics> {
-  const since = timestamp - 15 * 60 * 1000;
+  const since = operationalFailureWindowStart(timestamp);
   const stuckSince = timestamp - 30 * 60 * 1000;
   const dayStart = Date.UTC(
     new Date(timestamp).getUTCFullYear(),
@@ -155,7 +155,7 @@ async function readMetrics(database: D1Database, timestamp: number): Promise<Sig
   const row = await database
     .prepare(
       `SELECT
-      (SELECT COUNT(*) FROM jobs WHERE status = 'DEAD') AS deadJobs,
+      (SELECT COUNT(*) FROM jobs WHERE status = 'DEAD' AND updated_at >= ?) AS deadJobs,
       (SELECT COUNT(*) FROM account_deletion_requests WHERE state = 'FAILED') AS failedDeletions,
       (SELECT COUNT(*) FROM telegram_updates WHERE status = 'FAILED' AND attempts >= 3 AND received_at >= ?) AS repeatedTelegramFailures,
       (SELECT COUNT(*) FROM payments WHERE state IN ('PAID', 'PENDING') AND updated_at <= ?) AS stuckPayments,
@@ -165,7 +165,7 @@ async function readMetrics(database: D1Database, timestamp: number): Promise<Sig
       (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0 THEN provider_actual_cost_micros WHEN status IN ('RESERVED','STREAMING') THEN provider_estimated_cost_micros ELSE 0 END), 0) FROM ai_requests WHERE purpose = 'ROLEPLAY' AND created_at >= ?) AS monthlySpend,
       (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0 THEN provider_actual_cost_micros WHEN status IN ('RESERVED','STREAMING') THEN provider_estimated_cost_micros ELSE 0 END), 0) FROM ai_requests WHERE purpose = 'ROLEPLAY') AS lifetimeSpend`,
     )
-    .bind(since, stuckSince, since, since, dayStart, monthStart)
+    .bind(since, since, stuckSince, since, since, dayStart, monthStart)
     .first<SignalMetrics>();
   return (
     row ?? {
@@ -212,7 +212,7 @@ async function upsertAndNotify(
   )
     .bind(signal.key)
     .first<AlertRow>();
-  if (!row || !shouldNotifyAlert(row.severity, row.lastNotifiedAt, timestamp)) return;
+  if (!row || !shouldNotifyAlert(row.lastNotifiedAt)) return;
   if (!env.TELEGRAM_BOT_TOKEN || !env.OWNER_TELEGRAM_ID) return;
   const leased = await env.DB.prepare(
     `UPDATE operational_alerts SET notification_lease_until = ?
@@ -229,7 +229,7 @@ async function upsertAndNotify(
       env.TELEGRAM_BOT_TOKEN,
       env.OWNER_TELEGRAM_ID,
       `${icon} *Velora: ${row.severity}*\n${row.summary}`,
-      env.PUBLIC_APP_URL,
+      telegramWebAppUrl(env),
       telegramLocation.apiBaseUrl,
       'ru',
       telegramLocation.apiEnvironment,

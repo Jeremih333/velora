@@ -2,6 +2,7 @@ import { asError, nowMs } from '@velora/shared';
 import { z } from 'zod';
 import { sha256 } from './telegram-auth';
 import { telegramApiLocation, telegramBotApiUrl } from './telegram-api';
+import { telegramWebAppUrl } from './telegram-web-app-url';
 import type { Env } from './types';
 
 const INTEGRATION_KEY = 'telegram_bot';
@@ -67,13 +68,15 @@ export async function reconcileTelegramConfiguration(
   env: Env,
   timestamp = nowMs(),
   fetcher: typeof fetch = fetch,
+  force = false,
 ): Promise<TelegramReconciliationResult> {
-  if (env.TELEGRAM_RECONCILIATION_ENABLED !== 'true') return 'skipped';
+  if (!force && env.TELEGRAM_RECONCILIATION_ENABLED !== 'true') return 'skipped';
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_WEBHOOK_SECRET) return 'not_configured';
   const webhookUrl = new URL('/telegram/webhook', env.PUBLIC_APP_URL).href;
+  const webAppUrl = telegramWebAppUrl(env);
   const apiEnvironment = env.TELEGRAM_API_ENVIRONMENT ?? 'production';
   const desiredHash = await sha256(
-    `telegram-config-v2:${apiEnvironment}:${env.TELEGRAM_BOT_USERNAME}:${webhookUrl}:${env.TELEGRAM_WEBHOOK_SECRET}`,
+    `telegram-config-v3:${apiEnvironment}:${env.TELEGRAM_BOT_USERNAME}:${webhookUrl}:${webAppUrl}:${env.TELEGRAM_WEBHOOK_SECRET}`,
   );
   const current = await env.DB.prepare(
     `SELECT desired_hash AS desiredHash, state, attempts, next_attempt_at AS nextAttemptAt
@@ -128,7 +131,7 @@ export async function reconcileTelegramConfiguration(
     const desiredMenu = {
       type: 'web_app',
       text: 'Открыть',
-      web_app: { url: env.PUBLIC_APP_URL },
+      web_app: { url: webAppUrl },
     };
     const menu = menuSchema.parse(await call('getChatMenuButton'));
     if (JSON.stringify(menu) !== JSON.stringify(desiredMenu)) {

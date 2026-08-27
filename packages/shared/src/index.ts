@@ -2,6 +2,21 @@ import { z } from 'zod';
 
 export { en } from './locales/en';
 export { ru } from './locales/ru';
+export {
+  characterGroupSizeCodes,
+  characterGroupSizeSchema,
+  characterGroupSizes,
+  type CharacterGroupSize,
+  type CharacterGroupSizeDefinition,
+} from './character-group-sizes';
+export {
+  characterLanguageCodes,
+  characterLanguageSchema,
+  characterLanguages,
+  legacyCharacterLanguage,
+  type CharacterLanguageCode,
+  type CharacterLanguageDefinition,
+} from './character-languages';
 
 export const uuidSchema = z.uuid();
 export const telegramIdSchema = z.string().regex(/^\d{1,20}$/u);

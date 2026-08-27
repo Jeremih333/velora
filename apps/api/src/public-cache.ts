@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import type { Env, Variables } from './types';
+import { capacityAwarePublicCacheTtl } from './capacity-runtime';
 
 interface CacheEnvironment {
   Bindings: Env;
@@ -38,9 +39,10 @@ export async function readThroughPublicCache<T>(
     }
   }
   const value = await loader();
+  const effectiveTtlSeconds = await capacityAwarePublicCacheTtl(context.env.DB, ttlSeconds);
   const response = new Response(JSON.stringify(value), {
     headers: {
-      'cache-control': `public, max-age=${String(ttlSeconds)}`,
+      'cache-control': `public, max-age=${String(effectiveTtlSeconds)}`,
       'content-type': 'application/json; charset=UTF-8',
     },
   });

@@ -1,6 +1,6 @@
 # Visual regression review
 
-Updated: 2026-08-11.
+Updated: 2026-08-25.
 
 ## Covered surfaces
 
@@ -23,6 +23,22 @@ Linux CI is authoritative for pixels because system font rasterization is operat
 specific. Windows still runs the same semantic, geometry, overflow, focus and interaction checks,
 but intentionally does not compare Linux PNG bytes.
 
+## Pinned environment
+
+- Node: `24.14.0` (the repository also enforces `>=24.0.0`);
+- Playwright: `1.62.1`;
+- Chromium: Chrome for Testing `151.0.7922.34`, Playwright revision `1234`;
+- fonts: repository-local Noto Sans Variable and Noto Serif Variable files declared by
+  `@font-face`, with no network font dependency;
+- browser locale: `en-US` (the application journey switches its own locale between RU and EN);
+- browser timezone: `Europe/Moscow`;
+- device scale and viewport: pinned by the Pixel 7, iPhone 15 and Desktop Chrome Playwright
+  descriptors, plus the explicit viewport matrix in the authenticated journey.
+
+The visual journey uses fixed API fixtures for AI replies, recommendations, badge counts, images
+and timestamps. It does not call a live model or external image host, so screenshots do not drift
+with provider output, wall-clock time or network content.
+
 ## Findings resolved during review
 
 The first generated set exposed two defects that semantic assertions had not made obvious:
@@ -39,6 +55,12 @@ The first generated set exposed two defects that semantic assertions had not mad
 The regenerated images were manually reviewed for clipping, horizontal overflow, long-form card
 layout, avatar aspect ratio, toast/modal layering, sticky navigation and readable light/dark
 contrast. The checked states contain no unresolved viewport escape or inaccessible chat input.
+
+The current Windows verification also reran the complete authenticated production-build journey on
+Android, tablet and desktop after rebuilding all 46 canonical iPhone evidence images. The three
+responsive runs passed. The generated expected/actual contact sheets provide a whole-corpus check
+for cross-state theme, navigation and density regressions; row-level diffs remain authoritative for
+visual approval.
 
 ## Evidence and limits
 

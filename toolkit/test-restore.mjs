@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,7 @@ const toolkitDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.dirname(toolkitDir);
 const apiRoot = path.join(projectRoot, 'apps', 'api');
 const backupsRoot = path.join(toolkitDir, 'backups');
+const migrationsRoot = path.join(projectRoot, 'migrations');
 const marker = path.join(projectRoot, '.velora-project');
 if (
   !existsSync(marker) ||
@@ -83,13 +84,23 @@ try {
      SELECT COUNT(*) AS account_control_tables FROM sqlite_master
        WHERE type = 'table' AND name IN ('user_blocks', 'account_deletion_requests');`,
   ]);
-  for (const expected of [
-    '"quick_check": "ok"',
-    '"table_count": 66',
-    '"migration_count": 28',
-    '"account_control_tables": 2',
-  ]) {
+  for (const expected of ['"quick_check": "ok"', '"account_control_tables": 2']) {
     if (!audit.includes(expected)) throw new Error(`Restore audit is missing ${expected}.`);
+  }
+  const expectedMigrationCount = readdirSync(migrationsRoot).filter((name) =>
+    /^\d{4}_.+\.sql$/u.test(name),
+  ).length;
+  const restoredMigrationCount = Number(
+    audit.match(/"migration_count":\s*(\d+)/u)?.[1] ?? Number.NaN,
+  );
+  const restoredTableCount = Number(audit.match(/"table_count":\s*(\d+)/u)?.[1] ?? Number.NaN);
+  if (restoredMigrationCount !== expectedMigrationCount) {
+    throw new Error(
+      `Restore applied ${String(restoredMigrationCount)} of ${String(expectedMigrationCount)} migrations.`,
+    );
+  }
+  if (!Number.isInteger(restoredTableCount) || restoredTableCount < 66) {
+    throw new Error(`Restore produced an invalid table count: ${String(restoredTableCount)}.`);
   }
 
   worker = spawn(
@@ -131,7 +142,7 @@ try {
   }
   if (!ready) throw new Error(`Restored Worker did not become ready.\n${workerOutput}`);
   process.stdout.write(
-    `Restore drill passed for ${path.basename(backupPath)}: 28 migrations, 66 tables, D1 ready.\n`,
+    `Restore drill passed for ${path.basename(backupPath)}: ${String(expectedMigrationCount)} migrations, ${String(restoredTableCount)} tables, D1 ready.\n`,
   );
 } finally {
   if (worker) {

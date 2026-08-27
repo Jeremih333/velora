@@ -1,6 +1,6 @@
 # Staging SLO baseline and launch objectives
 
-Updated: 2026-08-12.
+Updated: 2026-08-14.
 
 ## What was measured
 
@@ -18,6 +18,16 @@ probe (48 requests total) and returned no failures:
 | ready (D1)    |      12/12 | 80.4 ms | 134.5 ms | 134.5 ms |
 | public config |      12/12 | 96.4 ms | 102.7 ms | 102.7 ms |
 | OpenAPI       |      12/12 | 65.4 ms | 68.7 ms  | 68.7 ms  |
+
+The post-deployment run against Worker `6ddd97be-6a12-4011-8a1c-606fbdb4e64f` also completed
+48/48 probes without a failure:
+
+| Probe         | Successful | p50     | p95      | max      |
+| ------------- | ---------: | ------- | -------- | -------- |
+| health        |      12/12 | 51.3 ms | 234.3 ms | 234.3 ms |
+| ready (D1)    |      12/12 | 70.0 ms | 73.4 ms  | 73.4 ms  |
+| public config |      12/12 | 71.8 ms | 99.4 ms  | 99.4 ms  |
+| OpenAPI       |      12/12 | 64.3 ms | 73.6 ms  | 73.6 ms  |
 
 This is a bounded staging baseline, not proof of production availability and not a load test. The
 existing local concurrency evidence remains in [LOAD_REPORT.md](LOAD_REPORT.md).

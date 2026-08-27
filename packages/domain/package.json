@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@velora/shared": "workspace:*",
     "zod": "4.4.3"
   }
 }

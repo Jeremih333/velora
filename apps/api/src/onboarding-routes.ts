@@ -62,8 +62,9 @@ onboardingRoutes.post('/complete', async (context) => {
   }
   statements.push(
     context.env.DB.prepare(
-      'UPDATE user_settings SET nsfw_visible = ?, updated_at = ? WHERE user_id = ?',
-    ).bind(input.matureEnabled ? 1 : 0, timestamp, principal.userId),
+      `UPDATE user_settings SET nsfw_visible = ?, safe_search = ?,
+       mature_image_blur = 1, updated_at = ? WHERE user_id = ?`,
+    ).bind(input.matureEnabled ? 1 : 0, input.matureEnabled ? 0 : 1, timestamp, principal.userId),
     context.env.DB.prepare(
       `UPDATE users SET
           age_gate_accepted_at = CASE

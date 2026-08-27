@@ -21,6 +21,20 @@ describe('lorebook contracts', () => {
     expect(loreAttachmentSchema.parse({})).toEqual({ enabled: true });
   });
 
+  it('accepts an app cover UUID but never exports internal media identifiers', () => {
+    const coverMediaFileId = '11111111-1111-4111-8111-111111111111';
+    expect(lorebookInputSchema.parse({ name: 'Archive', coverMediaFileId })).toMatchObject({
+      coverMediaFileId,
+    });
+    const transfer = lorebookTransferSchema.parse({
+      format: 'velora-lorebook',
+      version: 1,
+      book: { name: 'Archive', coverMediaFileId },
+      entries: [],
+    });
+    expect('coverMediaFileId' in transfer.book).toBe(false);
+  });
+
   it('rejects empty keys and unsafe budgets', () => {
     expect(() => loreEntryInputSchema.parse({ title: 'X', content: 'Y', keys: [] })).toThrow();
     expect(() =>

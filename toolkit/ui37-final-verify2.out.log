@@ -1,0 +1,181 @@
+Secret scan passed.
+Running pnpm format:check
+Checking formatting...
+All matched files use Prettier code style!
+Running pnpm docs:check
+Documentation link check passed.
+Running pnpm lint
+Running pnpm typecheck
+Running pnpm test
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  50 passed (50)
+      Tests  203 passed (203)
+   Start at  21:05:31
+   Duration  12.20s (transform 7.48s, setup 0ms, import 36.61s, tests 13.30s, environment 30.67s)
+
+Running pnpm test:roleplay-quality
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  21:05:45
+   Duration  442ms (transform 71ms, setup 0ms, import 168ms, tests 13ms, environment 0ms)
+
+Running pnpm test:contract
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  21:05:46
+   Duration  2.52s (transform 775ms, setup 0ms, import 2.24s, tests 62ms, environment 0ms)
+
+Running pnpm test:integration
+[36mvite v8.2.1 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 417 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                             0.64 kB │ gzip:   0.40 kB
+dist/.vite/manifest.json                    1.32 kB │ gzip:   0.34 kB
+dist/assets/index-BjxIr2rQ.css             79.67 kB │ gzip:  14.76 kB
+dist/assets/LorebooksView-Dbty5W8u.js      14.31 kB │ gzip:   3.56 kB │ map:    39.79 kB
+dist/assets/ChatsView-CiRoj2zy.js          40.54 kB │ gzip:   9.72 kB │ map:   127.72 kB
+dist/assets/SafeMarkdown-CVEH9wk7.js      158.97 kB │ gzip:  47.66 kB │ map:   951.35 kB
+dist/assets/AuthenticatedApp-ReuBWJyh.js  202.78 kB │ gzip:  48.46 kB │ map:   769.61 kB
+dist/assets/index-Bl2y6R2D.js             333.66 kB │ gzip: 104.48 kB │ map: 1,147.71 kB
+
+[32m✓ built in 458ms[39m
+Web bundle budget passed: initial=333665 B; assets/index-Bl2y6R2D.js=333665 B, assets/AuthenticatedApp-ReuBWJyh.js=202788 B, assets/ChatsView-CiRoj2zy.js=40549 B, assets/LorebooksView-Dbty5W8u.js=14312 B, assets/SafeMarkdown-CVEH9wk7.js=158975 B.
+Local D1 migration, idempotent quality seed and integrity checks passed.
+Local load smoke passed: users=40@p50=437.5ms/p95=790.2ms/max=794.5ms, D1=40@p50=408.8ms/p95=409.9ms/max=410.1ms, search=40@p50=1361.7ms/p95=1362.5ms/max=1362.7ms, AI=4@p50=941.0ms/p95=945.9ms/max=945.9ms.
+Local Worker auth/settings/persona/character/discovery/media/conversation/moderation integration passed.
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  11 passed (11)
+      Tests  76 passed (76)
+   Start at  21:07:47
+   Duration  803ms (transform 363ms, setup 0ms, import 1.15s, tests 939ms, environment 2ms)
+
+Running pnpm build
+[36mvite v8.2.1 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 417 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                             0.64 kB │ gzip:   0.40 kB
+dist/.vite/manifest.json                    1.32 kB │ gzip:   0.34 kB
+dist/assets/index-BjxIr2rQ.css             79.67 kB │ gzip:  14.76 kB
+dist/assets/LorebooksView-Dbty5W8u.js      14.31 kB │ gzip:   3.56 kB │ map:    39.79 kB
+dist/assets/ChatsView-CiRoj2zy.js          40.54 kB │ gzip:   9.72 kB │ map:   127.72 kB
+dist/assets/SafeMarkdown-CVEH9wk7.js      158.97 kB │ gzip:  47.66 kB │ map:   951.35 kB
+dist/assets/AuthenticatedApp-ReuBWJyh.js  202.78 kB │ gzip:  48.46 kB │ map:   769.61 kB
+dist/assets/index-Bl2y6R2D.js             333.66 kB │ gzip: 104.48 kB │ map: 1,147.71 kB
+
+[32m✓ built in 437ms[39m
+Web bundle budget passed: initial=333665 B; assets/index-Bl2y6R2D.js=333665 B, assets/AuthenticatedApp-ReuBWJyh.js=202788 B, assets/ChatsView-CiRoj2zy.js=40549 B, assets/LorebooksView-Dbty5W8u.js=14312 B, assets/SafeMarkdown-CVEH9wk7.js=158975 B.
+
+ ⛅️ wrangler 4.120.0 (update available 4.123.0)
+───────────────────────────────────────────────
+✨ Read 16 files from the assets directory C:\Users\User\Desktop\бот для ролплея с нейросетями\apps\web\dist
+Total Upload: 1201.10 KiB / gzip: 210.62 KiB
+Your Worker has access to the following bindings:
+Binding                                                                               Resource                  
+env.DB (velora-production)                                                            D1 Database               
+env.ASSETS                                                                            Assets                    
+env.ENVIRONMENT ("production")                                                        Environment Variable      
+env.APP_NAME ("Velora")                                                               Environment Variable      
+env.TELEGRAM_BOT_USERNAME ("aivel0ra_bot")                                            Environment Variable      
+env.TELEGRAM_RECONCILIATION_ENABLED ("false")                                         Environment Variable      
+env.OWNER_TELEGRAM_ID ("1040929628")                                                  Environment Variable      
+env.PUBLIC_APP_URL ("https://velora-app.carreljeremih.work...")                       Environment Variable      
+env.MAX_INIT_DATA_AGE_SECONDS ("900")                                                 Environment Variable      
+env.DAILY_AI_BUDGET_USD ("0.80")                                                      Environment Variable      
+env.MONTHLY_AI_BUDGET_USD ("24")                                                      Environment Variable      
+env.LIFETIME_AI_BUDGET_USD ("350")                                                    Environment Variable      
+env.PAID_AI_ENABLED ("false")                                                         Environment Variable      
+env.SPONSORED_FREE_AI_ENABLED ("false")                                               Environment Variable      
+env.PAYMENTS_ENABLED ("false")                                                        Environment Variable      
+
+--dry-run: exiting now.
+Running pnpm test:e2e
+
+Running 15 tests using 6 workers
+
+  ok  1 [android] › tests\e2e\foundation.spec.ts:78:1 › renders the isolated Velora shell without pretending standalone auth (2.6s)
+  ok  5 [android] › tests\e2e\foundation.spec.ts:3246:1 › authenticated shell and heavy workspaces load from separate chunks (2.8s)
+  ok  4 [iphone] › tests\e2e\foundation.spec.ts:78:1 › renders the isolated Velora shell without pretending standalone auth (3.8s)
+  ok  6 [android] › tests\e2e\foundation.spec.ts:3548:1 › owner manages moderator appointments without exposing the control to staff (10.2s)
+  ok  2 [android] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (10.6s)
+  ok  9 [iphone] › tests\e2e\foundation.spec.ts:3246:1 › authenticated shell and heavy workspaces load from separate chunks (6.1s)
+  ok 11 [desktop] › tests\e2e\foundation.spec.ts:78:1 › renders the isolated Velora shell without pretending standalone auth (1.4s)
+  ok 12 [desktop] › tests\e2e\foundation.spec.ts:3246:1 › authenticated shell and heavy workspaces load from separate chunks (1.9s)
+  ok 14 [desktop] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (10.0s)
+  ok 15 [desktop] › tests\e2e\foundation.spec.ts:3548:1 › owner manages moderator appointments without exposing the control to staff (7.4s)
+  ok  7 [iphone] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (38.5s)
+  ok 10 [iphone] › tests\e2e\foundation.spec.ts:3548:1 › owner manages moderator appointments without exposing the control to staff (34.1s)
+  ok  3 [android] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (1.2m)
+  ok 13 [desktop] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (1.1m)
+  ok  8 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (3.4m)
+
+  15 passed (3.6m)
+Running pnpm test:visual
+
+Running 3 tests using 1 worker
+
+  ok 1 [android] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (40.8s)
+  ok 2 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (2.5m)
+  ok 3 [desktop] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (38.0s)
+
+  3 passed (4.0m)
+Running pnpm test:a11y
+
+Running 6 tests using 6 workers
+
+  ok 1 [android] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (11.2s)
+  ok 5 [desktop] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (11.0s)
+  ok 4 [iphone] › tests\e2e\foundation.spec.ts:3356:1 › @a11y discovery language and group-size filters support Unicode, CJK and RTL (29.0s)
+  ok 6 [desktop] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (1.1m)
+  ok 2 [android] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (1.1m)
+  x  3 [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable (10.0m)
+
+
+  1) [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 
+
+    Test timeout of 600000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 600000ms exceeded.
+    Call log:
+      - waiting for getByRole('article').filter({ has: getByRole('heading', { name: 'Лира' }) }).getByLabel('Причина жалобы')
+
+
+      2340 |   ).toHaveText('Очень атмосферный персонаж.');
+      2341 |   await liraCharacter.getByRole('button', { name: /Пожаловаться/u }).click();
+    > 2342 |   await liraCharacter.getByLabel('Причина жалобы').selectOption('SPAM');
+           |                                                    ^
+      2343 |   await liraCharacter.getByLabel('Описание жалобы').fill('Повторяющийся рекламный контент.');
+      2344 |   await liraCharacter.getByRole('button', { name: 'Отправить жалобу' }).click();
+      2345 |   await expect(page.getByText('Жалоба отправлена в очередь модерации.')).toBeVisible();
+        at C:\Users\User\Desktop\бот для ролплея с нейросетями\tests\e2e\foundation.spec.ts:2342:52
+
+    Error Context: test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results\foundation--visual-a11y-au-480c1-sona-creation-remain-usable-iphone\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [iphone] › tests\e2e\foundation.spec.ts:93:1 › @visual @a11y authenticated MiniApp navigation and persona creation remain usable 
+  5 passed (10.2m)
+[ELIFECYCLE] Command failed with exit code 1.
+[ELIFECYCLE] Command failed with exit code 1.

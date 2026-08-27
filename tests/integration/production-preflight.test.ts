@@ -18,23 +18,37 @@ describe('production preflight', () => {
       workerName: 'velora-app',
       databaseName: 'velora-production',
       ownerTelegramId: '1040929628',
-      paidAiEnabled: false,
-      paymentsEnabled: false,
+      paidAiEnabled: true,
+      sponsoredFreeAiEnabled: true,
+      paymentsEnabled: true,
       sharedTelegramBotWithStaging: true,
       telegramWebhookCutoverRequired: true,
     });
   });
 
-  it('rejects a production paid gate or shared D1 before any remote command', async () => {
+  it('rejects disabled production AI access, a reverted Stars cutover, or shared D1', async () => {
     const source = await readFile(
       new URL('../../apps/api/wrangler.jsonc', import.meta.url),
       'utf8',
     );
     expect(() =>
       inspectProductionConfig(
-        source.replace('"PAID_AI_ENABLED": "false"', '"PAID_AI_ENABLED": "true"'),
+        source.replace('"PAID_AI_ENABLED": "true"', '"PAID_AI_ENABLED": "false"'),
       ),
-    ).toThrow(/paid gates/u);
+    ).toThrow(/AI access/u);
+    expect(() =>
+      inspectProductionConfig(
+        source.replace(
+          '"SPONSORED_FREE_AI_ENABLED": "true"',
+          '"SPONSORED_FREE_AI_ENABLED": "false"',
+        ),
+      ),
+    ).toThrow(/AI access/u);
+    expect(() =>
+      inspectProductionConfig(
+        source.replace('"PAYMENTS_ENABLED": "true"', '"PAYMENTS_ENABLED": "false"'),
+      ),
+    ).toThrow(/Stars cutover/u);
     const stagingId = '1069c0c8-ec14-441e-a208-dfe64e494b26';
     expect(() =>
       inspectProductionConfig(source.replace('aa0f89b4-2ba7-4717-9d24-36ce49bf3897', stagingId)),

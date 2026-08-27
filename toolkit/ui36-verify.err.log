@@ -1,0 +1,11 @@
+$ powershell -ExecutionPolicy Bypass -File toolkit/verify.ps1
+$ prettier --check .
+[[33mwarn[39m] docs/ui/SCREENSHOT_MANIFEST.md
+[[33mwarn[39m] Code style issues found in the above file. Run Prettier with --write to fix.
+Quality gate failed: pnpm format:check
+C:\Users\User\Desktop\бот для ролплея с нейросетями\toolkit\verify.ps1:32 знак:7
++       throw "Quality gate failed: pnpm $command"
++       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Quality gate failed: pnpm format:check:String) [], RuntimeException
+    + FullyQualifiedErrorId : Quality gate failed: pnpm format:check
+ 

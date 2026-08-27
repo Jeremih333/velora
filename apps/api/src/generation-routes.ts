@@ -5,7 +5,8 @@ import {
   type AIUsage,
   type ModelPrice,
 } from '@velora/ai';
-import { generationCreateSchema } from '@velora/domain';
+import { generationCreateSchema, type ResponseLength } from '@velora/domain';
+import { composePersistentMemory } from '@velora/memory';
 import {
   buildRoleplayPrompt,
   type RoleplayCharacterPrompt,
@@ -16,7 +17,7 @@ import { AppError, asError, createId, nowMs, ru } from '@velora/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
-  readConversationSettings,
+  readAccessibleConversationSettings,
   requireOwnedConversation,
   type OwnedConversationRow,
 } from './conversation-routes';
@@ -24,8 +25,11 @@ import type { Env, Variables } from './types';
 import { readActiveLore } from './lore-runtime';
 import { enqueueAutomaticMemoryIfNeeded, processDueMemoryJobs } from './memory-jobs';
 import type { ProductEventName } from './reliability';
-import { isPaidAiEnabled, isPaidAiReady } from './paid-ai';
+import { isGenerationTierEnabled, isPaidAiReady } from './paid-ai';
 import { readEffectivePlan, requireModelProfile as requirePlanModelProfile } from './plans';
+import { canUseModelTier } from './model-registry';
+import { requireEffectiveRoleplayModelProfile } from './model-registry-config';
+import { readResponseLengthLimit, readResponseLengthPromptInstruction } from './response-lengths';
 
 interface GenerationEnvironment {
   Bindings: Env;
@@ -41,19 +45,22 @@ interface ModelProfileRow {
   readonly timeoutMs: number;
   readonly fallbackModelsJson: string;
   readonly costPolicyJson: string;
+  readonly contextWindow: number;
 }
 
 export interface GenerationCandidate {
   readonly provider: 'BOTHUB';
   readonly model: string;
   readonly price: ModelPrice;
+  readonly contextWindow: number;
 }
 
 interface GenerationMessageRow {
   readonly id: string;
-  readonly role: 'USER' | 'ASSISTANT' | 'SYSTEM_INTERNAL';
+  readonly role: 'USER' | 'ASSISTANT' | 'INTERNAL';
   readonly content: string;
   readonly status: string;
+  readonly isGreeting: number;
 }
 
 interface PromptCharacterRow extends RoleplayCharacterPrompt {
@@ -78,6 +85,7 @@ const fallbackModelSchema = z
     maxInputUsdPerMillion: z.number().positive(),
     maxOutputUsdPerMillion: z.number().positive(),
     fixedRequestUsd: z.number().nonnegative(),
+    contextWindow: z.number().int().min(2_048).max(2_000_000).default(8_192),
   })
   .strict();
 const fallbackModelsSchema = z.array(fallbackModelSchema).max(2);
@@ -122,27 +130,40 @@ generationRoutes.get('/:conversationId/prompt-inspector', async (context) => {
   if (!conversation.activeMessageId) {
     throw new AppError('PROMPT_INSPECTOR_EMPTY', 'В диалоге пока нет активной ветки.', 409);
   }
-  const settings = await readConversationSettings(context.env.DB, conversation.id);
+  const settings = await readAccessibleConversationSettings(
+    context.env.DB,
+    conversation.id,
+    principal.userId,
+  );
   requirePlanModelProfile(
     await readEffectivePlan(context.env.DB, principal.userId),
     settings.modelProfile,
   );
-  const profile = await requireModelProfile(context.env.DB, settings.modelProfile);
-  const responseLengthLimit = { SHORT: 400, MEDIUM: 800, LONG: 8192 }[settings.responseLength];
+  const profile = await resolveModelProfile(
+    context.env.DB,
+    settings.modelProfile,
+    settings.modelProfileId,
+  );
+  const responseLengthLimit = readResponseLengthLimit(settings.responseLength);
   const outputTokens = Math.min(
     settings.maxOutputTokens,
     profile.maxOutputTokens,
     responseLengthLimit,
   );
   const prompt = await assemblePrompt(context.env.DB, conversation, conversation.activeMessageId, {
-    maxContextTokens: 32_000,
+    maxContextTokens: Math.min(32_000, profile.contextWindow - outputTokens),
     outputTokens,
     customInstructions: settings.customInstructions,
+    responseLength: settings.responseLength,
     personaMode: settings.personaMode,
     continuation: false,
   });
   return context.json({
     ...prompt.inspection,
+    selectedModel: {
+      profileId: settings.modelProfileId,
+      providerModelId: profile.model,
+    },
     includedLoreEntries: prompt.includedLoreEntries,
     includedExampleMessages: prompt.includedExampleMessages,
     droppedExampleMessages: prompt.droppedExampleMessages,
@@ -153,9 +174,6 @@ generationRoutes.get('/:conversationId/prompt-inspector', async (context) => {
 
 generationRoutes.post('/:conversationId/generate', async (context) => {
   const principal = context.get('principal');
-  if (!isPaidAiEnabled(context.env)) {
-    throw new AppError('PAID_AI_DISABLED', ru.paidAi.disabled, 503);
-  }
   const conversation = await requireOwnedConversation(
     context.env.DB,
     principal.userId,
@@ -179,71 +197,131 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
   if (!parentMessageId)
     throw new AppError('USER_MESSAGE_REQUIRED', 'Сначала отправьте реплику.', 409);
   const parent = await requireGenerationParent(context.env.DB, conversation.id, parentMessageId);
-  const expectedRole = input.mode === 'CONTINUE' ? 'ASSISTANT' : 'USER';
+  const expectedRole = input.mode === 'REPLY' ? 'USER' : 'ASSISTANT';
   if (
     parent.role !== expectedRole ||
-    (parent.status !== 'COMPLETED' && parent.status !== 'STOPPED')
+    (input.mode === 'GREETING' && !parent.isGreeting) ||
+    (parent.status !== 'COMPLETED' &&
+      parent.status !== 'STOPPED' &&
+      !(input.mode === 'CONTINUE' && parent.status === 'FAILED' && parent.content.trim()))
   ) {
     throw new AppError(
       'USER_MESSAGE_REQUIRED',
-      input.mode === 'CONTINUE'
-        ? 'Продолжить можно только завершённый ответ персонажа.'
-        : 'Генерация начинается после реплики пользователя.',
+      input.mode === 'GREETING'
+        ? 'Перегенерировать можно только приветствие этого диалога.'
+        : input.mode === 'CONTINUE'
+          ? 'Продолжить можно только завершённый ответ персонажа.'
+          : 'Генерация начинается после реплики пользователя.',
       409,
     );
   }
-  const settings = await readConversationSettings(context.env.DB, conversation.id);
+  const settings = await readAccessibleConversationSettings(
+    context.env.DB,
+    conversation.id,
+    principal.userId,
+  );
   requirePlanModelProfile(
     await readEffectivePlan(context.env.DB, principal.userId),
     settings.modelProfile,
   );
-  const profile = await requireModelProfile(context.env.DB, settings.modelProfile);
+  const plan = await readEffectivePlan(context.env.DB, principal.userId);
+  const selectedRegistryModel = await requireEffectiveRoleplayModelProfile(
+    context.env.DB,
+    settings.modelProfileId,
+  );
+  const aiEnabled = isGenerationTierEnabled(context.env, selectedRegistryModel.tier);
+  if (!aiEnabled) {
+    throw new AppError(
+      selectedRegistryModel.tier === 'free' ? 'SPONSORED_FREE_AI_DISABLED' : 'PAID_AI_DISABLED',
+      ru.paidAi.disabled,
+      503,
+    );
+  }
+  if (!canUseModelTier(plan.code, selectedRegistryModel.tier)) {
+    throw new AppError('PLAN_ENTITLEMENT_REQUIRED', ru.billing.planRequired, 403);
+  }
+  const profile = await resolveModelProfile(
+    context.env.DB,
+    settings.modelProfile,
+    settings.modelProfileId,
+  );
   if (
     !(await isPaidAiReady({
-      enabled: context.env.PAID_AI_ENABLED,
+      enabled: 'true',
       database: context.env.DB,
       model: profile.model,
     }))
   ) {
     throw new AppError('PAID_AI_NOT_READY', ru.paidAi.notReady, 503);
   }
-  const responseLengthLimit = { SHORT: 400, MEDIUM: 800, LONG: 8192 }[settings.responseLength];
+  const responseLengthLimit = readResponseLengthLimit(settings.responseLength);
   const maxOutputTokens = Math.min(
     settings.maxOutputTokens,
     profile.maxOutputTokens,
     responseLengthLimit,
   );
-  const prompt = await assemblePrompt(context.env.DB, conversation, parent.id, {
-    maxContextTokens: 32_000,
-    outputTokens: maxOutputTokens,
-    customInstructions: settings.customInstructions,
-    personaMode: settings.personaMode,
-    continuation: input.mode === 'CONTINUE',
-  });
   const policy = costPolicySchema.parse(JSON.parse(profile.costPolicyJson));
   const candidates = resolveGenerationCandidates(profile, policy);
-  const maximumBillableCostMicros = Math.max(
-    ...candidates.map((candidate) =>
-      estimateMaximumCostMicros(candidate.price, prompt.estimatedInputTokens, maxOutputTokens),
+  const promptsByModel = new Map(
+    await Promise.all(
+      candidates.map(async (candidate) => {
+        const inputBudget = calculateInputContextBudget(candidate.contextWindow, maxOutputTokens);
+        if (inputBudget < 1_024) {
+          throw new AppError(
+            'MODEL_CONTEXT_TOO_SMALL',
+            'Контекстное окно выбранной модели недостаточно для ответа.',
+            409,
+          );
+        }
+        const candidatePrompt = await assemblePrompt(context.env.DB, conversation, parent.id, {
+          maxContextTokens: inputBudget,
+          outputTokens: maxOutputTokens,
+          customInstructions: settings.customInstructions,
+          responseLength: settings.responseLength,
+          personaMode: settings.personaMode,
+          continuation: input.mode === 'CONTINUE',
+          greetingRegeneration: input.mode === 'GREETING',
+        });
+        return [candidate.model, candidatePrompt] as const;
+      }),
     ),
+  );
+  const maximumBillableCostMicros = Math.max(
+    ...candidates.map((candidate) => {
+      const candidatePrompt = promptsByModel.get(candidate.model);
+      if (!candidatePrompt) throw new Error('Candidate prompt was not assembled.');
+      return estimateMaximumCostMicros(
+        candidate.price,
+        candidatePrompt.estimatedInputTokens,
+        maxOutputTokens,
+      );
+    }),
   );
   const attemptPlan = [candidates[0], candidates[0], ...candidates.slice(1)].filter(
     (candidate): candidate is GenerationCandidate => candidate !== undefined,
   );
-  const maximumProviderCostMicros = attemptPlan.reduce(
-    (total, candidate) =>
+  const maximumProviderCostMicros = attemptPlan.reduce((total, candidate) => {
+    const candidatePrompt = promptsByModel.get(candidate.model);
+    if (!candidatePrompt) throw new Error('Candidate prompt was not assembled.');
+    return (
       total +
-      estimateMaximumCostMicros(candidate.price, prompt.estimatedInputTokens, maxOutputTokens),
-    0,
-  );
-  await releaseExpiredGeneration(context.env.DB, conversation.id);
+      estimateMaximumCostMicros(
+        candidate.price,
+        candidatePrompt.estimatedInputTokens,
+        maxOutputTokens,
+      )
+    );
+  }, 0);
+  await releaseExpiredGeneration(context.env.DB, conversation.id, principal.userId);
   const existingGroup = await context.env.DB.prepare(
     `SELECT generation_group_id AS generationGroupId FROM messages
-     WHERE conversation_id = ? AND parent_message_id = ? AND role = 'ASSISTANT'
+     WHERE conversation_id = ?
+       AND ((? = 'GREETING' AND is_greeting = 1 AND role = 'ASSISTANT')
+         OR (? != 'GREETING' AND parent_message_id = ? AND role = 'ASSISTANT'))
        AND generation_group_id IS NOT NULL AND deleted_at IS NULL
      ORDER BY created_at ASC LIMIT 1`,
   )
-    .bind(conversation.id, parent.id)
+    .bind(conversation.id, input.mode, input.mode, parent.id)
     .first<{ generationGroupId: string }>();
   const ids = await prepareGeneration(context.env, {
     userId: principal.userId,
@@ -255,8 +333,12 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
     maximumBillableCostMicros,
     maximumProviderCostMicros,
     timeoutMs: profile.timeoutMs,
+    responseParentMessageId: input.mode === 'GREETING' ? null : parent.id,
+    isGreeting: input.mode === 'GREETING',
     generationGroupId:
-      input.mode === 'REPLY' && existingGroup ? existingGroup.generationGroupId : createId(),
+      input.mode !== 'CONTINUE' && existingGroup ? existingGroup.generationGroupId : createId(),
+    sponsoredFree: true,
+    planDailyRequestLimit: planDailyRequestLimit(plan.code),
   });
   const requestSignal = context.req.raw.signal;
   const requestId = context.get('requestId');
@@ -265,6 +347,7 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
     async start(controller) {
       let output = '';
       let deltaCount = 0;
+      let firstDeltaRecorded = false;
       let stopped = false;
       let attemptedProviderCostMicros = 0;
       const abortController = new AbortController();
@@ -283,9 +366,11 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
         attempts: for (let attemptIndex = 0; attemptIndex < attemptPlan.length; attemptIndex += 1) {
           const candidate = attemptPlan[attemptIndex];
           if (!candidate) continue;
+          const candidatePrompt = promptsByModel.get(candidate.model);
+          if (!candidatePrompt) throw new Error('Candidate prompt was not assembled.');
           const candidateMaximumCostMicros = estimateMaximumCostMicros(
             candidate.price,
-            prompt.estimatedInputTokens,
+            candidatePrompt.estimatedInputTokens,
             maxOutputTokens,
           );
           attemptedProviderCostMicros += candidateMaximumCostMicros;
@@ -302,7 +387,7 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
               {
                 requestId,
                 model: candidate.model,
-                messages: prompt.messages,
+                messages: candidatePrompt.messages,
                 temperature: settings.temperature,
                 maxOutputTokens,
                 maxCostUsd: candidateMaximumCostMicros / 1_000_000,
@@ -310,6 +395,10 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
               abortController.signal,
             )) {
               if (event.type === 'delta') {
+                if (!firstDeltaRecorded) {
+                  firstDeltaRecorded = true;
+                  await recordFirstTokenLatency(context.env.DB, ids.aiRequestId);
+                }
                 if (output.length + event.text.length > 100_000) {
                   abortController.abort();
                   throw new AIProviderError(
@@ -343,13 +432,16 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
                 provider: candidate.provider,
                 model: candidate.model,
                 usage: event.usage,
+                finishReason: event.finishReason,
                 providerActualCostMicros:
                   attemptedProviderCostMicros -
                   candidateMaximumCostMicros +
                   Math.ceil(event.usage.costUsd * 1_000_000),
-                includedLoreEntries: prompt.includedLoreEntries,
+                includedLoreEntries: candidatePrompt.includedLoreEntries,
                 productEventName:
-                  input.mode === 'REPLY' && existingGroup ? 'REGENERATED' : 'GENERATION_COMPLETED',
+                  input.mode === 'GREETING' || (input.mode === 'REPLY' && existingGroup)
+                    ? 'REGENERATED'
+                    : 'GENERATION_COMPLETED',
               });
               if (!completed) {
                 stopped = true;
@@ -371,7 +463,7 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
                   responseMessageId: ids.responseMessageId,
                   finishReason: event.finishReason,
                   usage: event.usage,
-                  includedLoreEntries: prompt.includedLoreEntries,
+                  includedLoreEntries: candidatePrompt.includedLoreEntries,
                 }),
               );
               completedGeneration = true;
@@ -417,6 +509,7 @@ generationRoutes.post('/:conversationId/generate', async (context) => {
             context.env.DB,
             ids,
             conversation.id,
+            output,
             error,
             attemptedProviderCostMicros,
           );
@@ -469,10 +562,13 @@ async function assemblePrompt(
     readonly maxContextTokens: number;
     readonly outputTokens: number;
     readonly customInstructions: string;
+    readonly responseLength: ResponseLength;
     readonly personaMode: 'SNAPSHOT' | 'LIVE';
     readonly continuation: boolean;
+    readonly greetingRegeneration?: boolean;
   },
 ) {
+  const effectiveConversation = await resolveGroupSpeaker(database, conversation, parentMessageId);
   const character = await database
     .prepare(
       `SELECT v.name, v.description, v.personality, v.scenario,
@@ -484,19 +580,18 @@ async function assemblePrompt(
        FROM character_versions v JOIN characters c ON c.id = v.character_id
        WHERE v.id = ? AND c.id = ?`,
     )
-    .bind(conversation.characterVersionId, conversation.characterId)
+    .bind(effectiveConversation.characterVersionId, effectiveConversation.characterId)
     .first<PromptCharacterRow>();
   if (!character)
     throw new AppError('CHARACTER_VERSION_MISSING', 'Версия персонажа недоступна.', 409);
-  const persona = await resolvePromptPersona(database, conversation, settings.personaMode);
+  const persona = await resolvePromptPersona(database, effectiveConversation, settings.personaMode);
   const memory = await database
     .prepare(
-      `SELECT mv.content FROM conversation_memory cm
-       JOIN memory_versions mv ON mv.id = cm.active_version_id
-       WHERE cm.conversation_id = ?`,
+      `SELECT manual_context AS manualContext, auto_summary AS autoSummary
+       FROM conversation_memory WHERE conversation_id = ?`,
     )
     .bind(conversation.id)
-    .first<{ content: string }>();
+    .first<{ manualContext: string; autoSummary: string }>();
   const historyResult = await database
     .prepare(
       `WITH RECURSIVE branch(id, parentId, role, content, status, depth) AS (
@@ -507,7 +602,7 @@ async function assemblePrompt(
        FROM messages m JOIN branch b ON m.id = b.parentId
        WHERE m.conversation_id = ? AND m.deleted_at IS NULL AND b.depth < 99
        ) SELECT role, content FROM branch
-       WHERE role IN ('USER', 'ASSISTANT') AND status IN ('COMPLETED', 'STOPPED')
+       WHERE role IN ('USER', 'ASSISTANT') AND status IN ('COMPLETED', 'STOPPED', 'FAILED')
        ORDER BY depth DESC`,
     )
     .bind(parentMessageId, conversation.id, conversation.id)
@@ -519,18 +614,20 @@ async function assemblePrompt(
   const effectivePlan = await readEffectivePlan(database, conversation.userId);
   const activeLore = await readActiveLore(database, {
     conversationId: conversation.id,
-    characterId: conversation.characterId,
+    characterId: effectiveConversation.characterId,
     userId: conversation.userId,
     contextMessages: historyResult.results.map((message) => message.content),
     characterName: character.name,
     userName: persona?.name ?? user?.displayName ?? 'User',
     totalTokenBudget: effectivePlan.entitlements.loreTokenBudget,
+    forceActivateAll: true,
   });
   return buildRoleplayPrompt({
     character,
     persona,
+    userName: user?.displayName ?? 'User',
     memory: truncateToTokenBudget(
-      memory?.content ?? '',
+      composePersistentMemory(memory?.manualContext ?? '', memory?.autoSummary ?? ''),
       effectivePlan.entitlements.memoryTokenBudget,
     ),
     lore: activeLore.entries.map((entry) => ({
@@ -540,8 +637,12 @@ async function assemblePrompt(
     })),
     customInstructions: [
       settings.customInstructions,
+      readResponseLengthPromptInstruction(settings.responseLength),
       settings.continuation
         ? 'Продолжи непосредственно предыдущий ответ персонажа без повторов, заголовков и метакомментариев.'
+        : '',
+      settings.greetingRegeneration
+        ? 'Создай новый самостоятельный вариант первого приветствия персонажа для начала этой ролевой истории. Не продолжай старое приветствие, не упоминай переписывание и не добавляй метакомментарии.'
         : '',
     ]
       .filter(Boolean)
@@ -550,6 +651,95 @@ async function assemblePrompt(
     maxContextTokens: settings.maxContextTokens,
     outputTokens: settings.outputTokens,
   });
+}
+
+interface GroupSpeakerCandidate {
+  readonly characterId: string;
+  readonly characterVersionId: string;
+  readonly name: string;
+  readonly tagline: string;
+  readonly description: string;
+  readonly position: number;
+}
+
+async function resolveGroupSpeaker(
+  database: D1Database,
+  conversation: OwnedConversationRow,
+  parentMessageId: string,
+): Promise<OwnedConversationRow> {
+  const group = await database
+    .prepare(
+      `SELECT routing_mode AS routingMode, active_character_id AS activeCharacterId
+       FROM conversation_character_groups WHERE conversation_id = ?`,
+    )
+    .bind(conversation.id)
+    .first<{ routingMode: 'CONTEXTUAL' | 'MANUAL'; activeCharacterId: string }>();
+  if (!group) return conversation;
+  const candidates = await database
+    .prepare(
+      `SELECT m.character_id AS characterId, m.character_version_id AS characterVersionId,
+       m.position, v.name, v.tagline, v.description
+       FROM conversation_group_members m
+       JOIN character_versions v ON v.id = m.character_version_id
+       WHERE m.conversation_id = ? ORDER BY m.position ASC`,
+    )
+    .bind(conversation.id)
+    .all<GroupSpeakerCandidate>();
+  let selected = candidates.results.find(
+    (candidate) => candidate.characterId === group.activeCharacterId,
+  );
+  if (group.routingMode === 'CONTEXTUAL') {
+    const latestUser = await database
+      .prepare(
+        `WITH RECURSIVE branch(id, parent_id, role, content, depth) AS (
+          SELECT id, parent_message_id, role, content, 0 FROM messages
+          WHERE id = ? AND conversation_id = ?
+          UNION ALL
+          SELECT m.id, m.parent_message_id, m.role, m.content, b.depth + 1
+          FROM messages m JOIN branch b ON m.id = b.parent_id
+          WHERE m.conversation_id = ? AND b.depth < 99
+        ) SELECT content FROM branch WHERE role = 'USER' ORDER BY depth ASC LIMIT 1`,
+      )
+      .bind(parentMessageId, conversation.id, conversation.id)
+      .first<{ readonly content: string }>();
+    selected =
+      selectContextualGroupSpeaker(latestUser?.content ?? '', candidates.results) ?? selected;
+  }
+  if (!selected)
+    throw new AppError('GROUP_SPEAKER_UNAVAILABLE', 'В группе нет доступного персонажа.', 409);
+  if (selected.characterId !== group.activeCharacterId) {
+    await database
+      .prepare(
+        'UPDATE conversation_character_groups SET active_character_id = ? WHERE conversation_id = ?',
+      )
+      .bind(selected.characterId, conversation.id)
+      .run();
+  }
+  return {
+    ...conversation,
+    characterId: selected.characterId,
+    characterVersionId: selected.characterVersionId,
+  };
+}
+
+export function selectContextualGroupSpeaker<T extends GroupSpeakerCandidate>(
+  message: string,
+  candidates: readonly T[],
+): T | null {
+  const normalized = message.toLocaleLowerCase('ru').replaceAll('ё', 'е');
+  const words = new Set(normalized.match(/[\p{L}\p{N}]{3,}/gu) ?? []);
+  let winner: { readonly candidate: T; readonly score: number } | null = null;
+  for (const candidate of candidates) {
+    const name = candidate.name.toLocaleLowerCase('ru').replaceAll('ё', 'е');
+    const descriptor = `${candidate.name} ${candidate.tagline} ${candidate.description}`
+      .toLocaleLowerCase('ru')
+      .replaceAll('ё', 'е');
+    const descriptorWords = new Set(descriptor.match(/[\p{L}\p{N}]{3,}/gu) ?? []);
+    let score = normalized.includes(name) ? 100 : 0;
+    for (const word of words) if (descriptorWords.has(word)) score += 1;
+    if (winner === null || score > winner.score) winner = { candidate, score };
+  }
+  return winner && winner.score > 0 ? winner.candidate : null;
 }
 
 function truncateToTokenBudget(value: string, tokenBudget: number): string {
@@ -591,7 +781,7 @@ async function requireGenerationParent(
 ): Promise<GenerationMessageRow> {
   const row = await database
     .prepare(
-      `SELECT id, role, content, status FROM messages
+      `SELECT id, role, content, status, is_greeting AS isGreeting FROM messages
        WHERE id = ? AND conversation_id = ? AND deleted_at IS NULL`,
     )
     .bind(messageId, conversationId)
@@ -600,25 +790,50 @@ async function requireGenerationParent(
   return row;
 }
 
-async function requireModelProfile(
+async function resolveModelProfile(
   database: D1Database,
-  name: 'BALANCED' | 'CREATIVE' | 'PREMIUM',
+  legacyName: 'BALANCED' | 'CREATIVE' | 'PREMIUM',
+  modelProfileId: string,
 ): Promise<ModelProfileRow> {
-  const row = await database
-    .prepare(
-      `SELECT name, provider, model, temperature, max_output_tokens AS maxOutputTokens,
-       timeout_ms AS timeoutMs, fallback_models_json AS fallbackModelsJson,
-       cost_policy_json AS costPolicyJson
-       FROM model_profiles WHERE name = ? AND enabled = 1`,
-    )
-    .bind(name)
-    .first<ModelProfileRow>();
-  if (!row) throw new AppError('MODEL_PROFILE_UNAVAILABLE', 'Профиль генерации недоступен.', 503);
-  return row;
+  const configured = await requireEffectiveRoleplayModelProfile(database, modelProfileId);
+  const effectiveProfiles = await Promise.all(
+    configured.fallbackIds.map(async (id) =>
+      requireEffectiveRoleplayModelProfile(database, id).catch(() => null),
+    ),
+  );
+  const fallbacks = effectiveProfiles.flatMap((fallback) =>
+    fallback
+      ? [
+          {
+            provider: 'BOTHUB' as const,
+            model: fallback.providerModelId,
+            maxInputUsdPerMillion: fallback.price.inputPerMillionUsd,
+            maxOutputUsdPerMillion: fallback.price.outputPerMillionUsd,
+            fixedRequestUsd: fallback.price.fixedRequestUsd,
+            contextWindow: fallback.contextWindow,
+          },
+        ]
+      : [],
+  );
+  return {
+    name: legacyName,
+    provider: 'BOTHUB',
+    model: configured.providerModelId,
+    temperature: 0.9,
+    maxOutputTokens: configured.maxOutput,
+    timeoutMs: 90_000,
+    fallbackModelsJson: JSON.stringify(fallbacks),
+    costPolicyJson: JSON.stringify({
+      maxInputUsdPerMillion: configured.price.inputPerMillionUsd,
+      maxOutputUsdPerMillion: configured.price.outputPerMillionUsd,
+      fixedRequestUsd: configured.price.fixedRequestUsd,
+    }),
+    contextWindow: configured.contextWindow,
+  };
 }
 
 export function resolveGenerationCandidates(
-  profile: Pick<ModelProfileRow, 'provider' | 'model' | 'fallbackModelsJson'>,
+  profile: Pick<ModelProfileRow, 'provider' | 'model' | 'fallbackModelsJson' | 'contextWindow'>,
   primaryPolicy: z.infer<typeof costPolicySchema>,
 ): readonly GenerationCandidate[] {
   const fallbacks = fallbackModelsSchema.parse(JSON.parse(profile.fallbackModelsJson));
@@ -631,6 +846,7 @@ export function resolveGenerationCandidates(
         outputPerMillionUsd: primaryPolicy.maxOutputUsdPerMillion,
         fixedRequestUsd: primaryPolicy.fixedRequestUsd,
       },
+      contextWindow: profile.contextWindow,
     },
   ];
   for (const fallback of fallbacks) {
@@ -643,6 +859,7 @@ export function resolveGenerationCandidates(
         outputPerMillionUsd: fallback.maxOutputUsdPerMillion,
         fixedRequestUsd: fallback.fixedRequestUsd,
       },
+      contextWindow: fallback.contextWindow,
     });
   }
   return candidates;
@@ -660,12 +877,28 @@ export function estimateMaximumCostMicros(
   );
 }
 
+export function calculateInputContextBudget(contextWindow: number, outputTokens: number): number {
+  return Math.min(32_000, contextWindow - outputTokens);
+}
+
+async function recordFirstTokenLatency(database: D1Database, requestId: string): Promise<void> {
+  const timestamp = nowMs();
+  await database
+    .prepare(
+      `UPDATE ai_requests SET first_token_latency_ms = ? - created_at
+       WHERE id = ? AND first_token_latency_ms IS NULL`,
+    )
+    .bind(timestamp, requestId)
+    .run();
+}
+
 async function activateGenerationAttempt(
   database: D1Database,
   ids: GenerationIds,
   conversationId: string,
   candidate: GenerationCandidate,
 ): Promise<void> {
+  const timestamp = nowMs();
   await database.batch([
     database
       .prepare(
@@ -675,10 +908,10 @@ async function activateGenerationAttempt(
       .bind(candidate.provider, candidate.model, ids.aiRequestId, ids.generationId),
     database
       .prepare(
-        `UPDATE messages SET provider = ?, model = ?
+        `UPDATE messages SET provider = ?, model = ?, updated_at = ?
          WHERE id = ? AND conversation_id = ? AND status = 'STREAMING'`,
       )
-      .bind(candidate.provider, candidate.model, ids.responseMessageId, conversationId),
+      .bind(candidate.provider, candidate.model, timestamp, ids.responseMessageId, conversationId),
   ]);
 }
 
@@ -723,7 +956,11 @@ interface PrepareGenerationInput {
   readonly maximumBillableCostMicros: number;
   readonly maximumProviderCostMicros: number;
   readonly timeoutMs: number;
+  readonly responseParentMessageId: string | null;
+  readonly isGreeting: boolean;
   readonly generationGroupId: string;
+  readonly sponsoredFree: boolean;
+  readonly planDailyRequestLimit: number;
 }
 
 interface GenerationIds {
@@ -738,6 +975,8 @@ async function prepareGeneration(env: Env, input: PrepareGenerationInput): Promi
     input.userId,
     input.maximumBillableCostMicros,
     input.maximumProviderCostMicros,
+    input.sponsoredFree,
+    input.planDailyRequestLimit,
   );
   const ids = { generationId: createId(), responseMessageId: createId(), aiRequestId: createId() };
   const timestamp = nowMs();
@@ -748,22 +987,34 @@ async function prepareGeneration(env: Env, input: PrepareGenerationInput): Promi
     1,
   );
   const dailyLimit = usdToMicros(env.DAILY_AI_BUDGET_USD);
+  const perUserDailyLimit = usdToMicros(
+    env.PER_USER_DAILY_AI_BUDGET_USD ?? env.DAILY_AI_BUDGET_USD,
+  );
   const monthlyLimit = usdToMicros(env.MONTHLY_AI_BUDGET_USD);
   const lifetimeLimit = usdToMicros(env.LIFETIME_AI_BUDGET_USD);
   const reservation = await env.DB.prepare(
     `INSERT INTO ai_requests (
        id, user_id, conversation_id, provider, model, purpose,
        estimated_cost_micros, provider_estimated_cost_micros,
-       status, idempotency_key, created_at
-     ) SELECT ?, ?, ?, ?, ?, 'ROLEPLAY', ?, ?, 'RESERVED', ?, ?
+       status, idempotency_key, created_at, billing_mode
+     ) SELECT ?, ?, ?, ?, ?, 'ROLEPLAY', ?, ?, 'RESERVED', ?, ?, ?
      WHERE
+       (? = 'SPONSORED_FREE' OR
        (SELECT COALESCE(SUM(amount_micros), 0) FROM credit_transactions WHERE user_id = ?)
        - (SELECT COALESCE(SUM(estimated_cost_micros), 0) FROM ai_requests
-          WHERE user_id = ? AND status IN ('RESERVED', 'STREAMING')) >= ?
+          WHERE user_id = ? AND status IN ('RESERVED', 'STREAMING')) >= ?)
+       AND (? != 'SPONSORED_FREE' OR
+         (SELECT COUNT(*) FROM ai_requests WHERE user_id = ?
+          AND billing_mode = 'SPONSORED_FREE' AND created_at >= ?
+          AND status IN ('RESERVED', 'STREAMING', 'COMPLETED')) < ?)
        AND (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0
           THEN provider_actual_cost_micros WHEN status IN ('RESERVED', 'STREAMING')
           THEN provider_estimated_cost_micros ELSE 0 END), 0)
           FROM ai_requests WHERE purpose = 'ROLEPLAY' AND created_at >= ?) + ? <= ?
+       AND (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0
+          THEN provider_actual_cost_micros WHEN status IN ('RESERVED', 'STREAMING')
+          THEN provider_estimated_cost_micros ELSE 0 END), 0)
+          FROM ai_requests WHERE user_id = ? AND purpose = 'ROLEPLAY' AND created_at >= ?) + ? <= ?
        AND (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0
           THEN provider_actual_cost_micros WHEN status IN ('RESERVED', 'STREAMING')
           THEN provider_estimated_cost_micros ELSE 0 END), 0)
@@ -783,12 +1034,22 @@ async function prepareGeneration(env: Env, input: PrepareGenerationInput): Promi
       input.maximumProviderCostMicros,
       `roleplay:${input.userId}:${input.conversationId}:${input.idempotencyKey}`,
       timestamp,
+      input.sponsoredFree ? 'SPONSORED_FREE' : 'USER_CREDITS',
+      input.sponsoredFree ? 'SPONSORED_FREE' : 'USER_CREDITS',
       input.userId,
       input.userId,
       input.maximumBillableCostMicros,
+      input.sponsoredFree ? 'SPONSORED_FREE' : 'USER_CREDITS',
+      input.userId,
+      dayStart,
+      input.planDailyRequestLimit,
       dayStart,
       input.maximumProviderCostMicros,
       dailyLimit,
+      input.userId,
+      dayStart,
+      input.maximumProviderCostMicros,
+      perUserDailyLimit,
       monthStart,
       input.maximumProviderCostMicros,
       monthlyLimit,
@@ -807,16 +1068,28 @@ async function prepareGeneration(env: Env, input: PrepareGenerationInput): Promi
     await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO messages
-         (id, conversation_id, role, content, status, parent_message_id, generation_group_id,
-          model, provider, created_at)
-         VALUES (?, ?, 'ASSISTANT', '', 'STREAMING', ?, ?, ?, ?, ?)`,
+         (id, conversation_id, role, content, content_format, status, parent_message_id,
+          generation_group_id, is_greeting, edited_by_user, origin, model, provider,
+          metadata_json, created_at, updated_at)
+         VALUES (?, ?, 'ASSISTANT', '', 'MARKDOWN', 'STREAMING', ?, ?, ?, 0,
+          'AI_GENERATION', ?, ?, COALESCE((
+            SELECT json_object('speakerCharacterId', cg.active_character_id, 'speakerName', v.name)
+            FROM conversation_character_groups cg
+            JOIN conversation_group_members gm ON gm.conversation_id = cg.conversation_id
+              AND gm.character_id = cg.active_character_id
+            JOIN character_versions v ON v.id = gm.character_version_id
+            WHERE cg.conversation_id = ?
+          ), '{}'), ?, ?)`,
       ).bind(
         ids.responseMessageId,
         input.conversationId,
-        input.requestMessageId,
+        input.responseParentMessageId,
         input.generationGroupId,
+        input.isGreeting ? 1 : 0,
         input.model,
         input.provider,
+        input.conversationId,
+        timestamp,
         timestamp,
       ),
       env.DB.prepare(
@@ -832,13 +1105,15 @@ async function prepareGeneration(env: Env, input: PrepareGenerationInput): Promi
         timestamp,
       ),
       env.DB.prepare(
-        `INSERT INTO generation_locks (conversation_id, generation_id, acquired_at, expires_at)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT INTO generation_locks
+         (conversation_id, generation_id, acquired_at, expires_at, user_id)
+         VALUES (?, ?, ?, ?, ?)`,
       ).bind(
         input.conversationId,
         ids.generationId,
         timestamp,
         timestamp + input.timeoutMs + 30_000,
+        input.userId,
       ),
       env.DB.prepare(
         `UPDATE ai_requests SET generation_id = ?, status = 'STREAMING'
@@ -853,12 +1128,13 @@ async function prepareGeneration(env: Env, input: PrepareGenerationInput): Promi
       .bind(nowMs(), ids.aiRequestId)
       .run();
     const activeLock = await env.DB.prepare(
-      'SELECT generation_id AS generationId FROM generation_locks WHERE conversation_id = ?',
+      `SELECT generation_id AS generationId FROM generation_locks
+       WHERE conversation_id = ? OR user_id = ? LIMIT 1`,
     )
-      .bind(input.conversationId)
+      .bind(input.conversationId, input.userId)
       .first<{ generationId: string }>();
     if (/UNIQUE|constraint/iu.test(asError(error).message) && activeLock) {
-      throw new AppError('GENERATION_IN_PROGRESS', 'В этом диалоге уже создаётся ответ.', 409);
+      throw new AppError('GENERATION_IN_PROGRESS', 'У вас уже создаётся ответ.', 409);
     }
     throw error;
   }
@@ -868,20 +1144,23 @@ async function prepareGeneration(env: Env, input: PrepareGenerationInput): Promi
 async function releaseExpiredGeneration(
   database: D1Database,
   conversationId: string,
+  userId: string,
 ): Promise<void> {
   const timestamp = nowMs();
   const stale = await database
     .prepare(
-      `SELECT l.generation_id AS generationId, g.response_message_id AS responseMessageId,
-       r.id AS aiRequestId
+      `SELECT l.generation_id AS generationId, l.conversation_id AS conversationId,
+       g.response_message_id AS responseMessageId, r.id AS aiRequestId
        FROM generation_locks l
        JOIN message_generations g ON g.id = l.generation_id
        LEFT JOIN ai_requests r ON r.generation_id = g.id
-       WHERE l.conversation_id = ? AND l.expires_at <= ?`,
+       WHERE (l.conversation_id = ? OR l.user_id = ?) AND l.expires_at <= ?
+       ORDER BY l.expires_at ASC LIMIT 1`,
     )
-    .bind(conversationId, timestamp)
+    .bind(conversationId, userId, timestamp)
     .first<{
       generationId: string;
+      conversationId: string;
       responseMessageId: string | null;
       aiRequestId: string | null;
     }>();
@@ -902,11 +1181,8 @@ async function releaseExpiredGeneration(
       )
       .bind(timestamp, stale.generationId),
     database
-      .prepare(
-        `DELETE FROM generation_locks
-         WHERE conversation_id = ? AND generation_id = ? AND expires_at <= ?`,
-      )
-      .bind(conversationId, stale.generationId, timestamp),
+      .prepare(`DELETE FROM generation_locks WHERE generation_id = ? AND expires_at <= ?`)
+      .bind(stale.generationId, timestamp),
   ];
   if (stale.responseMessageId) {
     statements.splice(
@@ -914,10 +1190,10 @@ async function releaseExpiredGeneration(
       0,
       database
         .prepare(
-          `UPDATE messages SET status = 'FAILED'
+          `UPDATE messages SET status = 'FAILED', updated_at = ?
            WHERE id = ? AND conversation_id = ? AND status = 'STREAMING'`,
         )
-        .bind(stale.responseMessageId, conversationId),
+        .bind(timestamp, stale.responseMessageId, stale.conversationId),
     );
   }
   await database.batch(statements);
@@ -928,6 +1204,8 @@ async function assertBudgetAvailable(
   userId: string,
   requiredBillableMicros: number,
   requiredProviderMicros: number,
+  sponsoredFree: boolean,
+  planDailyRequestLimit: number,
 ): Promise<void> {
   const timestamp = nowMs();
   const row = await env.DB.prepare(
@@ -942,27 +1220,58 @@ async function assertBudgetAvailable(
       (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0
        THEN provider_actual_cost_micros WHEN status IN ('RESERVED', 'STREAMING')
        THEN provider_estimated_cost_micros ELSE 0 END), 0)
+       FROM ai_requests WHERE user_id = ? AND purpose = 'ROLEPLAY' AND created_at >= ?)
+       AS userDaily,
+      (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0
+       THEN provider_actual_cost_micros WHEN status IN ('RESERVED', 'STREAMING')
+       THEN provider_estimated_cost_micros ELSE 0 END), 0)
        FROM ai_requests WHERE purpose = 'ROLEPLAY' AND created_at >= ?) AS monthly,
       (SELECT COALESCE(SUM(CASE WHEN provider_actual_cost_micros > 0
        THEN provider_actual_cost_micros WHEN status IN ('RESERVED', 'STREAMING')
        THEN provider_estimated_cost_micros ELSE 0 END), 0)
-       FROM ai_requests WHERE purpose = 'ROLEPLAY') AS lifetime`,
+       FROM ai_requests WHERE purpose = 'ROLEPLAY') AS lifetime,
+      (SELECT COUNT(*) FROM ai_requests WHERE user_id = ?
+       AND billing_mode = 'SPONSORED_FREE' AND created_at >= ?
+       AND status IN ('RESERVED', 'STREAMING', 'COMPLETED')) AS sponsoredDaily`,
   )
     .bind(
       userId,
       userId,
       startOfUtcDay(timestamp),
+      userId,
+      startOfUtcDay(timestamp),
       Date.UTC(new Date(timestamp).getUTCFullYear(), new Date(timestamp).getUTCMonth(), 1),
+      userId,
+      startOfUtcDay(timestamp),
     )
     .first<{
       ledger: number;
       reserved: number;
       daily: number;
+      userDaily: number;
       monthly: number;
       lifetime: number;
+      sponsoredDaily: number;
     }>();
-  if (!row || row.ledger - row.reserved < requiredBillableMicros) {
+  if (!row || (!sponsoredFree && row.ledger - row.reserved < requiredBillableMicros)) {
     throw new AppError('AI_CREDITS_REQUIRED', 'Недостаточно предоплаченных AI-кредитов.', 403);
+  }
+  if (sponsoredFree && row.sponsoredDaily >= planDailyRequestLimit) {
+    throw new AppError(
+      'FREE_DAILY_LIMIT_REACHED',
+      'Fair-use на сегодня исчерпан. Лимит обновится в 00:00 UTC.',
+      429,
+    );
+  }
+  if (
+    row.userDaily + requiredProviderMicros >
+    usdToMicros(env.PER_USER_DAILY_AI_BUDGET_USD ?? env.DAILY_AI_BUDGET_USD)
+  ) {
+    throw new AppError(
+      'USER_DAILY_AI_BUDGET_EXHAUSTED',
+      'Ваш дневной лимит генераций временно исчерпан.',
+      429,
+    );
   }
   if (
     row.daily + requiredProviderMicros > usdToMicros(env.DAILY_AI_BUDGET_USD) ||
@@ -973,6 +1282,12 @@ async function assertBudgetAvailable(
   }
 }
 
+export function planDailyRequestLimit(planCode: string): number {
+  if (planCode === 'PRO') return 500;
+  if (planCode === 'PLUS') return 150;
+  return 30;
+}
+
 interface CompletionInput extends GenerationIds {
   readonly userId: string;
   readonly conversationId: string;
@@ -980,6 +1295,7 @@ interface CompletionInput extends GenerationIds {
   readonly provider: string;
   readonly model: string;
   readonly usage: AIUsage;
+  readonly finishReason: string;
   readonly providerActualCostMicros: number;
   readonly includedLoreEntries: readonly string[];
   readonly productEventName: Extract<ProductEventName, 'GENERATION_COMPLETED' | 'REGENERATED'>;
@@ -1021,7 +1337,8 @@ async function completeGeneration(database: D1Database, input: CompletionInput):
       .bind(timestamp, input.generationId, input.conversationId),
     database
       .prepare(
-        `UPDATE messages SET content = ?, status = 'COMPLETED', model = ?, provider = ?, metadata_json = ?
+        `UPDATE messages SET content = ?, status = 'COMPLETED', model = ?, provider = ?,
+         metadata_json = ?, updated_at = ?
        WHERE id = ? AND conversation_id = ?
        AND EXISTS (SELECT 1 FROM message_generations
          WHERE id = ? AND conversation_id = ? AND state = 'COMPLETED')`,
@@ -1031,6 +1348,7 @@ async function completeGeneration(database: D1Database, input: CompletionInput):
         input.model,
         input.provider,
         JSON.stringify({ includedLoreEntries: input.includedLoreEntries }),
+        timestamp,
         input.responseMessageId,
         input.conversationId,
         input.generationId,
@@ -1040,7 +1358,7 @@ async function completeGeneration(database: D1Database, input: CompletionInput):
       .prepare(
         `UPDATE ai_requests SET input_tokens = ?, output_tokens = ?, cached_tokens = ?,
        actual_cost_micros = ?, provider_actual_cost_micros = ?,
-       latency_ms = ? - created_at, status = 'COMPLETED', completed_at = ?
+       latency_ms = ? - created_at, finish_reason = ?, status = 'COMPLETED', completed_at = ?
        WHERE id = ? AND status = 'STREAMING'
        AND EXISTS (SELECT 1 FROM message_generations WHERE id = ? AND state = 'COMPLETED')`,
       )
@@ -1051,6 +1369,7 @@ async function completeGeneration(database: D1Database, input: CompletionInput):
         actualMicros,
         input.providerActualCostMicros,
         timestamp,
+        input.finishReason.slice(0, 80),
         timestamp,
         input.aiRequestId,
         input.generationId,
@@ -1077,7 +1396,8 @@ async function completeGeneration(database: D1Database, input: CompletionInput):
        (id, user_id, type, amount_micros, idempotency_key, reference_type, reference_id,
         metadata_json, created_at)
        SELECT ?, ?, 'GENERATION_USAGE', ?, ?, 'AI_REQUEST', ?, ?, ?
-       WHERE EXISTS (SELECT 1 FROM message_generations WHERE id = ? AND state = 'COMPLETED')`,
+       WHERE EXISTS (SELECT 1 FROM message_generations WHERE id = ? AND state = 'COMPLETED')
+       AND EXISTS (SELECT 1 FROM ai_requests WHERE id = ? AND billing_mode = 'USER_CREDITS')`,
       )
       .bind(
         createId(),
@@ -1088,6 +1408,7 @@ async function completeGeneration(database: D1Database, input: CompletionInput):
         JSON.stringify({ provider: input.provider, model: input.model }),
         timestamp,
         input.generationId,
+        input.aiRequestId,
       ),
     database
       .prepare(
@@ -1110,7 +1431,7 @@ async function completeGeneration(database: D1Database, input: CompletionInput):
       ),
     database
       .prepare(
-        `UPDATE conversations SET active_message_id = ?, updated_at = ?
+        `UPDATE conversations SET active_leaf_message_id = ?, updated_at = ?
        WHERE id = ? AND user_id = ?
        AND EXISTS (SELECT 1 FROM message_generations WHERE id = ? AND state = 'COMPLETED')`,
       )
@@ -1139,9 +1460,16 @@ async function stopGenerationPersistence(
   await database.batch([
     database
       .prepare(
-        `UPDATE messages SET content = ?, status = 'STOPPED' WHERE id = ? AND conversation_id = ?`,
+        `UPDATE messages SET content = ?, status = 'STOPPED', updated_at = ?
+         WHERE id = ? AND conversation_id = ?`,
       )
-      .bind(output, ids.responseMessageId, conversationId),
+      .bind(output, timestamp, ids.responseMessageId, conversationId),
+    database
+      .prepare(
+        `UPDATE conversations SET active_leaf_message_id = ?, updated_at = ?
+         WHERE id = ? AND ? <> ''`,
+      )
+      .bind(ids.responseMessageId, timestamp, conversationId, output),
     database
       .prepare(`UPDATE message_generations SET state = 'STOPPED', completed_at = ? WHERE id = ?`)
       .bind(timestamp, ids.generationId),
@@ -1162,6 +1490,7 @@ async function failGeneration(
   database: D1Database,
   ids: GenerationIds,
   conversationId: string,
+  output: string,
   error: unknown,
   attemptedProviderCostMicros: number,
 ): Promise<void> {
@@ -1169,8 +1498,17 @@ async function failGeneration(
   const code = error instanceof AIProviderError ? error.code.slice(0, 120) : 'GENERATION_FAILED';
   await database.batch([
     database
-      .prepare(`UPDATE messages SET status = 'FAILED' WHERE id = ? AND conversation_id = ?`)
-      .bind(ids.responseMessageId, conversationId),
+      .prepare(
+        `UPDATE messages SET content = ?, status = 'FAILED', updated_at = ?
+         WHERE id = ? AND conversation_id = ?`,
+      )
+      .bind(output, timestamp, ids.responseMessageId, conversationId),
+    database
+      .prepare(
+        `UPDATE conversations SET active_leaf_message_id = ?, updated_at = ?
+         WHERE id = ? AND ? <> ''`,
+      )
+      .bind(ids.responseMessageId, timestamp, conversationId, output),
     database
       .prepare(
         `UPDATE message_generations SET state = 'FAILED', completed_at = ?, error_code = ? WHERE id = ?`,

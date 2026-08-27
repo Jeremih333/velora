@@ -1,3 +1,4 @@
+import { characterGroupSizeSchema, characterLanguageSchema } from '@velora/shared';
 import { z } from 'zod';
 
 export const visibilitySchema = z.enum([
@@ -7,13 +8,14 @@ export const visibilitySchema = z.enum([
   'MODERATION_HIDDEN',
   'DELETED',
 ]);
-export const messageRoleSchema = z.enum(['USER', 'ASSISTANT', 'SYSTEM_INTERNAL']);
+export const messageRoleSchema = z.enum(['USER', 'ASSISTANT', 'INTERNAL']);
 export const messageStatusSchema = z.enum([
   'PENDING',
   'STREAMING',
   'COMPLETED',
   'STOPPED',
   'FAILED',
+  'DELETED',
   'MODERATED',
 ]);
 export const characterStateSchema = z.enum([
@@ -80,9 +82,12 @@ export const onboardingCompleteSchema = z.object({
 export const characterInputSchema = z.object({
   name: z.string().trim().min(1).max(100),
   avatarFileId: z.uuid().nullable().default(null),
+  avatarFocalX: z.number().min(0).max(100).default(50),
+  avatarFocalY: z.number().min(0).max(100).default(50),
   tagline: z.string().trim().min(1).max(180),
   description: z.string().trim().min(20).max(24_000),
   personality: z.string().trim().min(20).max(24_000),
+  personalityVisible: z.boolean().default(false),
   scenario: z.string().trim().max(24_000).default(''),
   firstMessage: z.string().trim().min(1).max(16_000),
   exampleDialogues: z.string().trim().max(32_000).default(''),
@@ -95,7 +100,8 @@ export const characterInputSchema = z.object({
   systemInstructions: z.string().trim().max(16_000).default(''),
   postHistoryInstructions: z.string().trim().max(8_000).default(''),
   alternateGreetings: z.array(z.string().trim().min(1).max(16_000)).max(10).default([]),
-  language: z.enum(['ru', 'en']),
+  language: characterLanguageSchema,
+  groupSize: characterGroupSizeSchema.default('single'),
   visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).default('PRIVATE'),
   contentRating: z.enum(['SAFE', 'MATURE']),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
@@ -106,9 +112,12 @@ export const characterPatchSchema = z
     baseVersion: z.number().int().positive(),
     name: z.string().trim().min(1).max(100).optional(),
     avatarFileId: z.uuid().nullable().optional(),
+    avatarFocalX: z.number().min(0).max(100).optional(),
+    avatarFocalY: z.number().min(0).max(100).optional(),
     tagline: z.string().trim().min(1).max(180).optional(),
     description: z.string().trim().min(20).max(24_000).optional(),
     personality: z.string().trim().min(20).max(24_000).optional(),
+    personalityVisible: z.boolean().optional(),
     scenario: z.string().trim().max(24_000).optional(),
     firstMessage: z.string().trim().min(1).max(16_000).optional(),
     exampleDialogues: z.string().trim().max(32_000).optional(),
@@ -121,7 +130,8 @@ export const characterPatchSchema = z
     systemInstructions: z.string().trim().max(16_000).optional(),
     postHistoryInstructions: z.string().trim().max(8_000).optional(),
     alternateGreetings: z.array(z.string().trim().min(1).max(16_000)).max(10).optional(),
-    language: z.enum(['ru', 'en']).optional(),
+    language: characterLanguageSchema.optional(),
+    groupSize: characterGroupSizeSchema.optional(),
     visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).optional(),
     contentRating: z.enum(['SAFE', 'MATURE']).optional(),
     tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
@@ -162,14 +172,18 @@ export const conversationCreateSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 });
 
+export const responseLengthSchema = z.enum(['SHORT', 'MEDIUM', 'DETAILED', 'LONG']);
+export type ResponseLength = z.infer<typeof responseLengthSchema>;
+
 export const conversationPatchSchema = z
   .object({
     title: z.string().trim().min(1).max(120).optional(),
     state: z.enum(['ACTIVE', 'ARCHIVED']).optional(),
     modelProfile: z.enum(['BALANCED', 'CREATIVE', 'PREMIUM']).optional(),
+    modelProfileId: resourceIdSchema.optional(),
     temperature: z.number().min(0).max(2).optional(),
     maxOutputTokens: z.number().int().min(64).max(8192).optional(),
-    responseLength: z.enum(['SHORT', 'MEDIUM', 'LONG']).optional(),
+    responseLength: responseLengthSchema.optional(),
     customInstructions: z.string().trim().max(8_000).optional(),
     personaMode: z.enum(['SNAPSHOT', 'LIVE']).optional(),
   })
@@ -187,7 +201,7 @@ export const messageEditSchema = z.object({
 });
 
 export const memoryEditSchema = z.object({
-  content: z.string().trim().max(64_000),
+  manualContext: z.string().trim().max(64_000),
   idempotencyKey: idempotencyKeySchema,
 });
 
@@ -303,7 +317,7 @@ export const ownerStarsRefundInputSchema = z
   .strict();
 export const generationCreateSchema = z.object({
   parentMessageId: z.uuid().optional(),
-  mode: z.enum(['REPLY', 'CONTINUE']).default('REPLY'),
+  mode: z.enum(['REPLY', 'CONTINUE', 'GREETING']).default('REPLY'),
   idempotencyKey: idempotencyKeySchema,
 });
 
@@ -312,6 +326,7 @@ export const lorebookInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(4_000).default(''),
   visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).default('PRIVATE'),
+  coverMediaFileId: z.uuid().nullable().default(null),
 });
 export const lorebookPatchSchema = lorebookInputSchema
   .partial()
@@ -337,7 +352,7 @@ export const lorebookTransferSchema = z
   .object({
     format: z.literal('velora-lorebook'),
     version: z.literal(1),
-    book: lorebookInputSchema,
+    book: lorebookInputSchema.omit({ coverMediaFileId: true }),
     entries: z.array(loreEntryInputSchema).max(100),
   })
   .strict();

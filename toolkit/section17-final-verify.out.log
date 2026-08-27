@@ -1,0 +1,64 @@
+Secret scan passed.
+Running pnpm format:check
+Checking formatting...
+All matched files use Prettier code style!
+Running pnpm docs:check
+Documentation link check passed.
+Running pnpm lint
+Running pnpm typecheck
+Running pnpm test
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  53 passed (53)
+      Tests  216 passed (216)
+   Start at  17:23:32
+   Duration  12.04s (transform 7.14s, setup 0ms, import 37.57s, tests 16.89s, environment 25.21s)
+
+Running pnpm test:roleplay-quality
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  17:23:45
+   Duration  434ms (transform 61ms, setup 0ms, import 174ms, tests 12ms, environment 0ms)
+
+Running pnpm test:contract
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  17:23:46
+   Duration  2.66s (transform 829ms, setup 0ms, import 2.38s, tests 58ms, environment 0ms)
+
+Running pnpm test:integration
+[36mvite v8.2.1 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 2198 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                   0.64 kB │ gzip:   0.40 kB
+dist/.vite/manifest.json                                          5.01 kB │ gzip:   0.65 kB
+dist/assets/noto-sans-cyrillic-wght-normal-B2hlT84T.woff2        20.08 kB
+dist/assets/noto-serif-cyrillic-wght-normal-CeZyc_3Q.woff2       24.57 kB
+dist/assets/noto-sans-latin-wght-normal-BYSzYMf3.woff2           35.82 kB
+dist/assets/noto-serif-latin-wght-normal-DKWgU5qY.woff2          36.75 kB
+dist/assets/noto-sans-cyrillic-standard-italic-CIdpxP6v.woff2    42.04 kB
+dist/assets/noto-serif-cyrillic-standard-italic-DWmDwZzK.woff2   59.14 kB
+dist/assets/noto-sans-latin-standard-italic-D4-s32zN.woff2       68.67 kB
+dist/assets/noto-serif-latin-standard-italic-B3Z0LVD7.woff2      85.23 kB
+dist/assets/index-Bbpq_Pgh.css                                  114.91 kB │ gzip:  18.54 kB
+dist/assets/LorebooksView-DCNnv8hZ.js                            14.30 kB │ gzip:   3.61 kB │ map:    40.14 kB
+dist/assets/ChatsView-B-pviLzt.js                                43.38 kB │ gzip:  10.42 kB │ map:   138.30 kB
+dist/assets/SafeMarkdown-C3c1Aeqt.js                            158.97 kB │ gzip:  47.66 kB │ map:   951.35 kB
+dist/assets/AuthenticatedApp-DIjRwfZJ.js                        216.25 kB │ gzip:  53.23 kB │ map:   826.57 kB
+dist/assets/index-BCkb9Z2n.js                                   343.80 kB │ gzip: 107.65 kB │ map: 1,179.61 kB
+
+[32m✓ built in 596ms[39m
+Web bundle budget passed: initial=343807 B; assets/index-BCkb9Z2n.js=343807 B, assets/AuthenticatedApp-DIjRwfZJ.js=216257 B, assets/ChatsView-B-pviLzt.js=43388 B, assets/LorebooksView-DCNnv8hZ.js=14305 B, assets/SafeMarkdown-C3c1Aeqt.js=158975 B.
+Local D1 migration, idempotent quality seed and integrity checks passed.
+[ELIFECYCLE] Command failed with exit code 1.

@@ -1,0 +1,101 @@
+$ prettier --check .
+$ node toolkit/check-doc-links.mjs
+$ eslint . --max-warnings=0
+$ tsc -b --pretty false
+$ vitest run --exclude apps/api/src/openapi.contract.test.ts --exclude tests/integration/** --exclude tests/e2e/**
+$ vitest run packages/prompts/src/quality-scenarios.test.ts
+$ vitest run apps/api/src/openapi.contract.test.ts
+$ corepack pnpm --filter @velora/web build && node toolkit/test-d1.mjs && node toolkit/test-api.mjs && vitest run tests/integration
+$ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+file:///C:/Users/User/Desktop/%D0%B1%D0%BE%D1%82%20%D0%B4%D0%BB%D1%8F%20%D1%80%D0%BE%D0%BB%D0%BF%D0%BB%D0%B5%D1%8F%20%D1%81%20%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D1%81%D0%B5%D1%82%D1%8F%D0%BC%D0%B8/toolkit/test-api.mjs:5513
+  throw new Error(`${message}\nRecent Wrangler output:\n${workerOutput}`, { cause: error });
+        ^
+
+Error: Error: Transport failure while requesting /api/v1/admin/operations/ai-smoke.
+    at request (file:///C:/Users/User/Desktop/%D0%B1%D0%BE%D1%82%20%D0%B4%D0%BB%D1%8F%20%D1%80%D0%BE%D0%BB%D0%BF%D0%BB%D0%B5%D1%8F%20%D1%81%20%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D1%81%D0%B5%D1%82%D1%8F%D0%BC%D0%B8/toolkit/test-api.mjs:5632:11)
+    at async file:///C:/Users/User/Desktop/%D0%B1%D0%BE%D1%82%20%D0%B4%D0%BB%D1%8F%20%D1%80%D0%BE%D0%BB%D0%BF%D0%BB%D0%B5%D1%8F%20%D1%81%20%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D1%81%D0%B5%D1%82%D1%8F%D0%BC%D0%B8/toolkit/test-api.mjs:1527:17
+Recent Wrangler output:
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"e861ffe0-bfa8-44c2-a055-3cb772cc281f","route":"/api/v1/settings","method":"PATCH","status":403,"latencyMs":3,"actorHash":"0711f34ab8f6ff28","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"472081d6-303d-426c-8ca9-99a68d84e99b","route":"/api/v1/auth/telegram","method":"POST","status":409,"latencyMs":10,"actorHash":null,"errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"e5bbb6b5-0e93-4eba-b6d6-2e8736444e4b","route":"/api/v1/onboarding/complete","method":"POST","status":403,"latencyMs":4,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"b7d9e460-14b8-424a-9eb6-e8d2bec8da37","route":"/api/v1/onboarding/complete","method":"POST","status":400,"latencyMs":12,"actorHash":"1d13654a980f6c74","errorName":"ZodError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"59839466-49cd-4f6f-8778-4a53bf702302","route":"/api/v1/settings","method":"PATCH","status":403,"latencyMs":5,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"2687b96f-ed7d-4cec-9584-ca7bd82add3b","route":"/api/v1/admin/moderation/cases/:id","method":"GET","status":403,"latencyMs":4,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"c9ab9ec0-fea5-4cd4-8266-59db5e058e1b","route":"/api/v1/media/:id/content","method":"GET","status":404,"latencyMs":11,"actorHash":"b8719785b73e7f3d","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"be04fd19-179c-44a1-b0bd-f7965ff45609","route":"/api/v1/admin/moderation/cases/:id","method":"GET","status":404,"latencyMs":8,"actorHash":"98913f94d9e095a5","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"b8f45510-6606-423c-a57a-e724039856f4","route":"/api/v1/profiles/me","method":"PATCH","status":403,"latencyMs":4,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"1548d7e3-b510-4bd7-8401-c908b93a12a5","route":"/api/v1/profiles/me","method":"PATCH","status":400,"latencyMs":14,"actorHash":"b8719785b73e7f3d","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"4263146f-f116-494a-9533-56d64259bb5f","route":"/api/v1/profiles/:id","method":"GET","status":404,"latencyMs":8,"actorHash":"b8719785b73e7f3d","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"dc5ce11d-63db-42f6-b780-74a1572aa4db","route":"/api/v1/support/requests","method":"POST","status":403,"latencyMs":3,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"d61fd5f6-892f-4f97-91b2-d48d7dbd89ab","route":"/api/v1/admin/support/requests","method":"GET","status":403,"latencyMs":4,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"34c93089-ef04-4d00-8133-7ca6a032c4d8","route":"/api/v1/data-controls/account-deletion","method":"POST","status":403,"latencyMs":4,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"660d3c0e-2924-4859-bbe8-bee3a16e1f06","route":"/api/v1/data-controls/account-deletion","method":"POST","status":409,"latencyMs":12,"actorHash":"98913f94d9e095a5","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"7409561b-3a83-430b-95ce-52816f85c4b2","route":"/api/v1/admin/operations/dashboard","method":"GET","status":403,"latencyMs":5,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"504d49d3-3e44-45e1-a04d-e819d2487136","route":"/api/v1/admin/operations/ai-smoke","method":"GET","status":403,"latencyMs":4,"actorHash":"1d13654a980f6c74","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"4e3f65b0-0419-4b1a-92d4-1afe2a42ec16","route":"/api/v1/admin/operations/ai-smoke","method":"GET","status":403,"latencyMs":4,"actorHash":"dcef29624e576780","errorName":"AppError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"05da7c2e-82a0-4e40-88c4-8c6f05c96c7b","route":"/api/v1/admin/operations/ai-smoke","method":"POST","status":400,"latencyMs":5,"actorHash":"98913f94d9e095a5","errorName":"ZodError"}[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1m{"level":"error","event":"http_request","requestId":"f2895c6d-29da-4332-a5fa-a837203baf80","route":"/api/v1/admin/operations/ai-smoke","method":"POST","status":503,"latencyMs":6,"actorHash":"98913f94d9e095a5","errorName":"AppError"}[0m
+
+
+
+    at file:///C:/Users/User/Desktop/%D0%B1%D0%BE%D1%82%20%D0%B4%D0%BB%D1%8F%20%D1%80%D0%BE%D0%BB%D0%BF%D0%BB%D0%B5%D1%8F%20%D1%81%20%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D1%81%D0%B5%D1%82%D1%8F%D0%BC%D0%B8/toolkit/test-api.mjs:5513:9 {
+  [cause]: Error: Transport failure while requesting /api/v1/admin/operations/ai-smoke.
+      at request (file:///C:/Users/User/Desktop/%D0%B1%D0%BE%D1%82%20%D0%B4%D0%BB%D1%8F%20%D1%80%D0%BE%D0%BB%D0%BF%D0%BB%D0%B5%D1%8F%20%D1%81%20%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D1%81%D0%B5%D1%82%D1%8F%D0%BC%D0%B8/toolkit/test-api.mjs:5632:11)
+      at async file:///C:/Users/User/Desktop/%D0%B1%D0%BE%D1%82%20%D0%B4%D0%BB%D1%8F%20%D1%80%D0%BE%D0%BB%D0%BF%D0%BB%D0%B5%D1%8F%20%D1%81%20%D0%BD%D0%B5%D0%B9%D1%80%D0%BE%D1%81%D0%B5%D1%82%D1%8F%D0%BC%D0%B8/toolkit/test-api.mjs:1527:17 {
+    [cause]: [TypeError: fetch failed] {
+      [cause]: Error: read ECONNRESET
+          at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+        errno: -4077,
+        code: 'ECONNRESET',
+        syscall: 'read'
+      }
+    }
+  }
+}
+
+Node.js v24.14.0
+Quality gate failed: pnpm test:integration
+C:\Users\User\Desktop\бот для ролплея с нейросетями\toolkit\verify.ps1:36 знак:7
++       throw "Quality gate failed: pnpm $command"
++       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Quality gate fa...est:integration:String) [], RuntimeException
+    + FullyQualifiedErrorId : Quality gate failed: pnpm test:integration
+ 

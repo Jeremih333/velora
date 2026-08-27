@@ -213,6 +213,7 @@ export async function processDueAccountDeletions(
   database: D1Database,
   limit = 1,
   now = nowMs(),
+  mediaBucket?: R2Bucket,
 ): Promise<number> {
   let completed = 0;
   for (let index = 0; index < Math.max(0, Math.min(limit, 3)); index += 1) {
@@ -232,7 +233,7 @@ export async function processDueAccountDeletions(
       .first<DeletionRow>();
     if (!claim) break;
     try {
-      await eraseAccount(database, claim, now);
+      await eraseAccount(database, claim, now, mediaBucket);
       completed += 1;
     } catch (error) {
       const failed = claim.attempts >= 5;
@@ -257,6 +258,7 @@ async function eraseAccount(
   database: D1Database,
   request: DeletionRow,
   now: number,
+  mediaBucket: R2Bucket | undefined,
 ): Promise<void> {
   const user = await database
     .prepare('SELECT telegram_id AS telegramId FROM users WHERE id = ? AND deleted_at IS NULL')
@@ -272,6 +274,7 @@ async function eraseAccount(
       .run();
     return;
   }
+  await eraseR2Objects(database, request.userId, mediaBucket);
   const tombstoneTelegramId = `deleted:${(await sha256(`velora-erasure:${request.userId}:${user.telegramId}`)).slice(0, 40)}`;
   await database.batch([
     database
@@ -336,6 +339,34 @@ async function eraseAccount(
       )
       .bind(now, request.id),
   ]);
+}
+
+async function eraseR2Objects(
+  database: D1Database,
+  userId: string,
+  mediaBucket: R2Bucket | undefined,
+): Promise<void> {
+  let cursor = '';
+  for (;;) {
+    const result = await database
+      .prepare(
+        `SELECT id, object_key AS objectKey FROM file_objects
+         WHERE owner_id = ? AND storage_provider = 'R2' AND object_key IS NOT NULL AND id > ?
+         ORDER BY id LIMIT 500`,
+      )
+      .bind(userId, cursor)
+      .all<{ id: string; objectKey: string }>();
+    if (result.results.length === 0) return;
+    if (!mediaBucket) {
+      const error = new Error('R2 media cannot be erased without its storage binding.');
+      error.name = 'R2_STORAGE_UNAVAILABLE';
+      throw error;
+    }
+    await mediaBucket.delete(result.results.map((row) => row.objectKey));
+    const last = result.results.at(-1);
+    if (!last || result.results.length < 500) return;
+    cursor = last.id;
+  }
 }
 
 async function readDeletion(database: D1Database, userId: string): Promise<DeletionRow | null> {

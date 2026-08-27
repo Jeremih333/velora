@@ -18,3 +18,9 @@ toolkit/reports/private/
 *.local
 .velora-verify.lock
 .phase2-status.json
+
+# Production D1 dumps: these contain real user rows and must never leave the machine.
+backups/
+# Local build and profiling artifacts.
+apps/api/.wrangler-dry-run-final/
+toolkit/section17-trace/

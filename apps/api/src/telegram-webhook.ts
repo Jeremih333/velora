@@ -19,6 +19,7 @@ import {
   validateAndMarkPreCheckout,
 } from './telegram-payments';
 import { sha256 } from './telegram-auth';
+import { configurePendingCharacterBot, looksLikeTelegramBotToken } from './character-bot-setup';
 
 const telegramUserSchema = z.object({
   id: z.number().int().positive(),
@@ -170,6 +171,7 @@ export async function processTelegramUpdate(
     readonly publicAppUrl: string;
     readonly ownerTelegramId: string | undefined;
     readonly telegramApiLocation?: TelegramApiLocation;
+    readonly childBotEncryptionKey?: string | undefined;
     readonly fetcher?: typeof fetch | undefined;
   },
 ): Promise<'processed' | 'duplicate' | 'ignored'> {
@@ -249,6 +251,31 @@ export async function processTelegramUpdate(
     const command = parseBotCommand(message.text, options.botUsername);
     const locale = user.locale;
     let reply = command ? commandMessage(command, locale) : null;
+    if (looksLikeTelegramBotToken(message.text) && options.childBotEncryptionKey) {
+      const configured = await configurePendingCharacterBot({
+        database,
+        ownerId: user.id,
+        token: message.text.trim(),
+        encryptionKey: options.childBotEncryptionKey,
+        mainBotToken: options.botToken,
+        mainBotUsername: options.botUsername,
+        publicAppUrl: options.publicAppUrl,
+        ...(options.telegramApiLocation
+          ? { telegramApiLocation: options.telegramApiLocation }
+          : {}),
+        fetcher,
+      });
+      if (configured) {
+        reply = `✅ *AI-аватар создан*\n\n@${configured.username} настроен и готов к добавлению в групповой чат.`;
+        await deleteSensitiveTelegramMessage(
+          fetcher,
+          options.botToken,
+          message.chat.id,
+          message.message_id,
+          options.telegramApiLocation,
+        );
+      }
+    }
     const smokeMarker = parseProductionSmokeMarker(message.text);
     if (smokeMarker && user.role === 'OWNER') {
       const markerHash = await sha256(smokeMarker);
@@ -329,6 +356,24 @@ export async function processTelegramUpdate(
       .bind(safeError instanceof AppError ? safeError.code : 'INTERNAL_ERROR', update.update_id)
       .run();
     throw error;
+  }
+}
+
+async function deleteSensitiveTelegramMessage(
+  fetcher: typeof fetch,
+  botToken: string,
+  chatId: number,
+  messageId: number,
+  location: TelegramApiLocation | undefined,
+): Promise<void> {
+  try {
+    await fetcher(telegramBotApiUrl(botToken, 'deleteMessage', location), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+    });
+  } catch {
+    // Best-effort cleanup: token remains encrypted at rest and is never logged.
   }
 }
 

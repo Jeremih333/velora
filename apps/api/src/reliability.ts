@@ -1,6 +1,7 @@
 import { AppError, createId, nowMs } from '@velora/shared';
 import { sha256 } from './telegram-auth';
 import type { SessionPrincipal } from './session';
+import { allowsNonCriticalAnalytics } from './capacity-runtime';
 
 export type RateLimitScope =
   | 'AUTH'
@@ -9,6 +10,8 @@ export type RateLimitScope =
   | 'SEARCH'
   | 'REPORT'
   | 'MEDIA_UPLOAD'
+  | 'AVATAR_GENERATION'
+  | 'CHARACTER_ASSIST'
   | 'MEMORY_REBUILD'
   | 'SESSION_MUTATION';
 
@@ -37,7 +40,7 @@ export type ProductEventName =
   | 'PAYMENT_COMPLETED';
 
 export type FeatureFlagKey =
-  'advanced_memory' | 'new_model' | 'public_reviews' | 'experimental_renderer';
+  'advanced_memory' | 'new_model' | 'public_reviews' | 'experimental_renderer' | 'groups';
 
 const policies: readonly RateLimitPolicy[] = [
   { scope: 'GENERATION', limit: 20, windowMs: 10 * 60_000 },
@@ -199,6 +202,7 @@ export async function recordProductEvent(
   event: { readonly name: ProductEventName; readonly routeGroup: string },
   sourceKey: string | null = null,
 ): Promise<void> {
+  if (!(await allowsNonCriticalAnalytics(database))) return;
   await database
     .prepare(
       `INSERT INTO product_events

@@ -2,6 +2,15 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 describe('initial schema contract', () => {
+  it('accounts AvatarBot usage by the interacting Telegram user', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0060_avatar_bot_actor_budget.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('actor_telegram_id TEXT');
+    expect(sql).toContain('idx_character_bot_ai_actor_daily');
+  });
+
   it('contains every required source-of-truth aggregate and no RoleMate binding', async () => {
     const sql = await readFile(
       new URL('../../migrations/0001_initial.sql', import.meta.url),
@@ -144,6 +153,18 @@ describe('initial schema contract', () => {
     expect(sql).toContain("'APPLYING', 'READY', 'FAILED'");
     expect(sql).toContain('attempts BETWEEN 0 AND 10');
     expect(sql).not.toMatch(/bot_token|webhook_secret|DROP\s+TABLE|DELETE\s+FROM/iu);
+  });
+
+  it('stores one bounded reaction per user and concrete message generation', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0032_message_generation_reactions.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('CREATE TABLE message_generation_reactions');
+    expect(sql).toContain('REFERENCES message_generations(id) ON DELETE CASCADE');
+    expect(sql).toContain("reaction IN ('POSITIVE', 'NEGATIVE', 'EXCEPTIONAL')");
+    expect(sql).toContain('PRIMARY KEY(generation_id, user_id)');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM/iu);
   });
 
   it('records one bounded provider smoke without persisting prompts or generated text', async () => {
@@ -327,5 +348,307 @@ describe('initial schema contract', () => {
     );
     expect(headers).toContain('https://openai.bothub.chat');
     expect(headers.toLowerCase()).not.toContain('openrouter');
+  });
+
+  it('adds immutable owner model controls and first-token health telemetry', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0030_roleplay_model_admin_controls.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('ADD COLUMN first_token_latency_ms INTEGER');
+    expect(sql).toContain('CREATE TABLE roleplay_model_overrides');
+    expect(sql).toContain('CREATE TABLE roleplay_model_default');
+    expect(sql).toContain("'velora-free-roleplay'");
+    expect(sql).toContain("'velora-free-context'");
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM/iu);
+  });
+
+  it('persists server-side mature discovery controls and privacy-safe AI completion metadata', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0031_mature_discovery_controls.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('ADD COLUMN safe_search INTEGER');
+    expect(sql).toContain('ADD COLUMN mature_image_blur INTEGER');
+    expect(sql).toContain('ADD COLUMN finish_reason TEXT');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM/iu);
+    expect(sql).not.toMatch(/message_text|prompt|content_json/iu);
+  });
+
+  it('moves the reviewed Free routes to current key-scoped BotHub models without destructive SQL', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0035_current_free_roleplay_models.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain("WHERE model_profile_id = 'velora-free-roleplay'");
+    expect(sql).toContain("WHERE model_profile_id = 'velora-free-context'");
+    expect(sql).toContain("display_name = 'Qwen Roleplay'");
+    expect(sql).toContain("display_name = 'VeloraAI Nano'");
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|ALTER\s+TABLE/iu);
+  });
+
+  it('restores the cheaper reviewed roleplay routes after current catalog verification', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0048_restore_economical_roleplay_routes.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain("display_name = 'Lunaris Roleplay'");
+    expect(sql).toContain("display_name = 'Mistral Nemo'");
+    expect(sql).toContain("WHERE model_profile_id = 'velora-free-roleplay'");
+    expect(sql).toContain("WHERE model_profile_id = 'velora-free-context'");
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|ALTER\s+TABLE/iu);
+  });
+
+  it('stores roleplay benchmark evidence and owner scores without generated prose', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0049_roleplay_benchmark_reviews.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('CREATE TABLE roleplay_benchmark_runs');
+    expect(sql).toContain('CREATE TABLE roleplay_benchmark_scores');
+    expect(sql).toContain("'AWAITING_REVIEW'");
+    expect(sql).toContain("'consensual_mature_fictional_compatibility'");
+    expect(sql).toContain('score BETWEEN 1 AND 5');
+    expect(sql).toContain('scenario_evidence_json');
+    expect(sql).not.toMatch(/prompt|generated_(?:text|prose)|output_text|content_json/iu);
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|ALTER\s+TABLE/iu);
+  });
+
+  it('adds bounded character focal points without replacing or deleting media', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0036_character_avatar_focal_point.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('ADD COLUMN avatar_focal_x REAL NOT NULL DEFAULT 50');
+    expect(sql).toContain('ADD COLUMN avatar_focal_y REAL NOT NULL DEFAULT 50');
+    expect(sql).toContain('avatar_focal_x >= 0 AND avatar_focal_x <= 100');
+    expect(sql).toContain('avatar_focal_y >= 0 AND avatar_focal_y <= 100');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+file_objects/iu);
+  });
+
+  it('adds the detailed response preset while preserving every conversation setting', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0037_detailed_response_length.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain("('SHORT', 'MEDIUM', 'DETAILED', 'LONG')");
+    expect(sql).toContain('INSERT INTO conversation_settings_v2');
+    expect(sql).toContain('FROM conversation_settings');
+    expect(sql).toContain('model_profile_id');
+    expect(sql).toContain('ALTER TABLE conversation_settings_v2 RENAME TO conversation_settings');
+    expect(sql).not.toMatch(/DELETE\s+FROM|UPDATE\s+conversation_settings/iu);
+  });
+
+  it('normalizes the complete message provenance model without dropping message data', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0038_message_provenance.sql', import.meta.url),
+      'utf8',
+    );
+    for (const column of [
+      'content_format',
+      'is_greeting',
+      'edited_by_user',
+      'origin',
+      'updated_at',
+      'deleted_at',
+    ]) {
+      expect(sql).toContain(column);
+    }
+    expect(sql).toContain("role IN ('USER', 'ASSISTANT', 'INTERNAL')");
+    expect(sql).toContain("'DELETED', 'MODERATED'");
+    expect(sql).toContain("CASE role WHEN 'SYSTEM_INTERNAL' THEN 'INTERNAL'");
+    expect(sql).toContain('INSERT INTO messages_v2');
+    expect(sql).toContain('FROM messages');
+    expect(sql).toContain('PRAGMA defer_foreign_keys = ON');
+    expect(sql).not.toMatch(/DELETE\s+FROM\s+messages/iu);
+  });
+
+  it('renames the active branch pointer to its canonical leaf name without rewriting data', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0039_active_leaf_message.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain(
+      'ALTER TABLE conversations RENAME COLUMN active_message_id TO active_leaf_message_id',
+    );
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+conversations/iu);
+  });
+
+  it('splits memory without allowing legacy user context to be erased by automation', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0040_split_memory_context.sql', import.meta.url),
+      'utf8',
+    );
+    for (const column of [
+      'manual_context',
+      'auto_summary',
+      'current_version_id',
+      'source',
+      'provider',
+    ]) {
+      expect(sql).toContain(column);
+    }
+    expect(sql).toContain('SET manual_context = content');
+    expect(sql).toContain("auto_summary = ''");
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM/iu);
+  });
+
+  it('records the exact message that invalidated automatic memory without destructive SQL', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0041_memory_invalidation_anchor.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('ADD COLUMN memory_stale_since_message_id TEXT');
+    expect(sql).toContain('CREATE INDEX idx_conversations_memory_stale');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+conversations/iu);
+  });
+
+  it('enforces one active generation per user without deleting existing locks', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0042_user_generation_budget_guards.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE');
+    expect(sql).toContain('CREATE UNIQUE INDEX idx_generation_locks_user');
+    expect(sql).toContain('WHERE user_id IS NOT NULL');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+generation_locks/iu);
+  });
+
+  it('persists an explicit non-destructive Cloudflare runtime policy', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0043_runtime_capacity_state.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('CREATE TABLE runtime_capacity_state');
+    expect(sql).toContain('core_chat_enabled INTEGER NOT NULL CHECK (core_chat_enabled = 1)');
+    expect(sql).toContain("VALUES ('cloudflare-free', 'OK', 1, 1, 1, 1, 0)");
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+/iu);
+  });
+
+  it('adds opt-in character personality visibility without exposing existing characters', async () => {
+    const [sql, publicRoutes, discoveryRoutes] = await Promise.all([
+      readFile(
+        new URL('../../migrations/0050_character_personality_visibility.sql', import.meta.url),
+        'utf8',
+      ),
+      readFile(new URL('../../apps/api/src/public-routes.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../../apps/api/src/discovery-routes.ts', import.meta.url), 'utf8'),
+    ]);
+    expect(sql).toContain('ADD COLUMN personality_visible INTEGER NOT NULL DEFAULT 0');
+    expect(sql).toContain('personality_visible IN (0, 1)');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+characters/iu);
+    for (const source of [publicRoutes, discoveryRoutes]) {
+      expect(source).toContain(
+        'CASE WHEN c.personality_visible = 1 THEN v.personality ELSE NULL END AS personality',
+      );
+    }
+  });
+
+  it('adds non-content diagnostic codes to failed Character Bot requests', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0051_character_bot_error_codes.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('ADD COLUMN error_code TEXT');
+    expect(sql).toContain('idx_character_bot_ai_recent_failures');
+    expect(sql).toContain("WHERE status = 'FAILED'");
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+/iu);
+  });
+
+  it('stores user-scoped notifications with unread and deduplication indexes', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0052_user_notifications.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('CREATE TABLE user_notifications');
+    expect(sql).toContain('UNIQUE(user_id, dedup_key)');
+    expect(sql).toContain('idx_user_notifications_unread');
+    expect(sql).toContain('ON DELETE CASCADE');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+users/iu);
+  });
+
+  it('adds non-destructive assistant history to Character Bot turns', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0053_character_bot_assistant_history.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('ADD COLUMN assistant_body TEXT');
+    expect(sql).not.toMatch(/DROP\s+TABLE|DELETE\s+FROM|UPDATE\s+/iu);
+  });
+
+  it('creates editable override rows for every newly reviewed roleplay model', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0054_complete_roleplay_model_overrides.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('INSERT OR IGNORE INTO roleplay_model_overrides');
+    expect(sql).toContain("'velora-qwen-story'");
+    expect(sql).toContain("'velora-chimera'");
+    expect(sql).toContain("'velora-kimi-epic'");
+    expect(sql).not.toMatch(/\b(?:DROP|TRUNCATE)\b|DELETE\s+FROM/iu);
+  });
+
+  it('replaces failed model routes without rewriting historical provider evidence', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0055_replace_unstable_roleplay_models.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain("'velora-rocinante'");
+    expect(sql).toContain("'velora-deepseek-r1'");
+    expect(sql).toContain("'velora-llama-epic'");
+    expect(sql).toContain('UPDATE conversation_settings');
+    expect(sql).toContain('UPDATE character_avatar_bots');
+    expect(sql).not.toMatch(
+      /UPDATE\s+(?:ai_requests|provider_smoke_runs|roleplay_benchmark_runs)/iu,
+    );
+    expect(sql).not.toMatch(/\b(?:DROP|DELETE|TRUNCATE)\b/iu);
+  });
+
+  it('disables replacement routes rejected by a real provider smoke', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0056_disable_failed_replacement_models.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain("'velora-rocinante'");
+    expect(sql).toContain("'velora-deepseek-r1'");
+    expect(sql).toContain('UPDATE conversation_settings');
+    expect(sql).toContain('UPDATE character_avatar_bots');
+    expect(sql).not.toMatch(
+      /UPDATE\s+(?:ai_requests|provider_smoke_runs|roleplay_benchmark_runs)/iu,
+    );
+    expect(sql).not.toMatch(/\b(?:DROP|DELETE|TRUNCATE)\b/iu);
+  });
+
+  it('removes the forced-short-answer conflict from the Alice production fixture', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0057_enrich_alice_roleplay.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain("WHERE id = 'alice-dvachevskaya-v1'");
+    expect(sql).toContain('3–6 связными абзацами');
+    expect(sql).toContain('в *звёздочках*');
+    expect(sql).not.toMatch(/\b(?:DROP|DELETE|TRUNCATE)\b/iu);
+  });
+
+  it('keeps the owner reference Alice bot on the validated balanced route', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0058_alice_balanced_model.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain("model_profile_id = 'velora-balanced'");
+    expect(sql).toContain("id = '9abf0141-9278-4be2-aaeb-63b8cb85da9a'");
+    expect(sql).not.toMatch(/\b(?:DROP|DELETE|TRUNCATE)\b/iu);
+  });
+
+  it('stores AvatarBot model choices per Telegram user and resets the legacy shared choice', async () => {
+    const sql = await readFile(
+      new URL('../../migrations/0059_avatar_bot_user_model_preferences.sql', import.meta.url),
+      'utf8',
+    );
+    expect(sql).toContain('CREATE TABLE character_bot_user_model_preferences');
+    expect(sql).toContain('PRIMARY KEY (avatar_bot_id, telegram_user_id)');
+    expect(sql).toContain('REFERENCES character_avatar_bots(id) ON DELETE CASCADE');
+    expect(sql).toContain("model_profile_id = 'velora-free-roleplay'");
+    expect(sql).not.toMatch(/\b(?:DROP|TRUNCATE)\b|DELETE\s+FROM/iu);
   });
 });

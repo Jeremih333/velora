@@ -1,0 +1,2259 @@
+version: 1
+reference_count: 46
+source_archive: 'user-provided ZIP; immutable controlled copy'
+source_archive_sha256: '6ca0030261f3f8041a0839d31bdf9d50ca64713deb164de3d0252d8576878fda'
+screenshots:
+  - id: 'ui-01'
+    source: 'photo_01.jpg'
+    reference: 'docs/ui/reference/photo_01.jpg'
+    normalized: 'docs/ui/reference/photo_01.jpg'
+    sha256: '9f6b8d769a30edb0c8850c97e1ec43f2e889911964b016c02eb17955d082403a'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'default discovery feed'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['character cards, search, tag filters, bottom navigation']
+    requiredComponents: ['character cards, search, tag filters, bottom navigation']
+    requiredStrings: ['default discovery feed', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Discovery gallery with all controls visible and operational'
+    expectedState: 'Discovery gallery with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-01'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-02'
+    source: 'photo_02.jpg'
+    reference: 'docs/ui/reference/photo_02.jpg'
+    normalized: 'docs/ui/reference/photo_02.jpg'
+    sha256: 'f5c8c6313e1b36cbedda380cfc42e949995d89810c16c40345f4587e4dc16d5f'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'creation drawer open'
+    fixture: 'owner-with-content'
+    preconditions:
+      [
+        'load fixture owner-with-content',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['drawer, create character, create persona, create lorebook']
+    requiredComponents: ['drawer, create character, create persona, create lorebook']
+    requiredStrings: ['creation drawer open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Create drawer with all controls visible and operational'
+    expectedState: 'Create drawer with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-02'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-03'
+    source: 'photo_03.jpg'
+    reference: 'docs/ui/reference/photo_03.jpg'
+    normalized: 'docs/ui/reference/photo_03.jpg'
+    sha256: '0419c5a1b08dd4dde109d01eb46c4e199d9caad4acd4b367247692631bdaefef'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'library drawer open'
+    fixture: 'owner-with-content'
+    preconditions:
+      [
+        'load fixture owner-with-content',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['drawer, characters, personas, lorebooks']
+    requiredComponents: ['drawer, characters, personas, lorebooks']
+    requiredStrings: ['library drawer open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Creative library drawer with all controls visible and operational'
+    expectedState: 'Creative library drawer with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-03'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-04'
+    source: 'photo_04.jpg'
+    reference: 'docs/ui/reference/photo_04.jpg'
+    normalized: 'docs/ui/reference/photo_04.jpg'
+    sha256: '7e2a0564798eeabd2e2696210f1105a85b95dd334967983d9551aa9370ab1cc6'
+    viewport: { width: 626, height: 1280 }
+    route: '/characters'
+    state: 'owned character list'
+    fixture: 'owner-with-characters'
+    preconditions:
+      [
+        'load fixture owner-with-characters',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['character cards, search, create action']
+    requiredComponents: ['character cards, search, create action']
+    requiredStrings: ['owned character list', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'My characters with all controls visible and operational'
+    expectedState: 'My characters with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-04'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-05'
+    source: 'photo_05.jpg'
+    reference: 'docs/ui/reference/photo_05.jpg'
+    normalized: 'docs/ui/reference/photo_05.jpg'
+    sha256: '0aa4476ee1d96099464349fc951e8e9740e2d8b51d362180abe70fc9c96ea7aa'
+    viewport: { width: 576, height: 1280 }
+    route: '/lorebooks'
+    state: 'owned lorebook list'
+    fixture: 'owner-with-lorebooks'
+    preconditions:
+      [
+        'load fixture owner-with-lorebooks',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['lorebook cards, search, create action']
+    requiredComponents: ['lorebook cards, search, create action']
+    requiredStrings: ['owned lorebook list', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'My lorebooks with all controls visible and operational'
+    expectedState: 'My lorebooks with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-05'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-06'
+    source: 'photo_06.jpg'
+    reference: 'docs/ui/reference/photo_06.jpg'
+    normalized: 'docs/ui/reference/photo_06.jpg'
+    sha256: 'cb3d0d73efdb6a2cf3b573d6695249a9a3da72ad55b228c2aedff295716e4b77'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'sort menu open'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['menu, selected sort, dismiss layer']
+    requiredComponents: ['menu, selected sort, dismiss layer']
+    requiredStrings: ['sort menu open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Discovery sort menu with all controls visible and operational'
+    expectedState: 'Discovery sort menu with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-06'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-07'
+    source: 'photo_07.jpg'
+    reference: 'docs/ui/reference/photo_07.jpg'
+    normalized: 'docs/ui/reference/photo_07.jpg'
+    sha256: '860dbe695aac9418d6b88050b2722e866973dfc546c36a351c8203c830ebd280'
+    viewport: { width: 576, height: 1280 }
+    route: '/characters/new'
+    state: 'editor top'
+    fixture: 'character-draft'
+    preconditions:
+      [
+        'load fixture character-draft',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['identity fields, avatar, save state']
+    requiredComponents: ['identity fields, avatar, save state']
+    requiredStrings: ['editor top', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Character creator top with all controls visible and operational'
+    expectedState: 'Character creator top with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: character metrics pass',
+        'playwright flow: iPhone exact-state pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-07'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-08'
+    source: 'photo_08.jpg'
+    reference: 'docs/ui/reference/photo_08.jpg'
+    normalized: 'docs/ui/reference/photo_08.jpg'
+    sha256: '4a6f245f60a4a6651998160d5618aece01d588f4518f6523b48aeafc08b621ca'
+    viewport: { width: 576, height: 1280 }
+    route: '/characters/new'
+    state: 'editor middle'
+    fixture: 'character-draft'
+    preconditions:
+      [
+        'load fixture character-draft',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['description fields, tags, content rating']
+    requiredComponents: ['description fields, tags, content rating']
+    requiredStrings: ['editor middle', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Character creator middle with all controls visible and operational'
+    expectedState: 'Character creator middle with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: character metrics pass',
+        'playwright flow: iPhone exact-state pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-08'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-09'
+    source: 'photo_09.jpg'
+    reference: 'docs/ui/reference/photo_09.jpg'
+    normalized: 'docs/ui/reference/photo_09.jpg'
+    sha256: '149fad330d32656f4b1033d2113b12b6e3620fc080d9be2c9c9694fb6adf5759'
+    viewport: { width: 576, height: 1280 }
+    route: '/characters/new'
+    state: 'editor bottom'
+    fixture: 'character-draft'
+    preconditions:
+      [
+        'load fixture character-draft',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['greetings, examples, publish action']
+    requiredComponents: ['greetings, examples, publish action']
+    requiredStrings: ['editor bottom', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Character creator bottom with all controls visible and operational'
+    expectedState: 'Character creator bottom with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: character metrics pass',
+        'playwright flow: iPhone exact-state pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-09'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-10'
+    source: 'photo_10.jpg'
+    reference: 'docs/ui/reference/photo_10.jpg'
+    normalized: 'docs/ui/reference/photo_10.jpg'
+    sha256: '990f608cb20f5ce7d2a1562db5635ab2fe157a57cb413bcce30f471c9ff2349e'
+    viewport: { width: 576, height: 1280 }
+    route: '/chats'
+    state: 'recent conversations'
+    fixture: 'user-with-chats'
+    preconditions:
+      [
+        'load fixture user-with-chats',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['chat cards, search, sort, archive']
+    requiredComponents: ['chat cards, search, sort, archive']
+    requiredStrings: ['recent conversations', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Recent chats with all controls visible and operational'
+    expectedState: 'Recent chats with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: conversation list helpers and shared controls pass',
+        'playwright flow: iPhone search/sort/manage/archive/restore pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-10'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-11'
+    source: 'photo_11.jpg'
+    reference: 'docs/ui/reference/photo_11.jpg'
+    normalized: 'docs/ui/reference/photo_11.jpg'
+    sha256: '943b87232b4fed95184269849c0541cad5d85e16ab16a87ba039a3b083cc3804'
+    viewport: { width: 576, height: 1280 }
+    route: '/settings/profile'
+    state: 'profile overview'
+    fixture: 'registered-user'
+    preconditions:
+      [
+        'load fixture registered-user',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['avatar, account data, navigation rows']
+    requiredComponents: ['avatar, account data, navigation rows']
+    requiredStrings: ['profile overview', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'User profile with all controls visible and operational'
+    expectedState: 'User profile with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: profile and account controls pass strict web checks',
+        'playwright flow: iPhone edit, persisted plan navigation and blocked count pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-11'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-12'
+    source: 'photo_12.jpg'
+    reference: 'docs/ui/reference/photo_12.jpg'
+    normalized: 'docs/ui/reference/photo_12.jpg'
+    sha256: '41eeec6c798fde3b7647e6fd7dabf8af6fed2d3a7734939d99fe5ae7e8270237'
+    viewport: { width: 576, height: 1280 }
+    route: '/chat/:conversationId'
+    state: 'persona chooser open'
+    fixture: 'chat-with-personas'
+    preconditions:
+      [
+        'load fixture chat-with-personas',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['persona cards, selected state, confirm action']
+    requiredComponents: ['persona cards, selected state, confirm action']
+    requiredStrings: ['persona chooser open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Persona chooser with all controls visible and operational'
+    expectedState: 'Persona chooser with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: automatic default, search, selection, close and management callbacks pass',
+        'playwright flow: iPhone search, select, persist default, create and automatic reuse pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-12'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-13'
+    source: 'photo_13.jpg'
+    reference: 'docs/ui/reference/photo_13.jpg'
+    normalized: 'docs/ui/reference/photo_13.jpg'
+    sha256: '52c46dcb3cfeededb7d2a6ffdb47b7ac94e24daed7165076367d91b4a49ee2a7'
+    viewport: { width: 576, height: 1280 }
+    route: '/personas'
+    state: 'owned persona list'
+    fixture: 'owner-with-personas'
+    preconditions:
+      [
+        'load fixture owner-with-personas',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['persona cards, search, create action']
+    requiredComponents: ['persona cards, search, create action']
+    requiredStrings: ['owned persona list', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Persona list with all controls visible and operational'
+    expectedState: 'Persona list with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: persona card actions and exact search inputs pass',
+        'playwright flow: iPhone create, full/filtered/empty search states pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-13'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-14'
+    source: 'photo_14.jpg'
+    reference: 'docs/ui/reference/photo_14.jpg'
+    normalized: 'docs/ui/reference/photo_14.jpg'
+    sha256: '3d0a00cf07f1b91787c1c908d1f8347638e53603161ac1d8df57f8af2eedbffb'
+    viewport: { width: 576, height: 1280 }
+    route: '/personas/:id/edit'
+    state: 'editor top'
+    fixture: 'persona-draft'
+    preconditions:
+      [
+        'load fixture persona-draft',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['avatar, identity, description fields']
+    requiredComponents: ['avatar, identity, description fields']
+    requiredStrings: ['editor top', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Persona editor top with all controls visible and operational'
+    expectedState: 'Persona editor top with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: persona editor payload and default-persona behavior pass',
+        'playwright flow: iPhone avatar selection and editor-top state pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-14'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-15'
+    source: 'photo_15.jpg'
+    reference: 'docs/ui/reference/photo_15.jpg'
+    normalized: 'docs/ui/reference/photo_15.jpg'
+    sha256: '3483520f5f6a34893bbce66fc9530c66371853366d6f22acd1d046f5368775bc'
+    viewport: { width: 576, height: 1280 }
+    route: '/personas/:id/edit'
+    state: 'editor bottom'
+    fixture: 'persona-draft'
+    preconditions:
+      [
+        'load fixture persona-draft',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['speaking style, notes, save action']
+    requiredComponents: ['speaking style, notes, save action']
+    requiredStrings: ['editor bottom', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Persona editor bottom with all controls visible and operational'
+    expectedState: 'Persona editor bottom with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: persona editor payload and default-persona behavior pass',
+        'playwright flow: iPhone complete edit, persistence and editor-bottom state pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-15'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-16'
+    source: 'photo_16.jpg'
+    reference: 'docs/ui/reference/photo_16.jpg'
+    normalized: 'docs/ui/reference/photo_16.jpg'
+    sha256: '19eb9f4ac84335de7eda16a16c149f572b847a5033be0b1a83dde18c6aa55358'
+    viewport: { width: 576, height: 1280 }
+    route: '/chat/:conversationId'
+    state: 'active branch'
+    fixture: 'long-roleplay-chat'
+    preconditions:
+      [
+        'load fixture long-roleplay-chat',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['header, message timeline, composer, tools']
+    requiredComponents: ['header, message timeline, composer, tools']
+    requiredStrings: ['active branch', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Main roleplay chat with all controls visible and operational'
+    expectedState: 'Main roleplay chat with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: message bubble, variants and action-menu behavior pass',
+        'playwright flow: iPhone 500-message active chat and operational controls pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-16'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-17'
+    source: 'photo_17.jpg'
+    reference: 'docs/ui/reference/photo_17.jpg'
+    normalized: 'docs/ui/reference/photo_17.jpg'
+    sha256: '0233e03779795d5742e43061c57720889a32bc02a127b5a1d9599316b5332501'
+    viewport: { width: 576, height: 1280 }
+    route: '/chat/:conversationId'
+    state: 'model picker open top'
+    fixture: 'free-user-chat'
+    preconditions:
+      [
+        'load fixture free-user-chat',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['recommended model rows, selection, availability']
+    requiredComponents: ['recommended model rows, selection, availability']
+    requiredStrings: ['model picker open top', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Quick model picker top with all controls visible and operational'
+    expectedState: 'Quick model picker top with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: selection, locked availability and catalog/settings actions pass',
+        'playwright flow: iPhone model-picker top, persistence and accessibility pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-17'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-18'
+    source: 'photo_18.jpg'
+    reference: 'docs/ui/reference/photo_18.jpg'
+    normalized: 'docs/ui/reference/photo_18.jpg'
+    sha256: '84ece24e20b8006318fca7a75c84acf81cee758586ce8f9881431e8f704b0f44'
+    viewport: { width: 576, height: 1280 }
+    route: '/chat/:conversationId'
+    state: 'model picker open lower'
+    fixture: 'free-user-chat'
+    preconditions:
+      [
+        'load fixture free-user-chat',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['premium rows, full catalog link, generation settings']
+    requiredComponents: ['premium rows, full catalog link, generation settings']
+    requiredStrings: ['model picker open lower', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Quick model picker bottom with all controls visible and operational'
+    expectedState: 'Quick model picker bottom with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: premium/availability rows and destination actions pass',
+        'playwright flow: independently scrolled iPhone lower state and destinations pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-18'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-19'
+    source: 'photo_19.jpg'
+    reference: 'docs/ui/reference/photo_19.jpg'
+    normalized: 'docs/ui/reference/photo_19.jpg'
+    sha256: '76b4e389f57903745f69f484274d7be584ec2e88d7d874523e7776bb0d27e617'
+    viewport: { width: 576, height: 1280 }
+    route: '/models'
+    state: 'catalog list'
+    fixture: 'model-catalog'
+    preconditions:
+      [
+        'load fixture model-catalog',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['model rows, descriptions, availability, selection']
+    requiredComponents: ['model rows, descriptions, availability, selection']
+    requiredStrings: ['catalog list', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Full model catalog with all controls visible and operational'
+    expectedState: 'Full model catalog with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: full server catalog fields and availability rendering pass',
+        'playwright flow: iPhone full catalog, close and keyboard-scroll accessibility pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-19'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-20'
+    source: 'photo_20.jpg'
+    reference: 'docs/ui/reference/photo_20.jpg'
+    normalized: 'docs/ui/reference/photo_20.jpg'
+    sha256: '3a68531b1cb2ff580bdbb781697d02cf5c3c680f91eaa76ab8e93b21903683ae'
+    viewport: { width: 720, height: 160 }
+    route: '/chat/:conversationId'
+    state: 'reaction popover open'
+    fixture: 'chat-with-message'
+    preconditions:
+      [
+        'load fixture chat-with-message',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['emoji strip, selected reaction, dismiss layer']
+    requiredComponents: ['emoji strip, selected reaction, dismiss layer']
+    requiredStrings: ['reaction popover open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Reaction picker with all controls visible and operational'
+    expectedState: 'Reaction picker with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: generation-scoped reaction toggle and deduplication pass',
+        'playwright flow: iPhone selection, removal, Escape and outside-click dismissal pass',
+        'visual expected-actual-diff: reviewed fail',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-20'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-21'
+    source: 'photo_21.jpg'
+    reference: 'docs/ui/reference/photo_21.jpg'
+    normalized: 'docs/ui/reference/photo_21.jpg'
+    sha256: '69fed5ebdeffde7e7d1e76c017145a6cd39d88c33dba054f7f1f8620bff4bd27'
+    viewport: { width: 720, height: 745 }
+    route: '/chat/:conversationId'
+    state: 'assistant message menu open'
+    fixture: 'chat-with-assistant-message'
+    preconditions:
+      [
+        'load fixture chat-with-assistant-message',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['copy, regenerate, branch, report actions']
+    requiredComponents: ['copy, regenerate, branch, report actions']
+    requiredStrings: ['assistant message menu open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Assistant message menu with all controls visible and operational'
+    expectedState: 'Assistant message menu with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: group-size choices, selection, reset and disabled feature-flag state',
+        'playwright flow: Android/iPhone/desktop group-size selection, apply and reset',
+        'visual expected-actual-diff: docs/ui/evidence/ui-37 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-21'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-22'
+    source: 'photo_22.jpg'
+    reference: 'docs/ui/reference/photo_22.jpg'
+    normalized: 'docs/ui/reference/photo_22.jpg'
+    sha256: 'a6ccb1e82fa2328aed8120639a29aa6ec006a8633f47e08f7a7c85df4af9c71f'
+    viewport: { width: 720, height: 397 }
+    route: '/chat/:conversationId'
+    state: 'user message menu open'
+    fixture: 'chat-with-user-message'
+    preconditions:
+      [
+        'load fixture chat-with-user-message',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['edit, copy, delete, branch actions']
+    requiredComponents: ['edit, copy, delete, branch actions']
+    requiredStrings: ['user message menu open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'User message menu with all controls visible and operational'
+    expectedState: 'User message menu with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-22'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-23'
+    source: 'photo_23.jpg'
+    reference: 'docs/ui/reference/photo_23.jpg'
+    normalized: 'docs/ui/reference/photo_23.jpg'
+    sha256: 'c6560c33f9133171d6aaa48113b9aa6ff41828e43e596f7395198c7581f022a8'
+    viewport: { width: 576, height: 1280 }
+    route: '/characters/:id'
+    state: 'public profile'
+    fixture: 'published-character'
+    preconditions:
+      [
+        'load fixture published-character',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['hero media, metadata, description, start story']
+    requiredComponents: ['hero media, metadata, description, start story']
+    requiredStrings: ['public profile', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Character profile with all controls visible and operational'
+    expectedState: 'Character profile with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-23'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-24'
+    source: 'photo_24.jpg'
+    reference: 'docs/ui/reference/photo_24.jpg'
+    normalized: 'docs/ui/reference/photo_24.jpg'
+    sha256: 'd398920795c825ba5b738f7f0522a4b19e3923425f889417a9dc14381a234cac'
+    viewport: { width: 576, height: 1280 }
+    route: '/characters/:id'
+    state: 'greeting collapsed'
+    fixture: 'character-with-long-greeting'
+    preconditions:
+      [
+        'load fixture character-with-long-greeting',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['greeting preview, expand action']
+    requiredComponents: ['greeting preview, expand action']
+    requiredStrings: ['greeting collapsed', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Greeting collapsed with all controls visible and operational'
+    expectedState: 'Greeting collapsed with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-24'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-25'
+    source: 'photo_25.jpg'
+    reference: 'docs/ui/reference/photo_25.jpg'
+    normalized: 'docs/ui/reference/photo_25.jpg'
+    sha256: '1804e10822899618be5efc0633e6b2e098409b2527b0e6f936bb3b013d8281c6'
+    viewport: { width: 576, height: 1280 }
+    route: '/characters/:id'
+    state: 'greeting expanded'
+    fixture: 'character-with-long-greeting'
+    preconditions:
+      [
+        'load fixture character-with-long-greeting',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['full greeting, collapse action']
+    requiredComponents: ['full greeting, collapse action']
+    requiredStrings: ['greeting expanded', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Greeting expanded with all controls visible and operational'
+    expectedState: 'Greeting expanded with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-25'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-26'
+    source: 'photo_26.jpg'
+    reference: 'docs/ui/reference/photo_26.jpg'
+    normalized: 'docs/ui/reference/photo_26.jpg'
+    sha256: '495e9913f038bfff6e9b4c39c5bb711836d23b3a27f3340c2179a5548f39347c'
+    viewport: { width: 576, height: 1280 }
+    route: '/creators/:id'
+    state: 'public creator profile'
+    fixture: 'creator-with-content'
+    preconditions:
+      [
+        'load fixture creator-with-content',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['creator header, follow action, published content']
+    requiredComponents: ['creator header, follow action, published content']
+    requiredStrings: ['public creator profile', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Creator profile with all controls visible and operational'
+    expectedState: 'Creator profile with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-26'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-27'
+    source: 'photo_27.jpg'
+    reference: 'docs/ui/reference/photo_27.jpg'
+    normalized: 'docs/ui/reference/photo_27.jpg'
+    sha256: '3d22235a571613286c2052b4da0b8b8fc4961420b177bd3e6436a76c8b386d60'
+    viewport: { width: 576, height: 1280 }
+    route: '/chats/manage'
+    state: 'selection mode'
+    fixture: 'user-with-chats'
+    preconditions:
+      [
+        'load fixture user-with-chats',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['selection controls, archive, delete']
+    requiredComponents: ['selection controls, archive, delete']
+    requiredStrings: ['selection mode', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Manage chats with all controls visible and operational'
+    expectedState: 'Manage chats with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-27'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-28'
+    source: 'photo_28.jpg'
+    reference: 'docs/ui/reference/photo_28.jpg'
+    normalized: 'docs/ui/reference/photo_28.jpg'
+    sha256: 'ccf0f13ff3394921c2507207c5ae9cb4909c65aab9ba55997346e53a90a46110'
+    viewport: { width: 576, height: 1280 }
+    route: '/chats'
+    state: 'sort menu open'
+    fixture: 'user-with-chats'
+    preconditions:
+      [
+        'load fixture user-with-chats',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['sort options, selected state, dismiss layer']
+    requiredComponents: ['sort options, selected state, dismiss layer']
+    requiredStrings: ['sort menu open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Chat sort menu with all controls visible and operational'
+    expectedState: 'Chat sort menu with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-28'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-29'
+    source: 'photo_29.jpg'
+    reference: 'docs/ui/reference/photo_29.jpg'
+    normalized: 'docs/ui/reference/photo_29.jpg'
+    sha256: 'e2bd65bb3ba6788537f8ba600784f3b1d2f765da94554dee28a1a0b221f78556'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'tag filter open'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['search tags, selected chips, apply action']
+    requiredComponents: ['search tags, selected chips, apply action']
+    requiredStrings: ['tag filter open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Tag filter base with all controls visible and operational'
+    expectedState: 'Tag filter base with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-29'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-30'
+    source: 'photo_30.jpg'
+    reference: 'docs/ui/reference/photo_30.jpg'
+    normalized: 'docs/ui/reference/photo_30.jpg'
+    sha256: '4c26967c266266b08a9eb2ce6bb3904898a0e8acc86045fdff25aefa4c098bd2'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'tag selected'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['selected chip, result count, clear action']
+    requiredComponents: ['selected chip, result count, clear action']
+    requiredStrings: ['tag selected', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Tag filter selected with all controls visible and operational'
+    expectedState: 'Tag filter selected with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-30'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-31'
+    source: 'photo_31.jpg'
+    reference: 'docs/ui/reference/photo_31.jpg'
+    normalized: 'docs/ui/reference/photo_31.jpg'
+    sha256: '3d23c99b34f1cb9c083259773e0d1a6c5d029bd3306221624d3a93518cb94af8'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'tag query entered'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['query, filtered tags, empty handling']
+    requiredComponents: ['query, filtered tags, empty handling']
+    requiredStrings: ['tag query entered', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Tag filter search with all controls visible and operational'
+    expectedState: 'Tag filter search with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-31'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-32'
+    source: 'photo_32.jpg'
+    reference: 'docs/ui/reference/photo_32.jpg'
+    normalized: 'docs/ui/reference/photo_32.jpg'
+    sha256: '5c2480762da6ba49d620d8e016f9bfb9a5a8f888c1415ad514ee179ceebe0656'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'tag groups expanded'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['tag groups, disclosure controls']
+    requiredComponents: ['tag groups, disclosure controls']
+    requiredStrings: ['tag groups expanded', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Tag filter groups with all controls visible and operational'
+    expectedState: 'Tag filter groups with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-32'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-33'
+    source: 'photo_33.jpg'
+    reference: 'docs/ui/reference/photo_33.jpg'
+    normalized: 'docs/ui/reference/photo_33.jpg'
+    sha256: '23d0ae76e44f2f05c3a2286d3e7c04652a08586b023414a10e829cf16aabb041'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'excluded tags selected'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['include and exclude chips, validation']
+    requiredComponents: ['include and exclude chips, validation']
+    requiredStrings: ['excluded tags selected', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Tag filter exclusions with all controls visible and operational'
+    expectedState: 'Tag filter exclusions with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-33'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-34'
+    source: 'photo_34.jpg'
+    reference: 'docs/ui/reference/photo_34.jpg'
+    normalized: 'docs/ui/reference/photo_34.jpg'
+    sha256: '6414a943f4fe1a5c715f592da4f8def921d353874c2a7dc4b9d7f397941f6e6e'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'dense tag list'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['scrolling tag list, sticky actions']
+    requiredComponents: ['scrolling tag list, sticky actions']
+    requiredStrings: ['dense tag list', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Tag filter dense list with all controls visible and operational'
+    expectedState: 'Tag filter dense list with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-34'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-35'
+    source: 'photo_35.jpg'
+    reference: 'docs/ui/reference/photo_35.jpg'
+    normalized: 'docs/ui/reference/photo_35.jpg'
+    sha256: '869c8dfb3e82fe6ca18ea8c66e14f94fd8dd4b2c1b47a1fc94114b7292b6219b'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'filter applied'
+    fixture: 'filtered-discovery'
+    preconditions:
+      [
+        'load fixture filtered-discovery',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['active filter summary, reset action, results']
+    requiredComponents: ['active filter summary, reset action, results']
+    requiredStrings: ['filter applied', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Tag filter applied with all controls visible and operational'
+    expectedState: 'Tag filter applied with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: pending',
+        'playwright flow: pending',
+        'visual expected-actual-diff: pending',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-35'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-36'
+    source: 'photo_36.jpg'
+    reference: 'docs/ui/reference/photo_36.jpg'
+    normalized: 'docs/ui/reference/photo_36.jpg'
+    sha256: '452ca0162ad9ddbed1c2ca617c4cd3c2013a031c5f979dd898dbe1c7b7b8dff8'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'language filter open'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['language choices, selection, clear action']
+    requiredComponents: ['language choices, selection, clear action']
+    requiredStrings: ['language filter open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Language filter with all controls visible and operational'
+    expectedState: 'Language filter with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: ProductComponents Unicode/CJK/RTL language selection',
+        'playwright flow: Android/iPhone/desktop language catalogue, search, select, apply and reset',
+        'visual expected-actual-diff: docs/ui/evidence/ui-36 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-36'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-37'
+    source: 'photo_37.jpg'
+    reference: 'docs/ui/reference/photo_37.jpg'
+    normalized: 'docs/ui/reference/photo_37.jpg'
+    sha256: '8b15a5defc6ce78c0c28855e22fbfe063709ebeddd2d81a2e3fb26179913bafb'
+    viewport: { width: 576, height: 1280 }
+    route: '/discover'
+    state: 'group size filter open'
+    fixture: 'discover-default'
+    preconditions:
+      [
+        'load fixture discover-default',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['size choices, selection, clear action']
+    requiredComponents: ['size choices, selection, clear action']
+    requiredStrings: ['group size filter open', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Group size filter with all controls visible and operational'
+    expectedState: 'Group size filter with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: group-size choices, selection, reset and disabled feature-flag state',
+        'playwright flow: Android/iPhone/desktop group-size selection, apply and reset',
+        'visual expected-actual-diff: docs/ui/evidence/ui-37 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-37'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-38'
+    source: 'photo_38.jpg'
+    reference: 'docs/ui/reference/photo_38.jpg'
+    normalized: 'docs/ui/reference/photo_38.jpg'
+    sha256: '754af425ef461cf6c3149315587e264a879e4e059dda797766bcf161c83d003b'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'monthly tier card'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['tier price, benefits, purchase action']
+    requiredComponents: ['tier price, benefits, purchase action']
+    requiredStrings: ['monthly tier card', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Pricing card one with all controls visible and operational'
+    expectedState: 'Pricing card one with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: PlanCard purchase, disabled and included-state regressions pass',
+        'playwright flow: iPhone pricing period, price and accessibility checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-38 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-38'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-39'
+    source: 'photo_39.jpg'
+    reference: 'docs/ui/reference/photo_39.jpg'
+    normalized: 'docs/ui/reference/photo_39.jpg'
+    sha256: 'c3fd240892f0c3a1df07ebe830d378be884352d77963e3c1fca48673ac5a84ec'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'monthly tier comparison'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['tier price, benefits, purchase action']
+    requiredComponents: ['tier price, benefits, purchase action']
+    requiredStrings: ['monthly tier comparison', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Pricing card two with all controls visible and operational'
+    expectedState: 'Pricing card two with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: PlanCard purchase, disabled and included-state regressions pass',
+        'playwright flow: iPhone pricing carousel and current-plan checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-39 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-39'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-40'
+    source: 'photo_40.jpg'
+    reference: 'docs/ui/reference/photo_40.jpg'
+    normalized: 'docs/ui/reference/photo_40.jpg'
+    sha256: 'ff93732061a7cb0a7072b8b8418e66a0d2f952b4065e1ede979c72d43481504b'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'higher tier card'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['tier price, benefits, purchase action']
+    requiredComponents: ['tier price, benefits, purchase action']
+    requiredStrings: ['higher tier card', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Pricing card three with all controls visible and operational'
+    expectedState: 'Pricing card three with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: PlanCard premium hierarchy regression passes',
+        'playwright flow: iPhone highest-rank plan and entitlement checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-40 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-40'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-41'
+    source: 'photo_41.jpg'
+    reference: 'docs/ui/reference/photo_41.jpg'
+    normalized: 'docs/ui/reference/photo_41.jpg'
+    sha256: 'b7266ed2fd6c7c2e89338daec59af91a6a5dc721b67e0610535c24743b73cd52'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'tier comparison lower'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['tier price, benefits, purchase action']
+    requiredComponents: ['tier price, benefits, purchase action']
+    requiredStrings: ['tier comparison lower', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Pricing card four with all controls visible and operational'
+    expectedState: 'Pricing card four with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: PlanCard one-time purchase action regression passes',
+        'playwright flow: iPhone lower-card purchase region and axe checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-41 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-41'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-42'
+    source: 'photo_42.jpg'
+    reference: 'docs/ui/reference/photo_42.jpg'
+    normalized: 'docs/ui/reference/photo_42.jpg'
+    sha256: 'c229e83b5bc548831362b7abcd876f1b08eadf62d779f554348066e19346b77e'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'faq top'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['faq disclosures, legal links']
+    requiredComponents: ['faq disclosures, legal links']
+    requiredStrings: ['faq top', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Pricing FAQ top with all controls visible and operational'
+    expectedState: 'Pricing FAQ top with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'component semantics: native details/summary disclosure controls',
+        'playwright flow: first FAQ answer and exact-state axe checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-42 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-42'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_FAIL'
+  - id: 'ui-43'
+    source: 'photo_43.jpg'
+    reference: 'docs/ui/reference/photo_43.jpg'
+    normalized: 'docs/ui/reference/photo_43.jpg'
+    sha256: 'a333e66c7ff3734bb18c2dbfb6b289750d2351deb43e3dcf7260acb61a229562'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'faq lower'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['faq disclosures, restore purchase guidance']
+    requiredComponents: ['faq disclosures, restore purchase guidance']
+    requiredStrings: ['faq lower', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Pricing FAQ lower with all controls visible and operational'
+    expectedState: 'Pricing FAQ lower with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'component semantics: native details/summary disclosure controls',
+        'playwright flow: refund FAQ answer and exact copy checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-43 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-43'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-44'
+    source: 'photo_44.jpg'
+    reference: 'docs/ui/reference/photo_44.jpg'
+    normalized: 'docs/ui/reference/photo_44.jpg'
+    sha256: '14525efe8370a63ed02b67eb0cb3ba9b25bab2f854a5aa208b28d110c32a0e19'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'annual period selected'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['period switch, tier price, savings']
+    requiredComponents: ['period switch, tier price, savings']
+    requiredStrings: ['annual period selected', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Annual pricing one with all controls visible and operational'
+    expectedState: 'Annual pricing one with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: PlanCard fixed-term presentation regressions pass',
+        'playwright flow: 365-day selection and Plus Stars price checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-44 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-44'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-45'
+    source: 'photo_45.jpg'
+    reference: 'docs/ui/reference/photo_45.jpg'
+    normalized: 'docs/ui/reference/photo_45.jpg'
+    sha256: '8336902ad1c4c464b40236e9011f0f84b81cde7b372750cd17c2a2db735f63f3'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'annual tier details'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['tier benefits, limits, purchase action']
+    requiredComponents: ['tier benefits, limits, purchase action']
+    requiredStrings: ['annual tier details', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Annual pricing two with all controls visible and operational'
+    expectedState: 'Annual pricing two with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: PlanCard premium hierarchy regressions pass',
+        'playwright flow: 365-day Pro entitlement and Stars price checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-45 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-45'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'
+  - id: 'ui-46'
+    source: 'photo_46.jpg'
+    reference: 'docs/ui/reference/photo_46.jpg'
+    normalized: 'docs/ui/reference/photo_46.jpg'
+    sha256: '776bf0482b9ed849d564311d289dd803dff61f3ee92dad60dd977af6b679e9f7'
+    viewport: { width: 576, height: 1280 }
+    route: '/pricing'
+    state: 'fixed period variant'
+    fixture: 'pricing-public'
+    preconditions:
+      [
+        'load fixture pricing-public',
+        'authenticate only when the route requires it',
+        'reset route-local UI state',
+      ]
+    user_data: 'deterministic non-production fixture data'
+    actions: ['open route', 'establish state', 'capture viewport']
+    components: ['fixed duration, price, non-renewal copy']
+    requiredComponents: ['fixed duration, price, non-renewal copy']
+    requiredStrings: ['fixed period variant', 'localized primary actions for the state']
+    requiredControls:
+      ['all controls named by requiredComponents', 'explicit close or back control for overlays']
+    business_rules:
+      [
+        'authorization is server-side',
+        'persistent actions survive reload',
+        'no secrets in frontend',
+      ]
+    expected: 'Fixed pricing variant with all controls visible and operational'
+    expectedState: 'Fixed pricing variant with all controls visible and operational backed by persisted domain state'
+    visual_target: 'functional and visual parity adapted to the Velora design system'
+    interactions:
+      ['keyboard', 'pointer', 'touch where applicable', 'outside-click dismissal for overlays']
+    accessibility:
+      ['visible focus', 'semantic accessible names', 'no keyboard trap', 'reduced-motion safe']
+    allowed_deviation:
+      ['Velora brand copy', 'platform-safe typography', 'content-dependent wrapping']
+    disallowed_deviation:
+      ['missing control', 'overlap', 'clipping', 'broken action', 'temporary-only persistence']
+    tests:
+      [
+        'unit/component: PlanCard one-time purchase action regression passes',
+        'playwright flow: fixed 365-day purchase region and no-renewal copy checks pass',
+        'visual expected-actual-diff: docs/ui/evidence/ui-46 reviewed; parity remains unapproved',
+      ]
+    logicTests: ['unit/component contract', 'Worker and D1 integration where state is persistent']
+    visualTest: 'expected/actual/diff evidence under docs/ui/evidence/ui-46'
+    responsiveTests: ['iphone', 'android', 'desktop']
+    status: 'REVIEWED_PASS'

@@ -6,12 +6,12 @@ type Localized<T> = {
 
 export const en: Pick<Localized<typeof ru>, 'telegram' | 'billing'> = {
   telegram: {
-    openButton: 'Open Velora',
+    openButton: 'Open VeloraAI',
     command: {
       start:
-        '✨ *Welcome to Velora*\n\nCreate characters and stories with memory — right inside Telegram.',
-      help: '🪄 *Velora*\n\nOpen the app with the button below. If sign-in fails, close the Mini App and open it again.',
-      app: '🌙 *Open Velora*\n\nTap the button below to continue your stories.',
+        '✨ *Welcome to VeloraAI*\n\nCreate characters and stories with memory — right inside Telegram.',
+      help: '🪄 *VeloraAI*\n\nOpen the app with the button below. If sign-in fails, close the Mini App and open it again.',
+      app: '🌙 *Open VeloraAI*\n\nTap the button below to continue your stories.',
       support:
         '🛟 *Velora Support*\n\nOpen Support in the app and describe the issue in one message. Never send passwords or payment credentials.',
       settings:
@@ -21,7 +21,7 @@ export const en: Pick<Localized<typeof ru>, 'telegram' | 'billing'> = {
       privacy:
         '🔐 *Privacy*\n\nVelora verifies Telegram sign-in on the server and never publishes private stories. The policy is available inside the app.',
       premium:
-        '✨ *Top up Velora*\n\nOnly one-time purchases with Telegram Stars — no subscription or automatic charges.',
+        '✨ *Premium and Pro*\n\nChoose monthly or annual access and pay with Telegram Stars.',
       report:
         '🛡️ *Report a violation*\n\nOpen the relevant character or message in Velora and choose Report so moderators receive the necessary context.',
       paysupport:

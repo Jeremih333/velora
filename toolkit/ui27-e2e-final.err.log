@@ -1,0 +1,5 @@
+[WebServer] $ tsc -p tsconfig.json --noEmit && vite build && node ../../toolkit/check-web-bundle.mjs
+[WebServer] $ vite preview "--host" "127.0.0.1"
+[WebServer] 23:53:41 [vite] http proxy error: /api/v1/conversations?q=&sort=newest&state=ACTIVE
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:8787
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)

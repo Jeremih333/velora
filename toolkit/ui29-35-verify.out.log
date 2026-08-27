@@ -1,0 +1,22 @@
+Secret scan passed.
+Running pnpm format:check
+Checking formatting...
+All matched files use Prettier code style!
+Running pnpm docs:check
+Documentation link check passed.
+Running pnpm lint
+Running pnpm typecheck
+Running pnpm test
+
+ RUN  v4.1.10 C:/Users/User/Desktop/бот для ролплея с нейросетями
+
+ ❯ apps/web/src/AuthenticatedApp.components.test.tsx (11 tests | 1 failed) 2523ms
+     × uses the chat markdown renderer for collapsed and expanded greetings 1332ms
+
+ Test Files  1 failed | 49 passed (50)
+      Tests  1 failed | 197 passed (198)
+   Start at  00:55:36
+   Duration  7.13s (transform 4.27s, setup 0ms, import 21.29s, tests 8.99s, environment 10.49s)
+
+[ELIFECYCLE] Test failed. See above for more details.
+[ELIFECYCLE] Command failed with exit code 1.

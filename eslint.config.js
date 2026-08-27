@@ -13,6 +13,8 @@ export default tseslint.config(
       '**/dist-worker*/**',
       '**/coverage/**',
       '**/.wrangler/**',
+      '**/.wrangler-*/**',
+      '**/worker-configuration.d.ts',
       'playwright-report/**',
     ],
   },

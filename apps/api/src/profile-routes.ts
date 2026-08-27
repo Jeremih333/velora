@@ -12,6 +12,7 @@ interface ProfileEnvironment {
 
 interface ProfileRow {
   readonly userId: string;
+  readonly username: string | null;
   readonly displayName: string;
   readonly bio: string;
   readonly avatarFileId: string | null;
@@ -24,6 +25,7 @@ interface ProfileRow {
 
 const userIdSchema = z.uuid();
 const profileProjection = `u.id AS userId,
+  u.username,
   COALESCE(p.display_name, u.display_name) AS displayName,
   COALESCE(p.bio, '') AS bio, p.avatar_file_id AS avatarFileId,
   f.moderation_state AS avatarModerationState,
@@ -117,7 +119,8 @@ async function readProfile(database: D1Database, targetId: string, viewerId: str
   }
   const characters = await database
     .prepare(
-      `SELECT c.id, c.avatar_file_id AS avatarFileId, v.name, v.tagline,
+      `SELECT c.id, c.avatar_file_id AS avatarFileId,
+       c.avatar_focal_x AS avatarFocalX, c.avatar_focal_y AS avatarFocalY, v.name, v.tagline,
        c.content_rating AS contentRating, c.updated_at AS updatedAt
        FROM characters c JOIN character_versions v ON v.id = c.active_version_id
        WHERE c.owner_id = ? AND c.publish_state = 'PUBLISHED' AND c.visibility = 'PUBLIC'
@@ -127,6 +130,8 @@ async function readProfile(database: D1Database, targetId: string, viewerId: str
     .all<{
       id: string;
       avatarFileId: string | null;
+      avatarFocalX: number;
+      avatarFocalY: number;
       name: string;
       tagline: string;
       contentRating: 'SAFE' | 'MATURE';
@@ -147,6 +152,7 @@ async function readProfile(database: D1Database, targetId: string, viewerId: str
     .first<{ characters: number; likes: number; chats: number }>();
   return {
     userId: row.userId,
+    username: row.username,
     displayName: row.displayName,
     bio: row.bio,
     avatarFileId: isOwn || row.avatarModerationState === 'APPROVED' ? row.avatarFileId : null,
